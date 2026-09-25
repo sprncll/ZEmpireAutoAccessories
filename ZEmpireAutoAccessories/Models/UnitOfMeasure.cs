@@ -25,18 +25,45 @@
         public const string Base = Centimeter;
 
         /// <summary>
-        /// Categories bought and sold by length. Matching on the category name
-        /// keeps this out of the database, which has no column to mark a
-        /// product as roll goods.
+        /// The categories bought and sold by length if nothing overrides them.
+        /// Matching on the category name keeps this out of the database, which
+        /// has no column to mark a product as roll goods.
         /// </summary>
-        private static readonly HashSet<string> LengthCategories =
-            new(StringComparer.OrdinalIgnoreCase)
-            {
-                "Paint Protection Film",
-                "Paint Protection",
-                "Window Tint",
-                "Tint"
-            };
+        private static readonly string[] DefaultLengthCategories =
+        {
+            "Paint Protection Film",
+            "Paint Protection",
+            "Window Tint",
+            "Tint"
+        };
+
+        /// <summary>
+        /// Replaced once at startup from appsettings.json when that file lists
+        /// categories, so a new film category can be added without a code
+        /// change or a schema change. Assigned whole rather than mutated, and
+        /// only during startup, so readers always see a complete set.
+        /// </summary>
+        private static HashSet<string> LengthCategories =
+            new(DefaultLengthCategories, StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Points the category list at configuration. An absent or empty
+        /// setting keeps the built-in list, so a missing section can never
+        /// leave the app with nothing measured by length.
+        /// </summary>
+        public static void ConfigureLengthCategories(IEnumerable<string>? categoryNames)
+        {
+            var names = categoryNames?
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim())
+                .ToList();
+
+            if (names is { Count: > 0 })
+                LengthCategories = new HashSet<string>(names, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>The category names currently treated as roll goods.</summary>
+        public static IReadOnlyCollection<string> ConfiguredLengthCategories => LengthCategories;
 
         /// <summary>How many centimetres one of each unit is. Exact in decimal.</summary>
         private static readonly Dictionary<string, decimal> Centimeters =
@@ -52,14 +79,6 @@
 
         public static bool IsSoldByLength(string? categoryName) =>
             categoryName != null && LengthCategories.Contains(categoryName.Trim());
-
-        /// <summary>
-        /// How one product is measured: its own setting when it has one,
-        /// otherwise its category's. This is the resolution every screen and
-        /// service should use - the category is only the default.
-        /// </summary>
-        public static bool IsSoldByLength(bool? productOverride, string? categoryName) =>
-            productOverride ?? IsSoldByLength(categoryName);
 
         public static bool IsLengthUnit(string? unit) =>
             unit != null && Centimeters.ContainsKey(unit);

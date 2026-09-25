@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
 using System.Globalization;
@@ -60,6 +60,12 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<IPricingService, PricingService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
+
+// Which product categories are measured off a roll. Read once at startup from
+// appsettings.json so a new film category can be added without a code change
+// or a schema change; an absent section keeps the built-in list.
+ZEmpireAutoAccessories.Models.UnitOfMeasure.ConfigureLengthCategories(
+    builder.Configuration.GetSection("Inventory:LengthCategories").Get<string[]>());
 builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();

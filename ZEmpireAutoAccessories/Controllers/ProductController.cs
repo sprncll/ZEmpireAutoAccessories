@@ -36,7 +36,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // Which products are measured off a roll rather than counted, so
             // the list says so rather than leaving it implied by the category.
             ViewData["LengthProducts"] = products
-                .Where(p => UnitOfMeasure.IsSoldByLength(p.SoldByLength, p.Category.CategoryName))
+                .Where(p => UnitOfMeasure.IsSoldByLength(p.Category.CategoryName))
                 .Select(p => p.ProductID)
                 .ToHashSet();
 
@@ -58,11 +58,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (product == null)
                 return NotFound();
 
-            ViewData["SoldByLength"] =
-                UnitOfMeasure.IsSoldByLength(product.SoldByLength, product.Category.CategoryName);
-            ViewData["MeasureIsOverridden"] = product.SoldByLength != null;
-            ViewData["CategoryDefaultByLength"] =
-                UnitOfMeasure.IsSoldByLength(product.Category.CategoryName);
+            ViewData["SoldByLength"] = UnitOfMeasure.IsSoldByLength(product.Category.CategoryName);
 
             return View(product);
         }
@@ -72,9 +68,7 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             await LoadDropdowns();
 
-            // An empty Product rather than null, so the shared _MeasuredBy
-            // partial has a model to bind its dropdown to.
-            return View(new Product { IsActive = true });
+            return View();
         }
 
         // POST: Product/Create
