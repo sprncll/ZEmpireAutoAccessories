@@ -1,4 +1,4 @@
-namespace ZEmpireAutoAccessories.Models
+﻿namespace ZEmpireAutoAccessories.Models
 {
     /// <summary>
     /// Paint Protection Film and Window Tint come off a roll and are measured
@@ -85,6 +85,23 @@ namespace ZEmpireAutoAccessories.Models
             return quantity >= 100m
                 ? $"{FromBase(quantity, Meter):N2} m"
                 : $"{quantity:N1} cm";
+        }
+
+        /// <summary>
+        /// A stock figure split into the number and its unit, so a column can
+        /// align the numbers and set the units apart. Piece goods get a unit
+        /// too ("pcs") - a column mixing "4.32 m" with a bare "100" reads as
+        /// though one of them is missing something.
+        /// </summary>
+        public static (string Value, string Unit) Split(decimal quantity, bool soldByLength)
+        {
+            if (!soldByLength)
+                return (quantity.ToString("N0"), "pcs");
+
+            return quantity >= 100m
+                ? (FromBase(quantity, Meter).ToString("N2"), Meter)
+                // Trailing zeros on a centimetre reading are noise: 99 cm, not 99.0 cm.
+                : (quantity.ToString("0.##"), Centimeter);
         }
 
         /// <summary>The unit label to store on a document line.</summary>

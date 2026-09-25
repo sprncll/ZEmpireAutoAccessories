@@ -1,6 +1,9 @@
 ﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using ZEmpireAutoAccessories.Authorization;
+using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Data;
+using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
@@ -9,15 +12,19 @@ namespace ZEmpireAutoAccessories.Controllers
     public class InventoryController : Controller
     {
         private readonly IInventoryService _inventoryService;
+        private readonly ApplicationDbContext _context;
 
-        public InventoryController(IInventoryService inventoryService)
+        public InventoryController(
+            IInventoryService inventoryService,
+            ApplicationDbContext context)
         {
             _inventoryService = inventoryService;
+            _context = context;
         }
 
         public async Task<IActionResult> Index(string? status, string? q)
         {
-            var stockLevels = await _inventoryService.GetStockLevels();
+            var stockLevels = await BuildRows();
 
             const decimal lowStockThreshold = 5;
 
@@ -25,10 +32,10 @@ namespace ZEmpireAutoAccessories.Controllers
             // tabs still say how much needs attention while you are looking
             // at one of them.
             ViewData["CountAll"] = stockLevels.Count;
-            ViewData["CountOut"] = stockLevels.Count(s => (s.StockOnHand ?? 0) <= 0);
+            ViewData["CountOut"] = stockLevels.Count(s => s.StockOnHand <= 0);
             ViewData["CountLow"] = stockLevels.Count(s =>
-                (s.StockOnHand ?? 0) > 0 && (s.StockOnHand ?? 0) <= lowStockThreshold);
-            ViewData["CountIn"] = stockLevels.Count(s => (s.StockOnHand ?? 0) > lowStockThreshold);
+                s.StockOnHand > 0 && s.StockOnHand <= lowStockThreshold);
+            ViewData["CountIn"] = stockLevels.Count(s => s.StockOnHand > lowStockThreshold);
 
             if (!string.IsNullOrWhiteSpace(q))
             {
@@ -42,9 +49,9 @@ namespace ZEmpireAutoAccessories.Controllers
             {
                 stockLevels = status switch
                 {
-                    "OutOfStock" => stockLevels.Where(s => (s.StockOnHand ?? 0) <= 0).ToList(),
-                    "LowStock" => stockLevels.Where(s => (s.StockOnHand ?? 0) > 0 && (s.StockOnHand ?? 0) <= lowStockThreshold).ToList(),
-                    "InStock" => stockLevels.Where(s => (s.StockOnHand ?? 0) > lowStockThreshold).ToList(),
+                    "OutOfStock" => stockLevels.Where(s => s.StockOnHand <= 0).ToList(),
+                    "LowStock" => stockLevels.Where(s => s.StockOnHand > 0 && s.StockOnHand <= lowStockThreshold).ToList(),
+                    "InStock" => stockLevels.Where(s => s.StockOnHand > lowStockThreshold).ToList(),
                     _ => stockLevels
                 };
             }
@@ -52,12 +59,39 @@ namespace ZEmpireAutoAccessories.Controllers
             ViewData["Status"] = status;
             ViewData["Search"] = q;
 
-            // Which rows are roll goods, so the list can show "12.50 m"
-            // instead of "1250" and offer cm/in/m on the row's move form.
-            ViewData["SoldByLength"] =
-                await _inventoryService.SoldByLength(stockLevels.Select(s => s.ProductID));
-
             return View(stockLevels);
+        }
+
+        /// <summary>
+        /// The list, grouped the way the shelves are: by category, then by
+        /// name. Each row knows the unit it is measured in, so the column can
+        /// read "4.32 m" or "100 pcs" rather than a bare number whose meaning
+        /// depends on the product.
+        /// </summary>
+        private async Task<List<InventoryRow>> BuildRows()
+        {
+            var levels = await _inventoryService.GetStockLevels();
+
+            var products = await _context.Products
+                .Include(p => p.Category)
+                .ToDictionaryAsync(p => p.ProductID, p => p.Category.CategoryName);
+
+            return levels
+                .Select(l =>
+                {
+                    var category = products.TryGetValue(l.ProductID, out var c) ? c : "Uncategorised";
+                    return new InventoryRow
+                    {
+                        ProductID = l.ProductID,
+                        ProductName = l.ProductName,
+                        CategoryName = category,
+                        StockOnHand = l.StockOnHand ?? 0,
+                        SoldByLength = UnitOfMeasure.IsSoldByLength(category)
+                    };
+                })
+                .OrderBy(r => r.CategoryName)
+                .ThenBy(r => r.ProductName)
+                .ToList();
         }
 
         // id = ProductID

@@ -24,6 +24,19 @@ namespace ZEmpireAutoAccessories.Models
         public ApplicationUser User { get; set; } = null!;
     }
 
+    /// <summary>
+    /// A row of the Inventory list: what is on hand, in the unit the product
+    /// is measured in, with the category it is grouped under.
+    /// </summary>
+    public class InventoryRow
+    {
+        public int ProductID { get; set; }
+        public string ProductName { get; set; } = string.Empty;
+        public string CategoryName { get; set; } = string.Empty;
+        public decimal StockOnHand { get; set; }
+        public bool SoldByLength { get; set; }
+    }
+
     /// <summary>One row of a stock count sheet: what the system holds, ready for a shelf figure.</summary>
     public class StockCountRow
     {

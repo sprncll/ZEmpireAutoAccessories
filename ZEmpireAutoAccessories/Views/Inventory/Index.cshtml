@@ -1,4 +1,4 @@
-﻿@model IEnumerable<ZEmpireAutoAccessories.Models.VwStockOnHand>
+﻿@model IEnumerable<ZEmpireAutoAccessories.Models.InventoryRow>
 
 @{
     ViewData["Title"] = "Inventory";
@@ -14,7 +14,6 @@
     var success = TempData["Success"] as string;
     var inventoryError = TempData["InventoryError"] as string;
 
-    var byLength = ViewData["SoldByLength"] as HashSet<int> ?? new HashSet<int>();
 }
 
 <style>
@@ -139,8 +138,38 @@
 
     /* Move stock straight from the row rather than opening the product. */
     .move-form { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
-    .move-qty { width:86px; }
-    .move-unit { width:66px; }
+    .move-input { width:auto; flex:0 0 auto; }
+    .move-qty { width:76px; }
+    .move-unit { width:64px; flex:0 0 auto; }
+
+    /* Category bands, so the list reads as shelves rather than one long run. */
+    .cat-row td {
+        background: #f7f8fa;
+        font-weight: 700;
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: #6b7280;
+        padding-top: 9px;
+        padding-bottom: 9px;
+    }
+
+    .cat-measure {
+        float: right;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0;
+        color: #98a0ad;
+        font-size: 11.5px;
+    }
+
+    /* The figure and its unit are separate so the numbers line up in a
+       column and the unit stays quiet beside them - a column mixing
+       "4.32 m" with "100" is unreadable when both are the same weight. */
+    .onhand-col { text-align: right; white-space: nowrap; padding-right: 18px !important; }
+    .onhand-value { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; color: #0b0b0c; }
+    .onhand-value.is-zero { color: #b91c1c; }
+    .onhand-unit { color: #98a0ad; font-size: 12px; margin-left: 3px; display: inline-block; min-width: 24px; text-align: left; }
     .move-form .btn { padding:4px 10px; font-weight:600; }
 
     /* On a phone the four columns plus a quantity box and two buttons are
@@ -158,8 +187,21 @@
            is low or out, so the badge column earns its space back for the
            In/Out buttons. */
         .status-col { display:none; }
-        .move-qty { width:44px; }
-        .move-unit { width:52px; padding-left:4px; padding-right:16px; }
+        .cat-row td { font-size:10.5px; }
+        .cat-measure { display:none; }
+        .onhand-col { padding-right:8px !important; }
+        .onhand-value { font-size:13px; }
+        /* Qty and its unit on one line, In/Out beneath: with a unit picker
+           in the row there is not enough width for all four side by side,
+           and pushing the buttons into the table's sideways scroll puts
+           them out of reach. */
+        .move-form { flex-wrap:wrap; justify-content:flex-end; row-gap:6px; }
+        /* The amount takes the whole line, so In and Out stay together
+           underneath rather than one of them dangling on a line of its own. */
+        .move-input { flex:1 0 100%; }
+        .move-qty { width:auto; flex:1 1 auto; }
+        .move-unit { width:62px; padding-left:6px; padding-right:16px; }
+        .move-form .btn { padding:3px 12px; }
     }
 </style>
 
@@ -213,19 +255,37 @@
         <thead>
             <tr>
                 <th>Product</th>
-                <th>Stock<span class="d-none d-sm-inline"> On Hand</span></th>
+                <th class="onhand-col">On Hand</th>
                 <th class="status-col">Status</th>
-                <th class="text-end pe-3">Action</th>
+                <th class="text-end pe-3">Move Stock</th>
             </tr>
         </thead>
         <tbody>
+            @{ string? currentCategory = null; }
             @foreach (var item in Model)
             {
-                var stock = item.StockOnHand ?? 0;
-                var roll = byLength.Contains(item.ProductID);
+                var stock = item.StockOnHand;
+                var roll = item.SoldByLength;
+                var figure = ZEmpireAutoAccessories.Models.UnitOfMeasure.Split(stock, roll);
+
+                @* Grouped by category so the shelves read in the order they
+                   are walked, rather than 14 unrelated products in one run. *@
+                @if (item.CategoryName != currentCategory)
+                {
+                    currentCategory = item.CategoryName;
+                    <tr class="cat-row">
+                        <td colspan="4">
+                            @currentCategory
+                            <span class="cat-measure">@(roll ? "measured by length" : "counted in pieces")</span>
+                        </td>
+                    </tr>
+                }
                 <tr>
                     <td>@item.ProductName</td>
-                    <td>@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(stock, roll)</td>
+                    <td class="onhand-col">
+                        <span class="onhand-value @(stock <= 0 ? "is-zero" : "")">@figure.Value</span>
+                        <span class="onhand-unit">@figure.Unit</span>
+                    </td>
                     <td class="status-col">
                         @if (stock <= 0)
                         {
@@ -249,20 +309,23 @@
                             <input type="hidden" name="returnTo" value="index" />
                             <input type="hidden" name="status" value="@currentStatus" />
                             <input type="hidden" name="q" value="@search" />
-                            <input type="number" name="quantity" step="0.01" min="0.01"
-                                   class="form-control form-control-sm move-qty" placeholder="Qty" />
-                            @if (roll)
-                            {
-                                @* Roll goods are worked in whatever unit suits
-                                   the job; the amount is converted on the way in. *@
-                                <select name="unit" class="form-select form-select-sm move-unit"
-                                        data-searchable="false" title="Unit">
-                                    @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)
-                                    {
-                                        <option value="@u">@u</option>
-                                    }
-                                </select>
-                            }
+                            @* Amount and unit are one control, so on a narrow
+                               screen they wrap as a pair and leave In/Out
+                               together on the line below. *@
+                            <div class="input-group input-group-sm move-input">
+                                <input type="number" name="quantity" step="0.01" min="0.01"
+                                       class="form-control move-qty" placeholder="Qty" />
+                                @if (roll)
+                                {
+                                    <select name="unit" class="form-select move-unit"
+                                            data-searchable="false" title="Unit">
+                                        @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)
+                                        {
+                                            <option value="@u">@u</option>
+                                        }
+                                    </select>
+                                }
+                            </div>
                             <button type="submit" class="btn btn-sm btn-outline-success" title="Stock in">In</button>
                             @* Stocking out of an empty shelf can only be
                                refused, so don't offer the click. *@
