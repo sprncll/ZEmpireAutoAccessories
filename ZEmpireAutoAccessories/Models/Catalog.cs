@@ -39,6 +39,15 @@ namespace ZEmpireAutoAccessories.Models
 
         public bool IsActive { get; set; }
 
+        /// <summary>
+        /// Overrides how this product is measured. Null - the usual case -
+        /// means follow the category; true forces length (cm/in/m, stored in
+        /// centimetres) and false forces whole pieces. See
+        /// Database/AddProductSoldByLength.sql.
+        /// </summary>
+        [Display(Name = "Measured by")]
+        public bool? SoldByLength { get; set; }
+
         public ProductCategory Category { get; set; } = null!;
         public ICollection<Pricing> Pricings { get; set; } = new List<Pricing>();
         public ICollection<TintVariant> TintVariants { get; set; } = new List<TintVariant>();

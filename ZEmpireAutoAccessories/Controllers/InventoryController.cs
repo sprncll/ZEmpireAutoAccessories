@@ -74,19 +74,20 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var products = await _context.Products
                 .Include(p => p.Category)
-                .ToDictionaryAsync(p => p.ProductID, p => p.Category.CategoryName);
+                .ToDictionaryAsync(p => p.ProductID, p => new { p.SoldByLength, p.Category.CategoryName });
 
             return levels
                 .Select(l =>
                 {
-                    var category = products.TryGetValue(l.ProductID, out var c) ? c : "Uncategorised";
+                    var product = products.TryGetValue(l.ProductID, out var pr) ? pr : null;
                     return new InventoryRow
                     {
                         ProductID = l.ProductID,
                         ProductName = l.ProductName,
-                        CategoryName = category,
+                        CategoryName = product?.CategoryName ?? "Uncategorised",
                         StockOnHand = l.StockOnHand ?? 0,
-                        SoldByLength = UnitOfMeasure.IsSoldByLength(category)
+                        SoldByLength =
+                            UnitOfMeasure.IsSoldByLength(product?.SoldByLength, product?.CategoryName)
                     };
                 })
                 .OrderBy(r => r.CategoryName)

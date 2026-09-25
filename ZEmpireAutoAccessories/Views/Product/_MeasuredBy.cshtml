@@ -1,56 +1,81 @@
+@model ZEmpireAutoAccessories.Models.Product
+
 @*
-    How the product being edited will be measured once it is saved.
+    How this product is measured.
 
-    There is no column on cat.Product for this - it follows the category, so
-    every product in a category is measured the same way. Showing it on the
-    form means an admin sees the consequence while choosing the category,
-    instead of finding out at the stock screen that a product they think of
-    as pieces is being asked for in centimetres.
+    The category sets the default - film categories are measured by length,
+    everything else is counted - and leaving this on "Follow category" keeps
+    that, which is what almost every product wants. Setting it explicitly
+    overrides the category for this one product: a squeegee filed under Tint
+    that is really counted, or a film in a category the default list does not
+    know about.
 
-    The script keeps it in step with the category dropdown; the server decides
-    for real, from the same list. It sits in the partial body rather than a
-    Scripts section because a partial cannot declare one, and the category
-    field is rendered above this so the element already exists.
+    Stored in cat.Product.SoldByLength (NULL / 1 / 0). The script that adds
+    it is Database/AddProductSoldByLength.sql.
+
+    The note under the dropdown is kept in step by the script below; the
+    server resolves it for real from the same category list. It sits in the
+    partial body rather than a Scripts section because a partial cannot
+    declare one, and the category field is rendered above this.
 *@
 @{
     var lengthCategories = ViewData["LengthCategories"] as HashSet<int> ?? new HashSet<int>();
 }
 
 <div class="mb-3">
-    <label class="form-label">Measured by</label>
-    <div id="measuredBy" class="measured-note">
+    <label asp-for="SoldByLength" class="form-label">Measured by</label>
+    <select asp-for="SoldByLength" id="soldByLength" class="form-select" data-searchable="false">
+        <option value="">Follow category</option>
+        <option value="false">By piece &mdash; whole units, one line deducts one</option>
+        <option value="true">By length &mdash; off a roll, entered in cm, in or m</option>
+    </select>
+    <div id="measuredBy" class="measured-note mt-2">
         <span class="measured-pill is-count">Counted in pieces</span>
         <span class="measured-help">Pick a category above to set this.</span>
     </div>
 </div>
 
 <script>
-    // Categories whose products come off a roll, from UnitOfMeasure on the
-    // server. Held as ids so renaming a category cannot put this out of step.
     (function () {
+        // Categories whose products come off a roll, from UnitOfMeasure on the
+        // server. Held as ids so renaming a category cannot put this out of step.
         var LENGTH_CATEGORIES =
             @Html.Raw(System.Text.Json.JsonSerializer.Serialize(lengthCategories));
 
         var category = document.getElementById('CategoryID');
+        var choice = document.getElementById('soldByLength');
         var note = document.getElementById('measuredBy');
-        if (!category || !note) { return; }
+        if (!category || !choice || !note) { return; }
 
         var pill = note.querySelector('.measured-pill');
         var help = note.querySelector('.measured-help');
 
         function apply() {
             var id = parseInt(category.value, 10);
-            var byLength = LENGTH_CATEGORIES.indexOf(id) !== -1;
+            var categoryByLength = LENGTH_CATEGORIES.indexOf(id) !== -1;
+
+            var following = choice.value === '';
+            var byLength = following ? categoryByLength : choice.value === 'true';
 
             pill.textContent = byLength ? 'Measured by length' : 'Counted in pieces';
             pill.className = 'measured-pill ' + (byLength ? 'is-length' : 'is-count');
 
-            help.textContent = byLength
-                ? 'Stock is kept in centimetres. Deliveries, counts and line items can be entered in cm, in or m and are converted.'
-                : 'Stock is whole units - no unit picker, and one line deducts one piece.';
+            if (following) {
+                help.textContent = byLength
+                    ? 'From the category. Stock is kept in centimetres and can be entered in cm, in or m.'
+                    : 'From the category. Stock is whole units - one line deducts one piece.';
+            } else {
+                // Say when the choice differs from the category, so an
+                // override is never a silent surprise later.
+                help.textContent = (byLength === categoryByLength)
+                    ? 'Set on this product.'
+                    : 'Set on this product, overriding the category default of '
+                      + (categoryByLength ? 'by length' : 'by piece') + '.';
+            }
         }
 
         category.addEventListener('change', apply);
+        choice.addEventListener('change', apply);
         apply();
     })();
 </script>

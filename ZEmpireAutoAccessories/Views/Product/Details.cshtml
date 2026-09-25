@@ -162,21 +162,35 @@
 
         <dt class="col-sm-3">Measured by</dt>
         <dd class="col-sm-9">
-            @if (ViewData["SoldByLength"] as bool? ?? false)
-            {
-                <span class="measured-pill is-length">By length</span>
-                <span class="measured-help d-block mt-1">
-                    Stock is kept in centimetres and can be entered in cm, in or m.
-                    This follows the &ldquo;@Model.Category.CategoryName&rdquo; category.
-                </span>
+            @{
+                var byLength = ViewData["SoldByLength"] as bool? ?? false;
+                var overridden = ViewData["MeasureIsOverridden"] as bool? ?? false;
+                var categoryDefault = ViewData["CategoryDefaultByLength"] as bool? ?? false;
             }
-            else
-            {
-                <span class="measured-pill is-count">By piece</span>
-                <span class="measured-help d-block mt-1">
-                    Stock is whole units. This follows the &ldquo;@Model.Category.CategoryName&rdquo; category.
-                </span>
-            }
+            <span class="measured-pill @(byLength ? "is-length" : "is-count")">
+                @(byLength ? "By length" : "By piece")
+            </span>
+            <span class="measured-help d-block mt-1">
+                @(byLength
+                    ? "Stock is kept in centimetres and can be entered in cm, in or m."
+                    : "Stock is whole units.")
+                @if (!overridden)
+                {
+                    <text>From the &ldquo;@Model.Category.CategoryName&rdquo; category.</text>
+                }
+                else if (byLength == categoryDefault)
+                {
+                    <text>Set on this product.</text>
+                }
+                else
+                {
+                    <text>
+                        Set on this product, overriding the
+                        &ldquo;@Model.Category.CategoryName&rdquo; default of
+                        @(categoryDefault ? "by length" : "by piece").
+                    </text>
+                }
+            </span>
         </dd>
 
         <dt class="col-sm-3">Pricing entries</dt>
