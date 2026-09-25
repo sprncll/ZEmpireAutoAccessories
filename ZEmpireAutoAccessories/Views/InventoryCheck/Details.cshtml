@@ -1,0 +1,151 @@
+@model ZEmpireAutoAccessories.Models.InventoryCheck
+
+@{
+    ViewData["Title"] = "Stock Count";
+
+    var variances = ViewData["Variances"] as List<ZEmpireAutoAccessories.Models.StockVarianceRow>
+        ?? new List<ZEmpireAutoAccessories.Models.StockVarianceRow>();
+
+    var success = TempData["Success"] as string;
+    var countError = TempData["CountError"] as string;
+
+    var off = variances.Where(v => v.Variance != 0).ToList();
+
+    // Roll goods are measured in centimetres and everything else is counted
+    // in pieces, so a total across products would add metres to bottles.
+    // Count the products instead and leave the amounts on their own rows.
+    var over = off.Count(v => v.Variance > 0);
+    var short_ = off.Count(v => v.Variance < 0);
+}
+
+<style>
+    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
+    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:-10px 0 18px; }
+    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
+    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
+    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
+    .zx-table thead { background:#0b0b0c; color:#fff; }
+    .zx-table thead th { border-bottom:none; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
+    .zx-table td, .zx-table th { vertical-align:middle; }
+    dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
+    dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
+    .num { font-variant-numeric:tabular-nums; }
+    .variance { font-variant-numeric:tabular-nums; font-weight:600; }
+    .variance.over { color:#15803d; }
+    .variance.short { color:#b91c1c; }
+    .variance.match { color:#98a0ad; font-weight:500; }
+    .badge-normal { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
+    .badge-low { background:rgba(234,179,8,.18); color:#a16207; font-weight:600; }
+    .badge-critical { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
+</style>
+
+<div class="zx-page-head">
+    <h1>Stock Count — @Model.CheckDate.ToString("dd MMM yyyy")</h1>
+    <a class="btn btn-outline-secondary" asp-action="Index">Back to counts</a>
+</div>
+<p class="zx-page-sub">Variance is against stock on hand right now, not when the count was saved.</p>
+
+@if (!string.IsNullOrEmpty(success))
+{
+    <div class="alert alert-success py-2 px-3">@success</div>
+}
+@if (!string.IsNullOrEmpty(countError))
+{
+    <div class="alert alert-danger py-2 px-3">@countError</div>
+}
+
+<div class="zx-card">
+    <dl class="row mb-0">
+        <dt class="col-sm-3">Counted On</dt>
+        <dd class="col-sm-9">@Model.CheckDate.ToString("dd MMM yyyy, h:mm tt")</dd>
+
+        <dt class="col-sm-3">Counted By</dt>
+        <dd class="col-sm-9">@(Model.User?.FullName ?? Model.User?.UserName ?? "—")</dd>
+
+        <dt class="col-sm-3">Products Counted</dt>
+        <dd class="col-sm-9">@variances.Count</dd>
+
+        <dt class="col-sm-3">Out Of Step</dt>
+        <dd class="col-sm-9">
+            @if (off.Count == 0)
+            {
+                <span class="text-success fw-semibold">None — the system matches the shelf.</span>
+            }
+            else
+            {
+                <text>@off.Count product@(off.Count == 1 ? "" : "s")</text>
+                @if (over > 0)
+                {
+                    <text> · @over with more on the shelf</text>
+                }
+                @if (short_ > 0)
+                {
+                    <text> · @short_ short</text>
+                }
+            }
+        </dd>
+    </dl>
+</div>
+
+<div class="zx-card">
+    <div class="table-responsive">
+        <table class="table zx-table mb-0">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Counted</th>
+                    <th>Unit</th>
+                    <th>Level</th>
+                    <th>System Now</th>
+                    <th>Variance</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var v in variances)
+                {
+                    <tr>
+                        <td>@v.ProductName</td>
+                        <td class="num">@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(v.PhysicalStock, v.SoldByLength)</td>
+                        <td>@v.Unit</td>
+                        <td>
+                            <span class="badge badge-@v.StockLevel.ToLowerInvariant()">@v.StockLevel</span>
+                        </td>
+                        <td class="num">@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(v.SystemStock, v.SoldByLength)</td>
+                        <td>
+                            @if (v.Variance == 0)
+                            {
+                                <span class="variance match">Match</span>
+                            }
+                            else
+                            {
+                                <span class="variance @(v.Variance > 0 ? "over" : "short")">
+                                    @(v.Variance > 0 ? "+" : "")@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(Math.Abs(v.Variance), v.SoldByLength)
+                                </span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (off.Count > 0)
+{
+    <div class="zx-card">
+        <h6 class="mb-2">Correct the system to match this count</h6>
+        <p class="zx-page-sub mb-3" style="margin-top:0;">
+            This writes one stock movement per product out of step, so stock on hand ends up equal to
+            what was counted. The movements show in each product's transaction history.
+            If stock has moved since this count was taken, those movements will be overwritten —
+            take a fresh count instead.
+        </p>
+        <form asp-action="Reconcile" asp-route-id="@Model.InventoryCheckID" method="post">
+            <button type="submit" class="btn btn-zx">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" /></svg>
+                Apply adjustments
+            </button>
+        </form>
+    </div>
+}

@@ -126,6 +126,9 @@
                                             else if (m == "Inventory")
                                             {
                                                 <li><a class="dropdown-item" asp-controller="Inventory" asp-action="Index">Inventory</a></li>
+                                                @* Stock counts share the Inventory module rather than
+                                                   owning a sec.Module row of their own. *@
+                                                <li><a class="dropdown-item" asp-controller="InventoryCheck" asp-action="Index">Stock Counts</a></li>
                                             }
                                             else if (m == "Sales")
                                             {

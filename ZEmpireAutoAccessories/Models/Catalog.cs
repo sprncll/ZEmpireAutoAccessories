@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ZEmpireAutoAccessories.Models
@@ -31,6 +31,10 @@ namespace ZEmpireAutoAccessories.Models
         [MaxLength(400)]
         public string? Description { get; set; }
 
+        // CK_Product_DefaultPrice allows NULL or >= 0. Catch it here so a
+        // negative price comes back as a field error rather than a raw SQL
+        // rejection on save.
+        [Range(0, 9999999999.99, ErrorMessage = "Default price can't be negative.")]
         public decimal? DefaultPrice { get; set; }
 
         public bool IsActive { get; set; }
@@ -105,6 +109,8 @@ namespace ZEmpireAutoAccessories.Models
         [MaxLength(400)]
         public string? Description { get; set; }
 
+        // CK_Service_Price backs this with >= 0 at the database level.
+        [Range(0, 9999999999.99, ErrorMessage = "Default price can't be negative.")]
         public decimal DefaultPrice { get; set; }
 
         public bool IsActive { get; set; }

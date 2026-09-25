@@ -1,4 +1,4 @@
-@using ZEmpireAutoAccessories.Models
+﻿@using ZEmpireAutoAccessories.Models
 @{
     ViewData["Title"] = "New Sale";
     var products = ViewData["Products"] as List<Product> ?? new();
@@ -7,6 +7,10 @@
     // warn as it is typed. CreateSale re-checks it inside its transaction -
     // this is only to save the trip.
     var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new();
+
+    // Film and PPF lines are written in metres; data-stock is published in
+    // metres to match, so the per-row stock warning compares like with like.
+    var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
 }
 
 <style>
@@ -86,7 +90,7 @@
                             <option value="">-- Select Product --</option>
                             @foreach (var p in products)
                             {
-                                <option value="@p.ProductID" data-price="@p.DefaultPrice" data-stock="@(stockByProduct.TryGetValue(p.ProductID, out var st) ? st : 0)">@p.ProductName@(stockByProduct.TryGetValue(p.ProductID, out var sa) && sa > 0 ? $" ({sa:N0} in stock)" : " (out of stock)")</option>
+                                <option value="@p.ProductID" data-price="@p.DefaultPrice" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@(stockByProduct.TryGetValue(p.ProductID, out var st) ? (rollProducts.Contains(p.ProductID) ? st / 100m : st) : 0)">@p.ProductName@(stockByProduct.TryGetValue(p.ProductID, out var sa) && sa > 0 ? $" ({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sa, rollProducts.Contains(p.ProductID))} in stock)" : " (out of stock)")</option>
                             }
                         </select>
                     </td>
@@ -116,7 +120,7 @@
                         <option value="">-- Select Product --</option>
                         @foreach (var p in products)
                         {
-                            <option value="@p.ProductID" data-price="@p.DefaultPrice" data-stock="@(stockByProduct.TryGetValue(p.ProductID, out var st) ? st : 0)">@p.ProductName@(stockByProduct.TryGetValue(p.ProductID, out var sa) && sa > 0 ? $" ({sa:N0} in stock)" : " (out of stock)")</option>
+                            <option value="@p.ProductID" data-price="@p.DefaultPrice" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@(stockByProduct.TryGetValue(p.ProductID, out var st) ? (rollProducts.Contains(p.ProductID) ? st / 100m : st) : 0)">@p.ProductName@(stockByProduct.TryGetValue(p.ProductID, out var sa) && sa > 0 ? $" ({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sa, rollProducts.Contains(p.ProductID))} in stock)" : " (out of stock)")</option>
                         }
                     </select>
                 </td>

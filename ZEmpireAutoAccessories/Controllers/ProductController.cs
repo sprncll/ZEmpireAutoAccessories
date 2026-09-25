@@ -33,6 +33,13 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Select(g => new { ProductID = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.ProductID, x => x.Count);
 
+            // Which products are measured off a roll rather than counted, so
+            // the list says so rather than leaving it implied by the category.
+            ViewData["LengthProducts"] = products
+                .Where(p => UnitOfMeasure.IsSoldByLength(p.Category.CategoryName))
+                .Select(p => p.ProductID)
+                .ToHashSet();
+
             return View(products);
         }
 
@@ -50,6 +57,8 @@ namespace ZEmpireAutoAccessories.Controllers
 
             if (product == null)
                 return NotFound();
+
+            ViewData["SoldByLength"] = UnitOfMeasure.IsSoldByLength(product.Category.CategoryName);
 
             return View(product);
         }
@@ -234,13 +243,21 @@ namespace ZEmpireAutoAccessories.Controllers
 
         private async Task LoadDropdowns(Product? product = null)
         {
+            var categories = await _context.ProductCategories
+                .OrderBy(c => c.CategoryName)
+                .ToListAsync();
+
             ViewData["CategoryID"] = new SelectList(
-                await _context.ProductCategories
-                    .OrderBy(c => c.CategoryName)
-                    .ToListAsync(),
-                "CategoryID",
-                "CategoryName",
-                product?.CategoryID);
+                categories, "CategoryID", "CategoryName", product?.CategoryID);
+
+            // How a product is measured follows its category - there is no
+            // column on cat.Product to say otherwise - so the form can show
+            // the consequence as soon as a category is picked instead of
+            // leaving it to be discovered at the stock screen.
+            ViewData["LengthCategories"] = categories
+                .Where(c => UnitOfMeasure.IsSoldByLength(c.CategoryName))
+                .Select(c => c.CategoryID)
+                .ToHashSet();
         }
 
         private bool ProductExists(int id)

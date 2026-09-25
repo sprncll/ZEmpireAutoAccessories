@@ -1,10 +1,13 @@
-@model ZEmpireAutoAccessories.Models.Quotation
+﻿@model ZEmpireAutoAccessories.Models.Quotation
 
 @{
     ViewData["Title"] = "Quotation Details";
     var successMessage = TempData["Success"] as string;
     var convertError = TempData["ConvertError"] as string;
     var lockError = TempData["LockError"] as string;
+
+    var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
+    var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
 }
 
 <style>
@@ -210,7 +213,7 @@
                     <option value="">-- None --</option>
                     @foreach (var p in (List<Product>)ViewData["Products"]!)
                     {
-                        <option value="@p.ProductID" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName</option>
+                        <option value="@p.ProductID" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@((stockByProduct.TryGetValue(p.ProductID, out var onHand) ? onHand : 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName @(stockByProduct.TryGetValue(p.ProductID, out var sh) && sh > 0 ? $"({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sh, rollProducts.Contains(p.ProductID))} in stock)" : "(out of stock)")</option>
                     }
                 </select>
             </div>
@@ -236,23 +239,28 @@
                     <option value="">-- N/A --</option>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">Description</label>
                 <input type="text" name="description" class="form-control" placeholder="Optional" />
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label" title="How many units of this product or service">Qty</label>
-                <input type="number" name="quantity" class="form-control" value="1" min="1" />
+                @* Quantity and unit read as one value, so they sit in one cell
+                   - and for film the unit is part of the measurement, not a
+                   separate decision. *@
+                <div class="input-group">
+                    <input type="number" name="quantity" class="form-control" value="1" min="1" />
+                    <select name="unit" class="form-select line-unit" data-searchable="false">
+                        <option value="Unit">Unit</option>
+                    </select>
+                </div>
             </div>
-            <div class="col-md-2">
-                <label class="form-label" title="Unit of measure shown on the printed document and invoice, e.g. pc, roll, set">Unit</label>
-                <input type="text" name="unit" class="form-control" value="Unit" />
-            </div>
-            <div class="col-md-2">
+            <div id="lineStockNote" class="form-text mt-1"></div>
+            <div class="col-md-3">
                 <label class="form-label">Price</label>
                 <input id="addLinePrice" type="number" step="0.01" name="unitPrice" class="form-control" value="0" min="0" />
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <button type="submit" class="btn btn-zx w-100">Add</button>
             </div>
         </form>
@@ -306,6 +314,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/line-unit.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var modalEl = document.getElementById('removeLineModal');

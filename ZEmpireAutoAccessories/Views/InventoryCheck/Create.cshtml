@@ -1,0 +1,242 @@
+@model List<ZEmpireAutoAccessories.Models.StockCountRow>
+
+@{
+    ViewData["Title"] = "New Stock Count";
+    var countError = ViewData["CountError"] as string;
+}
+
+<style>
+    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
+    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:-10px 0 18px; }
+    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
+    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
+    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; }
+    .zx-table thead { background:#0b0b0c; color:#fff; }
+    .zx-table thead th { border-bottom:none; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
+    .zx-table td, .zx-table th { vertical-align:middle; }
+    .cat-row td { background:#f7f8fa; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:.4px; color:#7b8290; }
+    .count-input { max-width:140px; }
+    .unit-select { max-width:130px; }
+    .sys-stock { font-variant-numeric:tabular-nums; color:#4b5563; }
+    .variance { font-variant-numeric:tabular-nums; font-weight:600; }
+    .variance.over { color:#15803d; }
+    .variance.short { color:#b91c1c; }
+    .variance.match { color:#98a0ad; font-weight:500; }
+
+    .sheet-tools { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+    .sheet-filter { position:relative; flex:1 1 320px; max-width:420px; }
+    .sheet-filter svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#98a0ad; }
+    .sheet-filter input { padding-left:38px; border-radius:10px; }
+    .counted-tally { font-size:13.5px; font-weight:600; color:#4b5563; white-space:nowrap; }
+    .counted-tally b { color:#0b0b0c; }
+</style>
+
+<div class="zx-page-head">
+    <h1>New Stock Count</h1>
+    <a class="btn btn-outline-secondary" asp-action="Index">Cancel</a>
+</div>
+<p class="zx-page-sub">
+    Write in what is physically on the shelf. Leave a product blank if you did not count it —
+    only the rows you fill in are recorded.
+</p>
+
+@if (!string.IsNullOrEmpty(countError))
+{
+    <div class="alert alert-danger py-2 px-3">@countError</div>
+}
+
+<div class="sheet-tools">
+    <div class="sheet-filter">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+        <input type="text" id="sheetFilter" class="form-control" autocomplete="off"
+               placeholder="Filter to a product or category, e.g. tint" />
+    </div>
+    <label class="form-check-label d-flex align-items-center gap-2" style="font-size:13.5px;">
+        <input type="checkbox" id="onlyCounted" class="form-check-input mt-0" />
+        Show only what I have counted
+    </label>
+    <span class="counted-tally"><b id="countedCount">0</b> counted</span>
+</div>
+
+<form asp-action="Create" method="post">
+    <div class="zx-card mb-3">
+        <div class="table-responsive">
+            <table class="table zx-table mb-0" id="countTable">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>System Stock</th>
+                        <th>Physical Count</th>
+                        <th>Unit</th>
+                        <th>Variance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @* Indexed names rather than repeated ones: a product left
+                       blank still posts its slot, so the three lists stay lined
+                       up with each other however many rows are skipped. *@
+                    @{ string? currentCategory = null; }
+                    @for (var i = 0; i < Model.Count; i++)
+                    {
+                        var row = Model[i];
+
+                        @if (row.CategoryName != currentCategory)
+                        {
+                            currentCategory = row.CategoryName;
+                            <tr class="cat-row" data-category="@currentCategory"><td colspan="5">@currentCategory</td></tr>
+                        }
+                        <tr data-name="@row.ProductName.ToLowerInvariant()" data-category="@row.CategoryName">
+                            <td>
+                                @row.ProductName
+                                <input type="hidden" name="productId[@i]" value="@row.ProductID" />
+                            </td>
+                            <td class="sys-stock" data-system="@row.SystemStock" data-roll="@row.SoldByLength.ToString().ToLowerInvariant()">
+                                @ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(row.SystemStock, row.SoldByLength)
+                            </td>
+                            <td>
+                                <input type="number" step="0.01" min="0" name="physicalStock[@i]"
+                                       class="form-control count-input" placeholder="—" />
+                            </td>
+                            <td>
+                                <select name="unit[@i]" class="form-select unit-select" data-searchable="false">
+                                    @if (row.SoldByLength)
+                                    {
+                                        @* Film is measured, not counted - offer the
+                                           units a tape measure reads. *@
+                                        foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)
+                                        {
+                                            <option value="@u">@u</option>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <option value="Piece">Piece</option>
+                                        <option value="Roll">Roll</option>
+                                    }
+                                </select>
+                            </td>
+                            <td><span class="variance match">—</span></td>
+                        </tr>
+                    }
+                    @if (Model.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                No active products to count.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-zx">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
+            Save Count
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        // Show the variance as each count is typed, so a miscount is obvious
+        // at the shelf rather than after saving. Display only - the figures
+        // that matter are recomputed server-side when the count is opened.
+        (function () {
+            var table = document.getElementById('countTable');
+            if (!table) { return; }
+
+            // Roll goods are stored in centimetres, so a figure typed in
+            // metres or inches has to be converted before it can be compared
+            // with the system stock beside it. Same factors as
+            // UnitOfMeasure on the server; the server converts again on save,
+            // this is only so the variance reads correctly while typing.
+            var PER_CM = { cm: 1, 'in': 2.54, m: 100 };
+
+            function toBase(row, value) {
+                if (row.querySelector('[data-roll]').dataset.roll !== 'true') { return value; }
+                var unit = row.querySelector('select[name^="unit"]');
+                var factor = unit ? PER_CM[unit.value] : 1;
+                return value * (factor || 1);
+            }
+
+            table.addEventListener('input', function (e) {
+                if (e.target.name.indexOf('physicalStock') !== 0) { return; }
+
+                var row = e.target.closest('tr');
+                var system = parseFloat(row.querySelector('[data-system]').dataset.system) || 0;
+                var cell = row.querySelector('.variance');
+
+                if (e.target.value === '') {
+                    cell.textContent = '—';
+                    cell.className = 'variance match';
+                    return;
+                }
+
+                var diff = toBase(row, parseFloat(e.target.value) || 0) - system;
+                diff = Math.round(diff * 100) / 100;
+                cell.textContent = diff === 0 ? 'Match' : (diff > 0 ? '+' : '') + diff.toLocaleString();
+                cell.className = 'variance ' + (diff === 0 ? 'match' : diff > 0 ? 'over' : 'short');
+            });
+
+            // Narrowing the sheet to the shelf being counted, and a running
+            // tally so it is obvious how much has been filled in. Filtering
+            // only hides rows - every row still posts, so a hidden product is
+            // simply an uncounted one, exactly as if it were left blank.
+            var filterBox = document.getElementById('sheetFilter');
+            var onlyCounted = document.getElementById('onlyCounted');
+            var tally = document.getElementById('countedCount');
+            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-name]'));
+            var catRows = Array.prototype.slice.call(table.querySelectorAll('tbody tr.cat-row'));
+
+            function apply() {
+                var term = (filterBox.value || '').trim().toLowerCase();
+                var countedOnly = onlyCounted.checked;
+                var counted = 0;
+                var visibleByCategory = {};
+
+                rows.forEach(function (row) {
+                    var input = row.querySelector('input[name^="physicalStock"]');
+                    var hasCount = input && input.value !== '';
+                    if (hasCount) { counted++; }
+
+                    var category = row.dataset.category;
+                    var matches =
+                        (term === '' ||
+                         row.dataset.name.indexOf(term) !== -1 ||
+                         category.toLowerCase().indexOf(term) !== -1) &&
+                        (!countedOnly || hasCount);
+
+                    row.style.display = matches ? '' : 'none';
+                    if (matches) { visibleByCategory[category] = true; }
+                });
+
+                // A category heading with nothing under it is just noise.
+                catRows.forEach(function (row) {
+                    row.style.display = visibleByCategory[row.dataset.category] ? '' : 'none';
+                });
+
+                tally.textContent = counted;
+            }
+
+            // Switching a row's unit changes what the typed figure means.
+            table.addEventListener('change', function (e) {
+                if (e.target.name.indexOf('unit') !== 0) { return; }
+                var qty = e.target.closest('tr').querySelector('input[name^="physicalStock"]');
+                if (qty) { qty.dispatchEvent(new Event('input', { bubbles: true })); }
+            });
+
+            filterBox.addEventListener('input', apply);
+            onlyCounted.addEventListener('change', apply);
+            table.addEventListener('input', function (e) {
+                if (e.target.name.indexOf('physicalStock') === 0) { apply(); }
+            });
+
+            apply();
+        })();
+    </script>
+}

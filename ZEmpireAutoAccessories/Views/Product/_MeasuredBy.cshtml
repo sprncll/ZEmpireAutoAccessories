@@ -1,0 +1,56 @@
+@*
+    How the product being edited will be measured once it is saved.
+
+    There is no column on cat.Product for this - it follows the category, so
+    every product in a category is measured the same way. Showing it on the
+    form means an admin sees the consequence while choosing the category,
+    instead of finding out at the stock screen that a product they think of
+    as pieces is being asked for in centimetres.
+
+    The script keeps it in step with the category dropdown; the server decides
+    for real, from the same list. It sits in the partial body rather than a
+    Scripts section because a partial cannot declare one, and the category
+    field is rendered above this so the element already exists.
+*@
+@{
+    var lengthCategories = ViewData["LengthCategories"] as HashSet<int> ?? new HashSet<int>();
+}
+
+<div class="mb-3">
+    <label class="form-label">Measured by</label>
+    <div id="measuredBy" class="measured-note">
+        <span class="measured-pill is-count">Counted in pieces</span>
+        <span class="measured-help">Pick a category above to set this.</span>
+    </div>
+</div>
+
+<script>
+    // Categories whose products come off a roll, from UnitOfMeasure on the
+    // server. Held as ids so renaming a category cannot put this out of step.
+    (function () {
+        var LENGTH_CATEGORIES =
+            @Html.Raw(System.Text.Json.JsonSerializer.Serialize(lengthCategories));
+
+        var category = document.getElementById('CategoryID');
+        var note = document.getElementById('measuredBy');
+        if (!category || !note) { return; }
+
+        var pill = note.querySelector('.measured-pill');
+        var help = note.querySelector('.measured-help');
+
+        function apply() {
+            var id = parseInt(category.value, 10);
+            var byLength = LENGTH_CATEGORIES.indexOf(id) !== -1;
+
+            pill.textContent = byLength ? 'Measured by length' : 'Counted in pieces';
+            pill.className = 'measured-pill ' + (byLength ? 'is-length' : 'is-count');
+
+            help.textContent = byLength
+                ? 'Stock is kept in centimetres. Deliveries, counts and line items can be entered in cm, in or m and are converted.'
+                : 'Stock is whole units - no unit picker, and one line deducts one piece.';
+        }
+
+        category.addEventListener('change', apply);
+        apply();
+    })();
+</script>

@@ -1,4 +1,4 @@
-@model ZEmpireAutoAccessories.Models.Product
+﻿@model ZEmpireAutoAccessories.Models.Product
 
 @{
     ViewData["Title"] = "Product Details";
@@ -159,6 +159,25 @@
 
         <dt class="col-sm-3">@Html.DisplayNameFor(m => m.IsActive)</dt>
         <dd class="col-sm-9">@(Model.IsActive ? "Active" : "Inactive")</dd>
+
+        <dt class="col-sm-3">Measured by</dt>
+        <dd class="col-sm-9">
+            @if (ViewData["SoldByLength"] as bool? ?? false)
+            {
+                <span class="measured-pill is-length">By length</span>
+                <span class="measured-help d-block mt-1">
+                    Stock is kept in centimetres and can be entered in cm, in or m.
+                    This follows the &ldquo;@Model.Category.CategoryName&rdquo; category.
+                </span>
+            }
+            else
+            {
+                <span class="measured-pill is-count">By piece</span>
+                <span class="measured-help d-block mt-1">
+                    Stock is whole units. This follows the &ldquo;@Model.Category.CategoryName&rdquo; category.
+                </span>
+            }
+        </dd>
 
         <dt class="col-sm-3">Pricing entries</dt>
         <dd class="col-sm-9">@Model.Pricings.Count</dd>

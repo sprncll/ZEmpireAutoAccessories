@@ -1,0 +1,73 @@
+@model IEnumerable<ZEmpireAutoAccessories.Models.InventoryCheck>
+
+@{
+    ViewData["Title"] = "Stock Counts";
+    var success = TempData["Success"] as string;
+}
+
+<style>
+    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
+    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:-10px 0 18px; }
+    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
+    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
+    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; overflow:hidden; }
+    .zx-table thead { background:#0b0b0c; color:#fff; }
+    .zx-table thead th { border-bottom:none; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
+    .zx-table td, .zx-table th { vertical-align:middle; }
+    .icon-btn { width:32px; height:32px; display:inline-grid; place-items:center; border-radius:8px; border:1px solid #e8ebf0;
+                background:#fff; color:#4b5563; margin-left:6px; transition:all .15s ease; text-decoration:none; }
+    .icon-btn:hover { background:#0b0b0c; color:#fff; border-color:#0b0b0c; }
+</style>
+
+<div class="zx-page-head">
+    <h1>Stock Counts</h1>
+    <div>
+        <a class="btn btn-outline-secondary" asp-controller="Inventory" asp-action="Index">Back to Inventory</a>
+        <a class="btn btn-zx" asp-action="Create">+ New Count</a>
+    </div>
+</div>
+<p class="zx-page-sub">A count records what was physically on the shelf. Reconciling one corrects the system figure to match.</p>
+
+@if (!string.IsNullOrEmpty(success))
+{
+    <div class="alert alert-success py-2 px-3">@success</div>
+}
+
+<div class="zx-card">
+    <div class="table-responsive">
+        <table class="table zx-table mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Counted By</th>
+                    <th>Products Counted</th>
+                    <th class="text-end pe-3">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var check in Model)
+                {
+                    <tr>
+                        <td>@check.CheckDate.ToString("dd MMM yyyy, h:mm tt")</td>
+                        <td>@(check.User?.FullName ?? check.User?.UserName ?? "—")</td>
+                        <td>@check.Details.Count</td>
+                        <td class="text-end pe-3">
+                            <a asp-action="Details" asp-route-id="@check.InventoryCheckID" class="icon-btn" title="View count">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+                            </a>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            No stock counts yet. Start one to compare the shelf against the system.
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

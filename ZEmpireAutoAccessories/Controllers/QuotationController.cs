@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -16,10 +16,16 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IQuotationService _quotationService;
 
-        public QuotationController(ApplicationDbContext context, IQuotationService quotationService)
+        private readonly IInventoryService _inventoryService;
+
+        public QuotationController(
+            ApplicationDbContext context,
+            IQuotationService quotationService,
+            IInventoryService inventoryService)
         {
             _context = context;
             _quotationService = quotationService;
+            _inventoryService = inventoryService;
         }
 
         // GET: Quotation?status=Draft&q=...
@@ -444,7 +450,25 @@ namespace ZEmpireAutoAccessories.Controllers
         // attribute bag to hang that off of.
         private async Task LoadLineDropdowns()
         {
-            ViewData["Products"] = await _context.Products.Where(p => p.IsActive).OrderBy(p => p.ProductName).ToListAsync();
+            var lineProducts = await _context.Products.Where(p => p.IsActive).OrderBy(p => p.ProductName).ToListAsync();
+            ViewData["Products"] = lineProducts;
+
+            // Roll goods take cm/in/m on a line instead of a plain count.
+            ViewData["RollProducts"] =
+                await _inventoryService.SoldByLength(lineProducts.Select(p => p.ProductID));
+
+            // Stock on hand, so a line can say what is available while it is
+            // being written. This is the friendly half - the binding check
+            // still happens when the document is completed. Same arithmetic
+            // as dbo.vw_StockOnHand.
+            ViewData["StockByProduct"] = await _context.InventoryTransactions
+                .GroupBy(t => t.ProductID)
+                .Select(g => new
+                {
+                    ProductID = g.Key,
+                    Stock = g.Sum(t => t.TransactionType == "IN" ? t.Quantity : -t.Quantity)
+                })
+                .ToDictionaryAsync(x => x.ProductID, x => x.Stock);
             ViewData["Services"] = await _context.Services.Where(s => s.IsActive).OrderBy(s => s.ServiceName).ToListAsync();
         }
     }

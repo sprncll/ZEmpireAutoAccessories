@@ -1,4 +1,4 @@
-@model ZEmpireAutoAccessories.Models.Product
+﻿@model ZEmpireAutoAccessories.Models.Product
 
 @{
     ViewData["Title"] = "Edit Product";
@@ -61,6 +61,8 @@
             </select>
             <span asp-validation-for="CategoryID" class="text-danger"></span>
         </div>
+
+        <partial name="_MeasuredBy" />
 
         <div class="mb-3">
             <label asp-for="ProductName" class="form-label"></label>

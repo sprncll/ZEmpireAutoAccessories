@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
 using ZEmpireAutoAccessories.Services.Interfaces;
@@ -112,10 +112,22 @@ namespace ZEmpireAutoAccessories.Services
 
                 decimal total = 0;
 
+                // Film and PPF are sold off the roll by the metre, so the line
+                // quantity is metres and the price is per metre - but stock is
+                // held in centimetres. Convert for the check and the movement
+                // while leaving the line itself in the unit it was priced in.
+                var soldByLength = await SoldByLength(items.Select(i => i.ProductID));
+
                 foreach (var item in items)
                 {
                     if (item.Quantity <= 0)
                         throw new ArgumentException("Sale quantity must be greater than zero.");
+
+                    // CK_SalesDetail_Price rejects a negative unit price, and
+                    // CK_Sales_Total rejects the negative total it would roll
+                    // up into. The form's min="0" is client-side only.
+                    if (item.UnitPrice < 0)
+                        throw new ArgumentException("Sale unit price can't be negative.");
 
                     var product = await _context.Products
                         .FirstOrDefaultAsync(p => p.ProductID == item.ProductID)
@@ -129,11 +141,20 @@ namespace ZEmpireAutoAccessories.Services
                         .Where(t => t.ProductID == item.ProductID)
                         .SumAsync(t => (decimal?)(t.TransactionType == "IN" ? t.Quantity : -t.Quantity)) ?? 0;
 
-                    if (stockOnHand < item.Quantity)
+                    var byLength = soldByLength.Contains(item.ProductID);
+
+                    // A line of "3" means 3 m of film, or 3 of anything else.
+                    var takenFromStock = byLength
+                        ? UnitOfMeasure.ToBase(item.Quantity, UnitOfMeasure.Meter)
+                        : item.Quantity;
+
+                    if (stockOnHand < takenFromStock)
                         throw new InvalidOperationException(
                             stockOnHand <= 0
                                 ? $"{product.ProductName} is out of stock."
-                                : $"Not enough stock for {product.ProductName} - only {stockOnHand:N0} left, {item.Quantity:N0} requested.");
+                                : $"Not enough stock for {product.ProductName} - only " +
+                                  $"{UnitOfMeasure.Describe(stockOnHand, byLength)} left, " +
+                                  $"{UnitOfMeasure.Describe(takenFromStock, byLength)} requested.");
 
                     _context.SalesDetails.Add(new SaleDetail
                     {
@@ -149,7 +170,7 @@ namespace ZEmpireAutoAccessories.Services
                         ProductID = item.ProductID,
                         UserId = userId,
                         TransactionType = "OUT",
-                        Quantity = item.Quantity,
+                        Quantity = takenFromStock,
                         TransactionDate = DateTime.Now
                     });
 
@@ -167,6 +188,28 @@ namespace ZEmpireAutoAccessories.Services
                 await transaction.RollbackAsync();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Of these products, the ones measured by length. Mirrors
+        /// InventoryService.SoldByLength; CreateSale runs inside its own
+        /// transaction on this context, so it reads the categories itself.
+        /// </summary>
+        private async Task<HashSet<int>> SoldByLength(IEnumerable<int> productIds)
+        {
+            var ids = productIds.Distinct().ToList();
+            if (ids.Count == 0)
+                return new HashSet<int>();
+
+            var rows = await _context.Products
+                .Where(p => ids.Contains(p.ProductID))
+                .Select(p => new { p.ProductID, p.Category.CategoryName })
+                .ToListAsync();
+
+            return rows
+                .Where(r => UnitOfMeasure.IsSoldByLength(r.CategoryName))
+                .Select(r => r.ProductID)
+                .ToHashSet();
         }
     }
 }

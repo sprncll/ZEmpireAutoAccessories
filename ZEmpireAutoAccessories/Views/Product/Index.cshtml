@@ -9,6 +9,7 @@
     // Pricing is its own module, so only offer the way in to someone who
     // actually holds it.
     var canPrice = User.HasClaim(AppClaims.ModuleAccess, "Pricing");
+    var lengthProducts = ViewData["LengthProducts"] as HashSet<int> ?? new HashSet<int>();
     var saved = TempData["Success"] as string;
 }
 
@@ -127,6 +128,7 @@
             <tr>
                 <th>@Html.DisplayNameFor(m => m.ProductName)</th>
                 <th>Category</th>
+                <th>Measured</th>
                 <th>Pricing</th>
                 <th>Status</th>
                 <th class="text-end pe-3">Actions</th>
@@ -138,6 +140,16 @@
                 <tr>
                     <td>@Html.DisplayFor(modelItem => item.ProductName)</td>
                     <td>@item.Category.CategoryName</td>
+                    <td>
+                        @if (lengthProducts.Contains(item.ProductID))
+                        {
+                            <span class="measured-pill is-length">By length</span>
+                        }
+                        else
+                        {
+                            <span class="measured-pill is-count">By piece</span>
+                        }
+                    </td>
                     <td>
                         @{ var priceCount = priceCounts.TryGetValue(item.ProductID, out var n) ? n : 0; }
                         @if (priceCount == 0)
@@ -182,7 +194,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="5" class="text-center text-muted py-4">No products yet.</td>
+                    <td colspan="6" class="text-center text-muted py-4">No products yet.</td>
                 </tr>
             }
         </tbody>

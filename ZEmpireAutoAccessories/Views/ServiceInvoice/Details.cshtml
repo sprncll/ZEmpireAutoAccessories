@@ -1,4 +1,4 @@
-@model ZEmpireAutoAccessories.Models.ServiceInvoice
+﻿@model ZEmpireAutoAccessories.Models.ServiceInvoice
 
 @{
     ViewData["Title"] = "Service Invoice Details";
@@ -9,6 +9,9 @@
     var warrantyByLine = ViewData["WarrantyByLine"] as Dictionary<int, ZEmpireAutoAccessories.Models.Warranty>
                          ?? new Dictionary<int, ZEmpireAutoAccessories.Models.Warranty>();
     var canUseWarranty = User.HasClaim(AppClaims.ModuleAccess, "Warranty");
+
+    var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
+    var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
 }
 
 <style>
@@ -37,6 +40,11 @@
     #removeLineModal .modal-title { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:19px; }
 </style>
 
+
+@if (TempData["StatusError"] is string statusError)
+{
+    <div class="alert alert-danger">@statusError</div>
+}
 <div class="zx-page-head">
     <h1>Invoice @Model.InvoiceNumber</h1>
     <div>
@@ -226,17 +234,17 @@
     <form asp-action="AddLine" method="post" class="row g-2 align-items-end">
         <input type="hidden" name="serviceInvoiceId" value="@Model.ServiceInvoiceID" />
 
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label">Product</label>
             <select id="addLineProduct" name="productId" class="form-select">
                 <option value="">-- None --</option>
                 @foreach (var p in (List<Product>)ViewData["Products"]!)
                 {
-                    <option value="@p.ProductID" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName</option>
+                    <option value="@p.ProductID" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@((stockByProduct.TryGetValue(p.ProductID, out var onHand) ? onHand : 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName @(stockByProduct.TryGetValue(p.ProductID, out var sh) && sh > 0 ? $"({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sh, rollProducts.Contains(p.ProductID))} in stock)" : "(out of stock)")</option>
                 }
             </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label">Service</label>
             <select id="addLineService" name="serviceId" class="form-select">
                 <option value="">-- None --</option>
@@ -246,40 +254,47 @@
                 }
             </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label" title="Only applies to products with more than one tint variant (e.g. Play/Freeze/Max)">Tint Variant</label>
             <select id="addLineTintVariant" name="tintVariantId" class="form-select" disabled>
                 <option value="">-- N/A --</option>
             </select>
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label" title="Which part of the vehicle this line covers - determines the matrix price for this vehicle's classification">Panel</label>
             <select id="addLinePanel" name="panelId" class="form-select" disabled>
                 <option value="">-- N/A --</option>
             </select>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label class="form-label">Description</label>
             <input id="addLineDescription" type="text" name="description" class="form-control"
                    placeholder="Filled in when you pick a product or service" />
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label" title="How many units of this product or service">Qty</label>
-            <input type="number" step="0.01" name="quantity" class="form-control" value="1" min="0.01" />
+            @* Quantity and unit read as one value, so they sit in one cell
+               - and for film the unit is part of the measurement, not a
+               separate decision. *@
+            <div class="input-group">
+                <input type="number" step="0.01" name="quantity" class="form-control" value="1" min="0.01" />
+                <select name="unit" class="form-select line-unit" data-searchable="false">
+                    <option value="Unit">Unit</option>
+                </select>
+            </div>
+            <div id="lineStockNote" class="form-text mt-1"></div>
         </div>
-        <div class="col-md-2">
-            <label class="form-label" title="Unit of measure shown on the printed document and invoice, e.g. pc, roll, set">Unit</label>
-            <input type="text" name="unit" class="form-control" value="Unit" />
-        </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label">Price</label>
             <input id="addLinePrice" type="number" step="0.01" name="unitPrice" class="form-control" value="0" min="0" />
         </div>
-        <div class="col-md-2">
+        <div class="col-md-3">
             <label class="form-label">Disc.</label>
             <input type="number" step="0.01" name="discountAmount" class="form-control" value="0" min="0" />
         </div>
-        <div class="col-md-2">
+        @* The button keeps the rightmost quarter, in line with Panel and
+           Disc. above it, rather than starting a ragged fifth column. *@
+        <div class="col-md-3 offset-md-9">
             <button type="submit" class="btn btn-zx w-100">Add</button>
         </div>
     </form>
@@ -312,6 +327,7 @@
 </div>
 
 @section Scripts {
+    <script src="~/js/line-unit.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var modalEl = document.getElementById('removeLineModal');

@@ -414,3 +414,39 @@ body {
     font-size: 13px;
   }
 }
+
+/* ---- how a product is measured -------------------------------------
+   Paint Protection Film and Window Tint come off a roll and are held in
+   centimetres; everything else is counted in whole pieces. That follows
+   the product's category, so the Product screens state it rather than
+   leaving it to be discovered at the stock screen. */
+.measured-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.measured-pill {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 3px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.measured-pill.is-length {
+  background: rgba(59,130,246,.14);
+  color: #1d4ed8;
+}
+
+.measured-pill.is-count {
+  background: rgba(148,163,184,.2);
+  color: #64748b;
+}
+
+.measured-help {
+  font-size: 12.5px;
+  color: #7b8290;
+}

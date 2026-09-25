@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -16,15 +16,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ISalesService _salesService;
         private readonly IQuotationService _quotationService; // GetNextInvoiceNumber lives here
+        private readonly IInventoryService _inventoryService;
 
         public SalesController(
             ApplicationDbContext context,
             ISalesService salesService,
-            IQuotationService quotationService)
+            IQuotationService quotationService,
+            IInventoryService inventoryService)
         {
             _context = context;
             _salesService = salesService;
             _quotationService = quotationService;
+            _inventoryService = inventoryService;
         }
 
         // GET: Sale?q=...&productId=...&dateFrom=...&dateTo=...
@@ -287,10 +290,16 @@ namespace ZEmpireAutoAccessories.Controllers
                 await _context.PaymentModes.OrderBy(p => p.PaymentModeName).ToListAsync(),
                 "PaymentModeID", "PaymentModeName");
 
-            ViewData["Products"] = await _context.Products
+            var saleProducts = await _context.Products
                 .Where(p => p.IsActive)
                 .OrderBy(p => p.ProductName)
                 .ToListAsync();
+            ViewData["Products"] = saleProducts;
+
+            // Film and PPF are sold off the roll by the metre, so their lines
+            // are counted in metres and their stock reads in metres too.
+            ViewData["RollProducts"] =
+                await _inventoryService.SoldByLength(saleProducts.Select(p => p.ProductID));
 
             // Stock on hand per product, so a line can warn while it is being
             // typed instead of the whole sale failing in CreateSale. Same

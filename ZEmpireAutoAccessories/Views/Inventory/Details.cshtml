@@ -6,6 +6,8 @@
     var transactions = ViewData["Transactions"] as List<ZEmpireAutoAccessories.Models.InventoryTransaction> ?? new();
     var successMessage = TempData["Success"] as string;
     var inventoryError = TempData["InventoryError"] as string;
+
+    var roll = ViewData["SoldByLength"] as bool? ?? false;
 }
 
 <style>
@@ -103,7 +105,13 @@
 
 <div class="zx-card">
     <div class="text-muted small text-uppercase mb-1">Stock On Hand</div>
-    <div class="stock-figure">@stockOnHand.ToString("N0")</div>
+    <div class="stock-figure">@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(stockOnHand, roll)</div>
+    @if (roll)
+    {
+        @* Roll goods are held in centimetres; show the raw figure too so the
+           metre reading above can be checked against a cut list. *@
+        <div class="text-muted small">@stockOnHand.ToString("N2") cm on the roll</div>
+    }
 </div>
 
 <div class="row g-3 mb-3">
@@ -113,6 +121,15 @@
             <form asp-action="StockIn" method="post" class="d-flex gap-2">
                 <input type="hidden" name="productId" value="@Model.ProductID" />
                 <input type="number" step="0.01" name="quantity" class="form-control" min="0.01" required />
+                @if (roll)
+                {
+                    <select name="unit" class="form-select" style="max-width:96px;" data-searchable="false">
+                        @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)
+                        {
+                            <option value="@u">@u</option>
+                        }
+                    </select>
+                }
                 <button type="submit" class="btn btn-zx">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
                     Add
@@ -126,6 +143,15 @@
             <form asp-action="StockOut" method="post" class="d-flex gap-2">
                 <input type="hidden" name="productId" value="@Model.ProductID" />
                 <input type="number" step="0.01" name="quantity" class="form-control" min="0.01" required />
+                @if (roll)
+                {
+                    <select name="unit" class="form-select" style="max-width:96px;" data-searchable="false">
+                        @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)
+                        {
+                            <option value="@u">@u</option>
+                        }
+                    </select>
+                }
                 <button type="submit" class="btn btn-outline-danger">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /></svg>
                     Remove
@@ -162,7 +188,7 @@
                             <span class="badge badge-out">Stock Out</span>
                         }
                     </td>
-                    <td>@t.Quantity.ToString("N0")</td>
+                    <td>@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(t.Quantity, roll)</td>
                     <td>@t.User.UserName</td>
                 </tr>
             }

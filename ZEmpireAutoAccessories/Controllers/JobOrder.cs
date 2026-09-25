@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -6,6 +6,7 @@ using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
 using ZEmpireAutoAccessories.Services;
+using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
 {
@@ -13,10 +14,14 @@ namespace ZEmpireAutoAccessories.Controllers
     public class JobOrderController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IInventoryService _inventoryService;
 
-        public JobOrderController(ApplicationDbContext context)
+        public JobOrderController(
+            ApplicationDbContext context,
+            IInventoryService inventoryService)
         {
             _context = context;
+            _inventoryService = inventoryService;
         }
 
         // GET: JobOrder?status=Pending&q=...
@@ -305,6 +310,18 @@ namespace ZEmpireAutoAccessories.Controllers
             if (jobOrder == null)
                 return NotFound();
 
+            // A completed job order has already taken its products out of
+            // stock, and inv.InventoryTransaction has no link back to the line
+            // that moved them, so a line added now could never be matched up.
+            // Ask for the order to be reopened instead.
+            if (jobOrder.Status == "Completed")
+            {
+                TempData["LineError"] =
+                    "This job order is completed and its products have already left stock. " +
+                    "Set it back to In Progress to change its line items.";
+                return RedirectToAction(nameof(Details), new { id = jobOrderId });
+            }
+
             if (quantity > 0 && unitPrice >= 0 && (productId != null || serviceId != null))
             {
                 // Record which exact Pricing row (Product x Tint Variant x
@@ -348,6 +365,15 @@ namespace ZEmpireAutoAccessories.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> RemoveLine(int detailId, int jobOrderId)
         {
+            // Same reason as AddLine: the stock is already out.
+            if (await _context.JobOrders.AnyAsync(j => j.JobOrderID == jobOrderId && j.Status == "Completed"))
+            {
+                TempData["LineError"] =
+                    "This job order is completed and its products have already left stock. " +
+                    "Set it back to In Progress to change its line items.";
+                return RedirectToAction(nameof(Details), new { id = jobOrderId });
+            }
+
             var detail = await _context.JobOrderDetails.FindAsync(detailId);
             if (detail != null)
             {
@@ -368,13 +394,56 @@ namespace ZEmpireAutoAccessories.Controllers
                 return BadRequest();
 
             var jobOrder = await _context.JobOrders.FindAsync(id);
-            if (jobOrder != null)
+            if (jobOrder == null)
+                return RedirectToAction(nameof(Details), new { id });
+
+            // Completing a job order is the moment its products are actually
+            // fitted to the car, so that is where they leave stock. Moving it
+            // back out of Completed puts them back, which keeps the two
+            // transitions symmetrical: Completed -> Pending -> Completed nets
+            // to a single OUT rather than two.
+            var holdsStock = jobOrder.Status == "Completed";
+            var willHoldStock = status == "Completed";
+
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
             {
+                if (holdsStock != willHoldStock)
+                    await _inventoryService.PostDocumentStock(
+                        await ProductLines(id), willHoldStock, CurrentUserId);
+
                 jobOrder.Status = status;
                 await _context.SaveChangesAsync();
+                await tx.CommitAsync();
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Short on stock. Leave the job order as it was rather than
+                // completing it against inventory that isn't there.
+                await tx.RollbackAsync();
+                TempData["StatusError"] = ex.Message;
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>
+        /// The product lines of a job order, as stock movements. Service-only
+        /// lines carry no ProductID and move no stock.
+        /// </summary>
+        private async Task<IReadOnlyCollection<DocumentStockLine>> ProductLines(int jobOrderId)
+        {
+            var rows = await _context.JobOrderDetails
+                .Where(d => d.JobOrderID == jobOrderId && d.ProductID != null)
+                .Select(d => new { ProductID = d.ProductID!.Value, d.Quantity, d.Unit })
+                .ToListAsync();
+
+            // The line's Unit is what the quantity was written in - "m" or
+            // "in" for film, "Unit" for anything counted. The inventory
+            // service converts roll goods and passes the rest through.
+            return rows
+                .Select(r => new DocumentStockLine(r.ProductID, r.Quantity, r.Unit))
+                .ToList();
         }
 
         // JobOrder is ON DELETE RESTRICT from ServiceInvoice, VehicleChecklist and Warranty.
@@ -433,7 +502,25 @@ namespace ZEmpireAutoAccessories.Controllers
         // attribute bag to hang that off of.
         private async Task LoadLineDropdowns()
         {
-            ViewData["Products"] = await _context.Products.Where(p => p.IsActive).OrderBy(p => p.ProductName).ToListAsync();
+            var lineProducts = await _context.Products.Where(p => p.IsActive).OrderBy(p => p.ProductName).ToListAsync();
+            ViewData["Products"] = lineProducts;
+
+            // Roll goods take cm/in/m on a line instead of a plain count.
+            ViewData["RollProducts"] =
+                await _inventoryService.SoldByLength(lineProducts.Select(p => p.ProductID));
+
+            // Stock on hand, so a line can say what is available while it is
+            // being written. This is the friendly half - the binding check
+            // still happens when the document is completed. Same arithmetic
+            // as dbo.vw_StockOnHand.
+            ViewData["StockByProduct"] = await _context.InventoryTransactions
+                .GroupBy(t => t.ProductID)
+                .Select(g => new
+                {
+                    ProductID = g.Key,
+                    Stock = g.Sum(t => t.TransactionType == "IN" ? t.Quantity : -t.Quantity)
+                })
+                .ToDictionaryAsync(x => x.ProductID, x => x.Stock);
             ViewData["Services"] = await _context.Services.Where(s => s.IsActive).OrderBy(s => s.ServiceName).ToListAsync();
         }
     }
