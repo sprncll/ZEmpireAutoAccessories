@@ -208,6 +208,9 @@
 <div class="zx-page-head">
     <h1>Inventory</h1>
     <div>
+        @* Cut sizes decide what a tint or film job takes off a roll, so the
+           screen that shows those rolls is where someone goes looking. *@
+        <a class="btn btn-outline-secondary" asp-controller="CutSize" asp-action="Index">Cut sizes</a>
         <a class="btn btn-outline-secondary" asp-controller="InventoryCheck" asp-action="Index">Stock counts</a>
         <a class="btn btn-zx" asp-controller="InventoryCheck" asp-action="Create">+ New stock count</a>
     </div>
