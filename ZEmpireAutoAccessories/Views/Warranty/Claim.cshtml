@@ -52,13 +52,28 @@
         }
     </dl>
 
-    <form asp-action="Claim" method="post" class="zx-form">
+    <form asp-action="Claim" method="post" enctype="multipart/form-data" class="zx-form">
         <input type="hidden" name="id" value="@Model.WarrantyID" />
 
         <div class="mb-3">
             <label class="form-label">Claim Notes <span class="text-muted fw-normal">(optional)</span></label>
             <textarea name="claimNotes" class="form-control" rows="3" placeholder="What was claimed / replaced, etc."></textarea>
             <div class="form-text">Appended to this warranty's Remarks along with the claim date and your name.</div>
+        </div>
+
+        @* Optional on purpose: a claim being honoured now should not wait on
+           the customer sending the slip. It can be attached from the warranty
+           afterwards. *@
+        <div class="mb-3">
+            <label class="form-label" for="claimProof">
+                Proof of Claim <span class="text-muted fw-normal">(optional)</span>
+            </label>
+            <input type="file" class="form-control" id="claimProof" name="claimProof"
+                   accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" />
+            <div class="form-text">
+                The signed slip, the replacement receipt, or a photo of the work redone.
+                JPG, PNG, WEBP or PDF, up to 5 MB. You can add it later from this warranty.
+            </div>
         </div>
 
         <div class="form-actions">

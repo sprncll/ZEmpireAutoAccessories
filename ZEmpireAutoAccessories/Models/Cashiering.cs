@@ -68,6 +68,25 @@ namespace ZEmpireAutoAccessories.Models
         /// cash.
         /// </summary>
         public bool IsCollected => Source == CashierSource.Sale || Status == "Paid";
+
+        /// <summary>
+        /// Whether a receipt for this payment has been attached. Set by the
+        /// controller from the proof folder - there is no column for it, and
+        /// none is wanted: see PaymentProofStore.
+        /// </summary>
+        public bool HasProof { get; set; }
+
+        /// <summary>
+        /// Whether this payment arrived from somewhere other than the counter,
+        /// so a receipt is what shows the money came in.
+        /// </summary>
+        public bool NeedsProof => PaymentModes.NeedsProof(PaymentModeName);
+
+        /// <summary>
+        /// Collected on an online mode with nothing attached to show for it -
+        /// the row a cashier has to chase before closing the day.
+        /// </summary>
+        public bool ProofMissing => NeedsProof && IsCollected && !HasProof;
     }
 
     /// <summary>Collected cash for one payment mode within the filtered range.</summary>

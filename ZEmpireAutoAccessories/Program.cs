@@ -66,10 +66,28 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 // or a schema change; an absent section keeps the built-in list.
 ZEmpireAutoAccessories.Models.UnitOfMeasure.ConfigureLengthCategories(
     builder.Configuration.GetSection("Inventory:LengthCategories").Get<string[]>());
+
+// Categories that are two names for the same shelf. The screens group and
+// label by the canonical name so one shelf shows as one heading.
+ZEmpireAutoAccessories.Models.ProductCategories.ConfigureAliases(
+    builder.Configuration.GetSection("Catalog:EquivalentCategories").Get<Dictionary<string, string>>());
 builder.Services.AddScoped<ISalesService, SalesService>();
 builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();
 builder.Services.AddScoped<ICashieringService, CashieringService>();
+
+// Where files kept as evidence live - proof an online payment arrived, proof
+// a warranty was claimed - and which payment modes need one.
+builder.Services.AddScoped<IProofStore, ProofStore>();
+
+// How much film each panel takes on each class of vehicle, and what that
+// makes a document's completion deduct. The cut sizes are a singleton
+// because the point of them is the cache; see CutSizeStore.
+builder.Services.AddSingleton<ICutSizeStore, CutSizeStore>();
+builder.Services.AddScoped<IDocumentStockService, DocumentStockService>();
+ZEmpireAutoAccessories.Models.PaymentModes.Configure(
+    builder.Configuration.GetSection("Payments:Modes").Get<string[]>(),
+    builder.Configuration.GetSection("Payments:ModesNeedingProof").Get<string[]>());
 
 var app = builder.Build();
 
@@ -100,6 +118,12 @@ try
     await IdentitySeeder.SeedAsync(
         app.Services,
         app.Configuration,
+        app.Services.GetRequiredService<ILogger<Program>>());
+
+    // The payment modes the shop offers, inserted if the table does not
+    // already carry them. Insert-only - see PaymentModeSeeder.
+    await PaymentModeSeeder.SeedAsync(
+        app.Services,
         app.Services.GetRequiredService<ILogger<Program>>());
 }
 catch (Exception ex)

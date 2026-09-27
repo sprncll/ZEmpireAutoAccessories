@@ -77,6 +77,20 @@
         /// <summary>The units offered for roll goods, in the order they are shown.</summary>
         public static readonly string[] LengthUnits = { Centimeter, Inch, Meter };
 
+        /// <summary>
+        /// The units offered for anything counted rather than measured.
+        ///
+        /// "Unit" used to head this list and was the default, but it is not a
+        /// unit of measure - it says nothing about what one line covers. And
+        /// "roll" sat here as a count while a roll of film is measured in
+        /// cm/in/m, so the same word meant two different things depending on
+        /// the screen. Both are gone; a piece is the sensible default.
+        /// </summary>
+        public static readonly string[] CountUnits = { "pc", "set", "pair", "job" };
+
+        /// <summary>What a line is written in when nothing else is chosen.</summary>
+        public const string DefaultCountUnit = "pc";
+
         public static bool IsSoldByLength(string? categoryName) =>
             categoryName != null && LengthCategories.Contains(categoryName.Trim());
 
@@ -135,6 +149,6 @@
 
         /// <summary>The unit label to store on a document line.</summary>
         public static string LineUnit(bool soldByLength, string? chosenUnit) =>
-            soldByLength && IsLengthUnit(chosenUnit) ? chosenUnit! : "Unit";
+            soldByLength && IsLengthUnit(chosenUnit) ? chosenUnit! : (chosenUnit ?? DefaultCountUnit);
     }
 }

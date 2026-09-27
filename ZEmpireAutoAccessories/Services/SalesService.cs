@@ -27,7 +27,11 @@ namespace ZEmpireAutoAccessories.Services
                 .Include(s => s.User)
                 .Include(s => s.PaymentMode)
                 .Include(s => s.SaleDetails)
+                    // The category comes along because the receipt asks it
+                    // whether the product is fitted off a roll - see
+                    // DocumentPdfBuilder.
                     .ThenInclude(sd => sd.Product)
+                        .ThenInclude(p => p.Category)
                 .FirstOrDefaultAsync(s => s.SalesID == saleId);
         }
 

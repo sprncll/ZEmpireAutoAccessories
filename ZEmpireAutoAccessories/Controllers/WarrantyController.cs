@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
 {
@@ -11,12 +12,14 @@ namespace ZEmpireAutoAccessories.Controllers
     public class WarrantyController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IProofStore _proofs;
 
         private static readonly string[] StatusOptions = { "Active", "Expired", "Voided", "Claimed" };
 
-        public WarrantyController(ApplicationDbContext context)
+        public WarrantyController(ApplicationDbContext context, IProofStore proofs)
         {
             _context = context;
+            _proofs = proofs;
         }
 
         // GET: Warranty?status=Active&q=...
@@ -79,7 +82,63 @@ namespace ZEmpireAutoAccessories.Controllers
 
             ViewData["Success"] = TempData["Success"];
             ViewData["ClaimError"] = TempData["ClaimError"];
+            ViewData["HasClaimProof"] = _proofs.Exists(ProofKind.WarrantyClaim, warranty.WarrantyID);
             return View(warranty);
+        }
+
+        // POST: Warranty/AttachClaimProof/5
+        //
+        // What shows the claim actually happened: the signed slip, the
+        // replacement receipt, a photo of the work redone. Kept against the
+        // warranty rather than in it - sales.Warranty has no column for a
+        // file, and none is being added. See ProofStore.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(20 * 1024 * 1024)]
+        public async Task<IActionResult> AttachClaimProof(int id, IFormFile? proof)
+        {
+            if (!await _context.Warranties.AnyAsync(w => w.WarrantyID == id))
+                return NotFound();
+
+            TempData["ClaimError"] = proof == null
+                ? "Choose a file to attach."
+                : await _proofs.Save(ProofKind.WarrantyClaim, id, proof);
+
+            if (TempData["ClaimError"] == null)
+                TempData["Success"] = "Proof of claim attached.";
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // GET: Warranty/ClaimProof/5
+        //
+        // Streamed rather than served as a static file: these carry customers'
+        // names and signatures, and the folder is outside wwwroot for that
+        // reason. Behind the Warranty module, like the rest of this screen.
+        public IActionResult ClaimProof(int id)
+        {
+            var stored = _proofs.Open(ProofKind.WarrantyClaim, id);
+            if (stored == null)
+                return NotFound();
+
+            var (content, contentType, fileName) = stored.Value;
+            return File(content, contentType, fileName, enableRangeProcessing: false);
+        }
+
+        // POST: Warranty/RemoveClaimProof/5
+        //
+        // For the wrong file. The claim itself stands - the status and the
+        // remarks record that - so this only clears the attachment.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult RemoveClaimProof(int id)
+        {
+            if (_proofs.Delete(ProofKind.WarrantyClaim, id))
+                TempData["Success"] = "Proof of claim removed. Attach the right file in its place.";
+            else
+                TempData["ClaimError"] = "There was nothing attached to remove.";
+
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         // GET: Warranty/Claim/5
@@ -118,7 +177,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // POST: Warranty/Claim/5
         [HttpPost, ActionName("Claim")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> ClaimConfirmed(int id, string? claimNotes)
+        public async Task<IActionResult> ClaimConfirmed(int id, string? claimNotes, IFormFile? claimProof)
         {
             var warranty = await _context.Warranties.FindAsync(id);
             if (warranty == null)
@@ -150,7 +209,21 @@ namespace ZEmpireAutoAccessories.Controllers
             warranty.WarrantyStatus = "Claimed";
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = "Warranty claimed successfully.";
+            // The proof is optional here - a claim that is genuinely recorded
+            // should not be blocked because the customer has not sent the slip
+            // yet. It can be attached from Details afterwards. A file that is
+            // refused says so without undoing the claim.
+            var proofError = claimProof == null
+                ? null
+                : await _proofs.Save(ProofKind.WarrantyClaim, id, claimProof);
+
+            TempData["Success"] = proofError == null
+                ? "Warranty claimed successfully."
+                : "Warranty claimed successfully, but the file was not attached.";
+
+            if (proofError != null)
+                TempData["ClaimError"] = proofError;
+
             return RedirectToAction(nameof(Details), new { id });
         }
 

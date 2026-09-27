@@ -12,8 +12,16 @@
     var quantity = document.querySelector('input[name="quantity"]');
     if (!product || !unit) { return; }
 
-    var LENGTH_UNITS = ['cm', 'in', 'm'];
-    var COUNT_UNITS = ['Unit', 'pc', 'set', 'roll'];
+    // Both lists come from UnitOfMeasure on the server, rendered onto the
+    // select, so this file cannot drift from what the rest of the system
+    // treats as a valid unit.
+    function unitList(attribute, fallback) {
+        var raw = unit.dataset[attribute];
+        return raw ? raw.split(',').map(function (u) { return u.trim(); }).filter(Boolean) : fallback;
+    }
+
+    var LENGTH_UNITS = unitList('lengthUnits', ['cm', 'in', 'm']);
+    var COUNT_UNITS = unitList('countUnits', ['pc', 'set', 'pair', 'job']);
 
     function selectedIsRoll() {
         var option = product.options[product.selectedIndex];
@@ -38,7 +46,8 @@
 
     function apply() {
         var roll = selectedIsRoll();
-        fill(roll ? LENGTH_UNITS : COUNT_UNITS, roll ? 'cm' : 'Unit');
+        fill(roll ? LENGTH_UNITS : COUNT_UNITS,
+             roll ? LENGTH_UNITS[0] : COUNT_UNITS[0]);
 
         // Quotation and Job Order lines store quantity as a whole number, so
         // a measured length has to be written in a unit that comes out whole

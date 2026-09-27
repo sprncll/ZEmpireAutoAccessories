@@ -8,6 +8,9 @@
 
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
     var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
+
+    // The 12% inside the total, worked out once for the whole page.
+    var vat = Vat.Breakdown(Model.TotalAmount);
 }
 
 <style>
@@ -21,9 +24,9 @@
     .zx-table thead { background:#0b0b0c; color:#fff; }
     .zx-table thead th { border-bottom:none; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
     .badge-draft { background:rgba(148,163,184,.2); color:#64748b; font-weight:600; }
-    .badge-sent { background:rgba(59,130,246,.15); color:#1d4ed8; font-weight:600; }
-    .badge-accepted { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
-    .badge-rejected { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
+    .badge-converted { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
+    .badge-cancelled { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
+    .badge-expired { background:rgba(234,179,8,.18); color:#a16207; font-weight:600; }
     .badge-posted { background:rgba(124,58,237,.15); color:#6d28d9; font-weight:600; }
     .totals-row td { font-weight:600; }
     .status-actions form { display:inline; margin-right:8px; }
@@ -87,10 +90,14 @@
 
         <dt class="col-sm-3">Status</dt>
         <dd class="col-sm-9">
-            <span class="badge badge-@Model.Status.ToLower()">@Model.Status</span>
+            @* One badge, from the job order rather than the status text -
+               see Models/QuotationStatuses.cs. *@
+            <span class="badge @QuotationStatuses.BadgeClass(Model)">@QuotationStatuses.Display(Model)</span>
             @if (Model.JobOrder != null)
             {
-                <span class="badge badge-accepted">Converted to Job Order #@Model.JobOrder.JobOrderID</span>
+                <a class="link-context" asp-controller="JobOrder" asp-action="Details" asp-route-id="@Model.JobOrder.JobOrderID">
+                    Job Order #@Model.JobOrder.JobOrderID
+                </a>
             }
         </dd>
 
@@ -102,28 +109,10 @@
     </dl>
 
     <div class="status-actions">
-        @if (Model.Status == "Draft")
-        {
-            <form asp-action="SetStatus" method="post">
-                <input type="hidden" name="id" value="@Model.QuotationID" />
-                <input type="hidden" name="status" value="Sent" />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Mark as Sent</button>
-            </form>
-        }
-        @if (Model.Status == "Sent")
-        {
-            <form asp-action="SetStatus" method="post">
-                <input type="hidden" name="id" value="@Model.QuotationID" />
-                <input type="hidden" name="status" value="Accepted" />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Mark as Accepted</button>
-            </form>
-            <form asp-action="SetStatus" method="post">
-                <input type="hidden" name="id" value="@Model.QuotationID" />
-                <input type="hidden" name="status" value="Rejected" />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Mark as Rejected</button>
-            </form>
-        }
-        @if (Model.Status == "Accepted" && Model.JobOrder == null)
+        @* The only step a quotation takes. It used to be gated behind marking
+           the quotation Sent and then Accepted; with those gone, a quotation
+           is convertible until it has been converted. *@
+        @if (Model.JobOrder == null)
         {
             <button type="button" class="btn btn-sm btn-zx" data-bs-toggle="modal" data-bs-target="#convertModal">
                 Convert to Job Order
@@ -191,13 +180,28 @@
                 <td colspan="4" class="text-end">Discount</td>
                 <td colspan="2">@("₱" + Model.DiscountAmount.ToString("N2"))</td>
             </tr>
-            <tr class="totals-row">
-                <td colspan="4" class="text-end">Tax</td>
-                <td colspan="2">@("₱" + Model.TaxAmount.ToString("N2"))</td>
-            </tr>
+            @if (Model.TaxAmount > 0)
+            {
+                @* Only on older quotations, where a figure was typed into Tax
+                   and CK_Quotation_Math added it to the total. *@
+                <tr class="totals-row">
+                    <td colspan="4" class="text-end">Tax entered separately</td>
+                    <td colspan="2">@("₱" + Model.TaxAmount.ToString("N2"))</td>
+                </tr>
+            }
             <tr class="totals-row">
                 <td colspan="4" class="text-end">Total</td>
-                <td colspan="2">@("₱" + Model.TotalAmount.ToString("N2"))</td>
+                <td colspan="2"><strong>@("₱" + Model.TotalAmount.ToString("N2"))</strong></td>
+            </tr>
+            @* The 12% is inside that total, not on top of it - prices are
+               quoted VAT-inclusive. See Models/Vat.cs. *@
+            <tr class="totals-row">
+                <td colspan="4" class="text-end text-muted">VATable Sales</td>
+                <td colspan="2" class="text-muted">@("₱" + vat.VatableSales.ToString("N2"))</td>
+            </tr>
+            <tr class="totals-row">
+                <td colspan="4" class="text-end text-muted">VAT (@Vat.RateLabel), included</td>
+                <td colspan="2" class="text-muted">@("₱" + vat.Amount.ToString("N2"))</td>
             </tr>
         </tbody>
     </table>
@@ -250,8 +254,13 @@
                    separate decision. *@
                 <div class="input-group">
                     <input type="number" name="quantity" class="form-control" value="1" min="1" />
-                    <select name="unit" class="form-select line-unit" data-searchable="false">
-                        <option value="Unit">Unit</option>
+                    <select name="unit" class="form-select line-unit" data-searchable="false"
+                            data-length-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)"
+                            data-count-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)">
+                        @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)
+                        {
+                            <option value="@u">@u</option>
+                        }
                     </select>
                 </div>
             </div>

@@ -26,11 +26,16 @@ namespace ZEmpireAutoAccessories.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ICashieringService _cashieringService;
+        private readonly IProofStore _proofs;
 
-        public CashieringController(ApplicationDbContext context, ICashieringService cashieringService)
+        public CashieringController(
+            ApplicationDbContext context,
+            ICashieringService cashieringService,
+            IProofStore proofs)
         {
             _context = context;
             _cashieringService = cashieringService;
+            _proofs = proofs;
         }
 
         // GET: Cashiering?from=...&to=...&q=...&paymentModeId=...&userId=...&source=Sale
@@ -85,10 +90,114 @@ namespace ZEmpireAutoAccessories.Controllers
                 model.ByCashier.Clear();
             }
 
+            // Which rows already have a receipt attached. One folder listing
+            // for the whole page - see PaymentProofStore.
+            var attached = _proofs.ExistingFor(
+                model.Transactions.Select(t => (ProofKinds.For(t.Source), t.SourceId)));
+
+            foreach (var transaction in model.Transactions)
+                transaction.HasProof =
+                    attached.Contains((ProofKinds.For(transaction.Source), transaction.SourceId));
+
             await LoadFilterDropdowns(model);
 
             return View(model);
         }
+
+        // POST: Cashiering/AttachProof
+        //
+        // The screenshot or receipt for a payment that arrived from somewhere
+        // other than the counter. Stored against the transaction and nowhere
+        // else; the file itself never becomes part of the sale record.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(20 * 1024 * 1024)]
+        public async Task<IActionResult> AttachProof(
+            CashierSource source, int sourceId, IFormFile? proof, string? returnUrl)
+        {
+            if (!MaySee(source))
+                return Forbid();
+
+            if (!await TransactionExists(source, sourceId))
+                return NotFound();
+
+            if (proof == null)
+                TempData["ProofError"] = "Choose a file to attach.";
+            else
+                TempData["ProofError"] = await _proofs.Save(ProofKinds.For(source), sourceId, proof);
+
+            if (TempData["ProofError"] == null)
+                TempData["Success"] = "Proof of payment attached.";
+
+            return RedirectBack(returnUrl);
+        }
+
+        // GET: Cashiering/Proof?source=Sale&sourceId=5
+        //
+        // Streams a stored receipt. These carry names, reference numbers and
+        // account details, which is why the folder sits outside wwwroot and
+        // why this is the only way to read one.
+        public IActionResult Proof(CashierSource source, int sourceId)
+        {
+            if (!MaySee(source))
+                return Forbid();
+
+            var stored = _proofs.Open(ProofKinds.For(source), sourceId);
+            if (stored == null)
+                return NotFound();
+
+            var (content, contentType, fileName) = stored.Value;
+
+            // Shown in the browser rather than downloaded - a cashier is
+            // checking a screenshot, not collecting files. The content type
+            // comes from the store's own allow-list, never from the upload.
+            return File(content, contentType, fileName, enableRangeProcessing: false);
+        }
+
+        // POST: Cashiering/RemoveProof
+        //
+        // For the wrong file - the customer's other receipt, the screenshot
+        // before it finished sending. The row goes back to asking for one, so
+        // a removal cannot quietly leave a payment looking settled.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public IActionResult RemoveProof(CashierSource source, int sourceId, string? returnUrl)
+        {
+            if (!MaySee(source))
+                return Forbid();
+
+            if (_proofs.Delete(ProofKinds.For(source), sourceId))
+                TempData["Success"] = "Proof of payment removed. Attach the right file in its place.";
+            else
+                TempData["ProofError"] = "There was nothing attached to remove.";
+
+            return RedirectBack(returnUrl);
+        }
+
+        /// <summary>
+        /// Whether this user holds the module the transaction belongs to. The
+        /// class-level attribute lets in anyone holding either one, so a
+        /// Sales-only user must not reach an invoice's receipt through it.
+        /// </summary>
+        private bool MaySee(CashierSource source) =>
+            source == CashierSource.Sale
+                ? User.HasClaim(AppClaims.ModuleAccess, "Sales")
+                : User.HasClaim(AppClaims.ModuleAccess, "Service Invoices");
+
+        private async Task<bool> TransactionExists(CashierSource source, int sourceId) =>
+            source == CashierSource.Sale
+                ? await _context.Sales.AnyAsync(s => s.SalesID == sourceId)
+                : await _context.ServiceInvoices.AnyAsync(i => i.ServiceInvoiceID == sourceId);
+
+        /// <summary>
+        /// Back to the filtered list the upload came from, keeping the dates
+        /// and filters that were set. Only a local path is followed - an
+        /// absolute URL on the query string would make this an open redirect.
+        /// </summary>
+        private IActionResult RedirectBack(string? returnUrl) =>
+            !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? Redirect(returnUrl)
+                : RedirectToAction(nameof(Index));
 
         private async Task LoadFilterDropdowns(CashieringViewModel model)
         {

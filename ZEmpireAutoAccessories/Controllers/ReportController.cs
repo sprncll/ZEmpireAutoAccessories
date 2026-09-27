@@ -156,7 +156,13 @@ namespace ZEmpireAutoAccessories.Controllers
             if (to.HasValue)
                 query = query.Where(q => q.QuotationDate < to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue));
             if (!string.IsNullOrEmpty(status))
-                query = query.Where(q => q.Status == status);
+            {
+                // Draft covers the statuses the quotation screens retired, so
+                // this report shows the same set they do - see
+                // Models/QuotationStatuses.cs.
+                var stored = QuotationStatuses.StoredValuesFor(status);
+                query = query.Where(q => stored.Contains(q.Status));
+            }
 
             var results = await query.OrderByDescending(q => q.QuotationDate).ToListAsync();
             return (results, results.Sum(q => q.TotalAmount));

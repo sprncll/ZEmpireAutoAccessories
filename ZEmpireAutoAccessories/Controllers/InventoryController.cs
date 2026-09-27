@@ -79,12 +79,15 @@ namespace ZEmpireAutoAccessories.Controllers
             return levels
                 .Select(l =>
                 {
-                    var category = products.TryGetValue(l.ProductID, out var c) ? c : "Uncategorised";
+                    var category = products.TryGetValue(l.ProductID, out var c) ? c : null;
                     return new InventoryRow
                     {
                         ProductID = l.ProductID,
                         ProductName = l.ProductName,
-                        CategoryName = category,
+                        // Grouped under the canonical name, so "Paint
+                        // Protection" and "Paint Protection Film" are one
+                        // band rather than two.
+                        CategoryName = ProductCategories.Canonical(category),
                         StockOnHand = l.StockOnHand ?? 0,
                         SoldByLength = UnitOfMeasure.IsSoldByLength(category)
                     };

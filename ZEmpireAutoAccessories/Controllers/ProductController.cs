@@ -18,12 +18,31 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Product
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? q)
         {
-            var products = await _context.Products
+            var all = await _context.Products
                 .Include(p => p.Category)
-                .OrderBy(p => p.ProductName)
                 .ToListAsync();
+
+            // Grouped by the canonical category, so a shelf with two names is
+            // one band. Sorted after that resolution, or the band would appear
+            // twice under the same heading.
+            var products = all
+                .OrderBy(p => ProductCategories.Canonical(p.Category.CategoryName))
+                .ThenBy(p => p.ProductName)
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                products = products
+                    .Where(p => p.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase)
+                             || ProductCategories.Canonical(p.Category.CategoryName)
+                                    .Contains(term, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+            }
+
+            ViewData["Search"] = q;
 
             // How many prices each product has, so the list can flag the ones
             // that still need one - a product with no cat.Pricing row cannot
@@ -32,6 +51,11 @@ namespace ZEmpireAutoAccessories.Controllers
                 .GroupBy(p => p.ProductID)
                 .Select(g => new { ProductID = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.ProductID, x => x.Count);
+
+            // One heading per shelf: a product filed under a duplicate category
+            // name is listed under the canonical one.
+            ViewData["CategoryDisplay"] = products.ToDictionary(
+                p => p.ProductID, p => ProductCategories.Canonical(p.Category.CategoryName));
 
             // Which products are measured off a roll rather than counted, so
             // the list says so rather than leaving it implied by the category.
@@ -59,6 +83,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 return NotFound();
 
             ViewData["SoldByLength"] = UnitOfMeasure.IsSoldByLength(product.Category.CategoryName);
+            ViewData["CategoryDisplay"] = ProductCategories.Canonical(product.Category.CategoryName);
 
             return View(product);
         }
@@ -247,14 +272,22 @@ namespace ZEmpireAutoAccessories.Controllers
                 .OrderBy(c => c.CategoryName)
                 .ToListAsync();
 
+            // Duplicate category names are kept off the form so nothing new is
+            // filed under one - but a product already sitting in one keeps it
+            // on the list, or editing that product would silently move it.
+            var offered = categories
+                .Where(c => !ProductCategories.IsDuplicate(c.CategoryName)
+                         || c.CategoryID == product?.CategoryID)
+                .ToList();
+
             ViewData["CategoryID"] = new SelectList(
-                categories, "CategoryID", "CategoryName", product?.CategoryID);
+                offered, "CategoryID", "CategoryName", product?.CategoryID);
 
             // How a product is measured follows its category - there is no
             // column on cat.Product to say otherwise - so the form can show
             // the consequence as soon as a category is picked instead of
             // leaving it to be discovered at the stock screen.
-            ViewData["LengthCategories"] = categories
+            ViewData["LengthCategories"] = offered
                 .Where(c => UnitOfMeasure.IsSoldByLength(c.CategoryName))
                 .Select(c => c.CategoryID)
                 .ToHashSet();

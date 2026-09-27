@@ -20,9 +20,9 @@
     .icon-btn:hover { background:#0b0b0c; color:#fff; border-color:#0b0b0c; }
     .icon-btn.danger:hover { background:#dc2626; color:#fff; border-color:#dc2626; }
     .badge-draft { background:rgba(148,163,184,.2); color:#64748b; font-weight:600; }
-    .badge-sent { background:rgba(59,130,246,.15); color:#1d4ed8; font-weight:600; }
-    .badge-accepted { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
-    .badge-rejected { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
+    .badge-converted { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
+    .badge-cancelled { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
+    .badge-expired { background:rgba(234,179,8,.18); color:#a16207; font-weight:600; }
     .badge-posted { background:rgba(124,58,237,.15); color:#6d28d9; font-weight:600; }
 
     .status-filters { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
@@ -32,9 +32,7 @@
     .status-pill.active { color:#fff; border-color:transparent; }
     .status-pill.all.active { background:#0b0b0c; }
     .status-pill.status-draft.active { background:#64748b; }
-    .status-pill.status-sent.active { background:#2563eb; }
-    .status-pill.status-accepted.active { background:#16a34a; }
-    .status-pill.status-rejected.active { background:#dc2626; }
+    .status-pill.status-converted.active { background:#16a34a; }
 
     .search-wrap { position:relative; max-width:420px; margin-bottom:10px; }
     .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#98a0ad; }
@@ -65,9 +63,7 @@
 <div class="status-filters">
     <a asp-action="Index" asp-route-q="@search" class="status-pill all @(status == null ? "active" : "")">All</a>
     <a asp-action="Index" asp-route-status="Draft" asp-route-q="@search" class="status-pill status-draft @(status == "Draft" ? "active" : "")">Draft</a>
-    <a asp-action="Index" asp-route-status="Sent" asp-route-q="@search" class="status-pill status-sent @(status == "Sent" ? "active" : "")">Sent</a>
-    <a asp-action="Index" asp-route-status="Accepted" asp-route-q="@search" class="status-pill status-accepted @(status == "Accepted" ? "active" : "")">Accepted</a>
-    <a asp-action="Index" asp-route-status="Rejected" asp-route-q="@search" class="status-pill status-rejected @(status == "Rejected" ? "active" : "")">Rejected</a>
+    <a asp-action="Index" asp-route-status="Converted" asp-route-q="@search" class="status-pill status-converted @(status == "Converted" ? "active" : "")">Converted</a>
 </div>
 
 <div class="zx-card">
@@ -94,11 +90,9 @@
                     <td>@item.QuotationDate.ToString("MMM d, yyyy")</td>
                     <td>@("₱" + item.TotalAmount.ToString("N2"))</td>
                     <td>
-                        <span class="badge badge-@item.Status.ToLower()">@item.Status</span>
-                        @if (item.JobOrder != null)
-                        {
-                            <span class="badge badge-accepted">Converted</span>
-                        }
+                        @* One badge, from the job order rather than the
+                           status text - see Models/QuotationStatuses.cs. *@
+                        <span class="badge @QuotationStatuses.BadgeClass(item)">@QuotationStatuses.Display(item)</span>
                     </td>
                     <td class="text-end pe-3">
                         <a asp-action="Details" asp-route-id="@item.QuotationID" class="icon-btn" title="View details">

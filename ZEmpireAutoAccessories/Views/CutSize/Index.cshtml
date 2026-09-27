@@ -1,0 +1,120 @@
+@model ZEmpireAutoAccessories.Models.CutSizeGrid
+
+@{
+    ViewData["Title"] = "Cut Sizes";
+    var successMessage = TempData["Success"] as string;
+    var cutSizeError = ViewData["CutSizeError"] as string;
+}
+
+<style>
+    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0 0 4px; color:#0b0b0c; }
+    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:0 0 18px; max-width:760px; }
+    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
+    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
+    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
+
+    .cut-table { border-collapse:separate; border-spacing:0; width:100%; }
+    .cut-table th, .cut-table td { padding:8px 10px; font-size:13.5px; border-bottom:1px solid #eef1f5; }
+    .cut-table thead th { background:#0b0b0c; color:#fff; font-weight:600; font-size:12px;
+                          text-transform:uppercase; letter-spacing:.3px; white-space:nowrap; }
+
+    /* The vehicle class stays put while the panels scroll sideways - a wide
+       grid is unreadable if you cannot see which row you are on. */
+    .cut-table th.rowhead { position:sticky; left:0; background:#fff; z-index:2; font-weight:600;
+                            color:#0b0b0c; text-align:left; white-space:nowrap; box-shadow:1px 0 0 #eef1f5; }
+    .cut-table thead th.rowhead { background:#0b0b0c; color:#fff; }
+
+    .cut-input { width:88px; text-align:right; font-variant-numeric:tabular-nums;
+                 border:1px solid #e2e6ec; border-radius:7px; padding:5px 8px; font-size:13.5px; }
+    .cut-input:focus { outline:none; border-color:var(--zx-red); box-shadow:0 0 0 3px rgba(193,18,31,.1); }
+    .cut-input.is-set { border-color:#bbf7d0; background:#f6fefa; }
+
+    .cut-legend { color:#7b8290; font-size:12.5px; margin-top:12px; }
+    .cut-count { font-weight:600; color:#0b0b0c; }
+</style>
+
+<div class="zx-page-head">
+    <h1>Cut Sizes</h1>
+</div>
+<p class="zx-page-sub">
+    How much film each panel takes, per class of vehicle. When a tint or film job is completed,
+    this is what comes off the roll &mdash; a line reading &ldquo;Front Windshield &times;1&rdquo; deducts the
+    length set here, not one of anything. Written in metres. Leave a box empty where the panel
+    does not apply; a job that uses an empty pairing cannot be completed until it is filled in.
+</p>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (!string.IsNullOrEmpty(cutSizeError))
+{
+    <div class="alert alert-danger">@cutSizeError</div>
+}
+
+@if (Model.Classifications.Count == 0 || Model.Panels.Count == 0)
+{
+    <div class="zx-card">
+        <p class="mb-0 text-muted">
+            @(Model.Classifications.Count == 0
+                ? "There are no vehicle classifications yet. Add one before setting cut sizes."
+                : "There are no panels yet. Add one before setting cut sizes.")
+        </p>
+    </div>
+}
+else
+{
+    <form method="post" asp-action="Index">
+        <div class="zx-card">
+            <div class="table-responsive">
+                <table class="cut-table">
+                    <thead>
+                        <tr>
+                            <th class="rowhead">Vehicle Class</th>
+                            @foreach (var panel in Model.Panels)
+                            {
+                                <th>@panel.PanelName</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var classification in Model.Classifications)
+                        {
+                            <tr>
+                                <th class="rowhead">@classification.ClassificationName</th>
+                                @foreach (var panel in Model.Panels)
+                                {
+                                    var metres = Model.For(classification.VehicleClassificationID, panel.PanelID);
+                                    <td>
+                                        @* Every box posts its own pair of ids, so the server never has
+                                           to work out which cell a number belonged to. *@
+                                        <input type="hidden" name="vehicleClassificationId" value="@classification.VehicleClassificationID" />
+                                        <input type="hidden" name="panelId" value="@panel.PanelID" />
+                                        <input type="number" name="meters" step="0.01" min="0"
+                                               class="cut-input @(metres.HasValue ? "is-set" : "")"
+                                               value="@(metres?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))"
+                                               placeholder="—"
+                                               aria-label="@classification.ClassificationName, @panel.PanelName, metres" />
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="cut-legend">
+                <span class="cut-count">@Model.Filled of @Model.Total</span> pairings have a cut size.
+                All figures are in metres.
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-zx">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+                Save Cut Sizes
+            </button>
+            <a asp-controller="Inventory" asp-action="Index" class="btn btn-outline-secondary">Back to Inventory</a>
+        </div>
+    </form>
+}

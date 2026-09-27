@@ -12,6 +12,10 @@
     var canOpenSales = Model.CanSeeSales;
     var canOpenInvoices = Model.CanSeeServiceInvoices;
     var seesBothSources = canOpenSales && canOpenInvoices;
+
+    // Collected on a bank transfer or a QRPH payment with no receipt against
+    // it. These are the rows to chase before the day is closed out.
+    var unproven = Model.Transactions.Count(t => t.ProofMissing);
 }
 
 <style>
@@ -238,6 +242,36 @@
         color: #9aa1ad;
     }
 
+    .proof-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 11.5px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid transparent;
+    }
+
+    .proof-attached { background: #ecfdf3; color: #15803d; border-color: #bbf7d0; }
+    .proof-attached:hover { background: #d6f5e3; color: #14532d; }
+    .proof-missing { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+    .proof-missing:hover { background: #fde2e2; color: #7f1d1d; }
+    .proof-none { color: #c4c9d2; font-size: 12px; }
+    .proof-pair { display: inline-flex; align-items: center; gap: 4px; }
+
+    .proof-remove {
+        border: none;
+        background: none;
+        padding: 2px 3px;
+        line-height: 0;
+        color: #c4c9d2;
+        border-radius: 5px;
+    }
+
+    .proof-remove:hover { color: #b91c1c; background: #fef2f2; }
+
     .icon-btn {
         width: 32px;
         height: 32px;
@@ -258,8 +292,24 @@
         }
 
     .breakdown-table td, .breakdown-table th {
-        padding: .5rem .75rem;
+        padding: .6rem .75rem;
         font-size: 13.5px;
+    }
+
+    /* Counts and pesos line up digit under digit, so two rows can be compared
+       at a glance instead of read. */
+    .breakdown-table .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .breakdown-table .amount { font-weight: 600; color: #0b0b0c; }
+
+    .breakdown-table tfoot td {
+        border-top: 2px solid #e8ebf0;
+        font-weight: 700;
+        color: #0b0b0c;
     }
 
     .breakdown-head {
@@ -270,7 +320,31 @@
         margin: 0;
         color: #0b0b0c;
     }
+
+    .breakdown-sub {
+        padding: 2px 18px 0;
+        margin: 0;
+        color: #7b8290;
+        font-size: 12.5px;
+    }
 </style>
+
+@if (TempData["Success"] is string proofSuccess)
+{
+    <div class="alert alert-success">@proofSuccess</div>
+}
+@if (TempData["ProofError"] is string proofError)
+{
+    <div class="alert alert-danger">@proofError</div>
+}
+@if (unproven > 0)
+{
+    <div class="alert alert-warning">
+        <strong>@unproven payment@(unproven == 1 ? "" : "s")</strong>
+        in this range came in online with no receipt attached.
+        Attach what the customer sent, from the Proof column below.
+    </div>
+}
 
 <div class="zx-page-head">
     <div>
@@ -311,6 +385,14 @@
             <div class="label">Total Collected</div>
             <div class="value">@("₱" + Model.GrandTotal.ToString("N2"))</div>
             <div class="sub">@Model.CollectedCount transaction@(Model.CollectedCount == 1 ? "" : "s")</div>
+        </div>
+        @* Output VAT for the period. Prices are quoted VAT-inclusive, so this
+           is the 12% already inside what was collected, not an extra charge -
+           see Models/Vat.cs. *@
+        <div class="tile">
+            <div class="label">VAT (@Vat.RateLabel)</div>
+            <div class="value">@("₱" + Vat.Amount(Model.GrandTotal).ToString("N2"))</div>
+            <div class="sub">included in the collected total</div>
         </div>
         @if (canOpenSales)
         {
@@ -407,18 +489,29 @@
    back to the Total Collected above. *@
 @if (Model.CanSeeTotals && (Model.ByPaymentMode.Count > 0 || Model.ByCashier.Count > 0))
 {
+    // Summed from the rows on show rather than read off the tiles above, so a
+    // footer can never disagree with the lines it sits under.
+    var modeTransactions = Model.ByPaymentMode.Sum(m => m.TransactionCount);
+    var modeTotal = Model.ByPaymentMode.Sum(m => m.Total);
+    var cashierTransactions = Model.ByCashier.Sum(c => c.TransactionCount);
+    var cashierTotal = Model.ByCashier.Sum(c => c.Total);
+
     <div class="row g-3 mb-3">
         @if (Model.ByPaymentMode.Count > 0)
         {
             <div class="col-md-6">
                 <div class="zx-card h-100">
                     <h2 class="breakdown-head">Collected by Payment Mode</h2>
+                    <p class="breakdown-sub">How the money came in. Collected transactions only.</p>
                     <table class="table breakdown-table mb-0">
                         <thead>
                             <tr>
                                 <th>Mode</th>
-                                <th class="text-center">Txns</th>
-                                <th class="text-end pe-3">Amount</th>
+                                @* "Txns" saved five characters in a column
+                                   with room to spare, at the cost of anyone
+                                   knowing what it counted. *@
+                                <th class="num">Transactions</th>
+                                <th class="num pe-3">Amount</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -426,11 +519,25 @@
                             {
                                 <tr>
                                     <td>@mode.PaymentModeName</td>
-                                    <td class="text-center">@mode.TransactionCount</td>
-                                    <td class="text-end pe-3">@("₱" + mode.Total.ToString("N2"))</td>
+                                    <td class="num">@mode.TransactionCount.ToString("N0")</td>
+                                    <td class="num amount pe-3">@("₱" + mode.Total.ToString("N2"))</td>
                                 </tr>
                             }
                         </tbody>
+                        @* The rows add up to the Total Collected tile above.
+                           Footed here so that can be seen rather than taken on
+                           trust. *@
+                        @* A total under a single line only repeats it. *@
+                        @if (Model.ByPaymentMode.Count > 1)
+                        {
+                        <tfoot>
+                            <tr>
+                                <td>All modes</td>
+                                <td class="num">@modeTransactions.ToString("N0")</td>
+                                <td class="num pe-3">@("₱" + modeTotal.ToString("N2"))</td>
+                            </tr>
+                        </tfoot>
+                        }
                     </table>
                 </div>
             </div>
@@ -440,12 +547,13 @@
             <div class="col-md-6">
                 <div class="zx-card h-100">
                     <h2 class="breakdown-head">Collected by Cashier</h2>
+                    <p class="breakdown-sub">Who took it. The same transactions, counted another way.</p>
                     <table class="table breakdown-table mb-0">
                         <thead>
                             <tr>
                                 <th>Cashier</th>
-                                <th class="text-center">Txns</th>
-                                <th class="text-end pe-3">Amount</th>
+                                <th class="num">Transactions</th>
+                                <th class="num pe-3">Amount</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -453,11 +561,21 @@
                             {
                                 <tr>
                                     <td>@(cashier.CashierName ?? "—")</td>
-                                    <td class="text-center">@cashier.TransactionCount</td>
-                                    <td class="text-end pe-3">@("₱" + cashier.Total.ToString("N2"))</td>
+                                    <td class="num">@cashier.TransactionCount.ToString("N0")</td>
+                                    <td class="num amount pe-3">@("₱" + cashier.Total.ToString("N2"))</td>
                                 </tr>
                             }
                         </tbody>
+                        @if (Model.ByCashier.Count > 1)
+                        {
+                        <tfoot>
+                            <tr>
+                                <td>Everyone</td>
+                                <td class="num">@cashierTransactions.ToString("N0")</td>
+                                <td class="num pe-3">@("₱" + cashierTotal.ToString("N2"))</td>
+                            </tr>
+                        </tfoot>
+                        }
                     </table>
                 </div>
             </div>
@@ -481,7 +599,8 @@
                     <th class="text-end">Tendered</th>
                     <th class="text-end">Change</th>
                     <th>Status</th>
-                    <th class="text-end pe-3">Open</th>
+                    <th>Proof</th>
+                    <th class="text-end pe-3">Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -490,6 +609,7 @@
                     var isSale = txn.Source == CashierSource.Sale;
                     var openController = isSale ? "Sales" : "ServiceInvoice";
                     var openTitle = isSale ? "Open sale" : "Open service invoice";
+                    var printTitle = isSale ? "Reprint sales receipt" : "Reprint service invoice";
                     var canOpen = isSale ? canOpenSales : canOpenInvoices;
                     <tr class="@(txn.IsCollected ? "" : "row-uncollected")">
                         <td>
@@ -511,9 +631,74 @@
                             @(txn.ChangeAmount.HasValue ? "₱" + txn.ChangeAmount.Value.ToString("N2") : "—")
                         </td>
                         <td><span class="badge badge-@txn.Status.ToLower()">@txn.Status</span></td>
+                        @* Cash and card are settled in front of you. A bank
+                           transfer or a QRPH payment is a claim until the
+                           receipt is attached, so those rows say so. *@
+                        <td>
+                            @if (txn.HasProof)
+                            {
+                                <span class="proof-pair">
+                                    <a class="proof-chip proof-attached"
+                                       asp-action="Proof"
+                                       asp-route-source="@txn.Source"
+                                       asp-route-sourceId="@txn.SourceId"
+                                       target="_blank"
+                                       title="View the attached receipt">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.234 20.252 21 12.3"/><path d="m16 6-8.414 8.586a2 2 0 0 0 0 2.828 2 2 0 0 0 2.828 0l8.414-8.586a4 4 0 0 0 0-5.656 4 4 0 0 0-5.656 0l-8.415 8.585a6 6 0 1 0 8.486 8.486"/></svg>
+                                        Attached
+                                    </a>
+                                    @if (canOpen)
+                                    {
+                                        @* The wrong file happens - the other
+                                           receipt, the screenshot taken before
+                                           it finished sending. Removing puts
+                                           the row back to asking for one. *@
+                                        <form asp-action="RemoveProof" method="post" class="d-inline"
+                                              onsubmit="return confirm('Remove the file attached to @txn.InvoiceNumber? This payment will show as missing its proof again.');">
+                                            <input type="hidden" name="source" value="@txn.Source" />
+                                            <input type="hidden" name="sourceId" value="@txn.SourceId" />
+                                            <input type="hidden" name="returnUrl" value="@($"{Context.Request.Path}{Context.Request.QueryString}")" />
+                                            <button type="submit" class="proof-remove" title="Remove this file">
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </span>
+                            }
+                            else if (txn.NeedsProof && canOpen)
+                            {
+                                <button type="button" class="proof-chip proof-missing attach-proof"
+                                        data-source="@txn.Source"
+                                        data-source-id="@txn.SourceId"
+                                        data-invoice="@txn.InvoiceNumber"
+                                        data-mode="@txn.PaymentModeName">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                                    Attach
+                                </button>
+                            }
+                            else if (txn.NeedsProof)
+                            {
+                                <span class="proof-none">Missing</span>
+                            }
+                            else
+                            {
+                                <span class="proof-none">&mdash;</span>
+                            }
+                        </td>
                         <td class="text-end pe-3">
                             @if (canOpen)
                             {
+                                @* Regenerates the PDF from the document as it
+                                   stands now, so a reprint shows any later
+                                   correction rather than a stored copy. *@
+                                <a class="icon-btn"
+                                   asp-controller="@openController"
+                                   asp-action="Pdf"
+                                   asp-route-id="@txn.SourceId"
+                                   title="@printTitle"
+                                   target="_blank">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg>
+                                </a>
                                 <a class="icon-btn"
                                    asp-controller="@openController"
                                    asp-action="Details"
@@ -532,7 +717,7 @@
                 @if (Model.Transactions.Count == 0)
                 {
                     <tr>
-                        <td colspan="12" class="text-center text-muted py-4">
+                        <td colspan="13" class="text-center text-muted py-4">
                             No sales or service invoices in this range.
                         </td>
                     </tr>
@@ -541,3 +726,62 @@
         </table>
     </div>
 </div>
+
+@* One dialog for the whole table - the row's details are written into it
+   when its Attach button is pressed, rather than rendering a form per row. *@
+<div class="modal fade" id="attachProofModal" tabindex="-1" aria-hidden="true" aria-labelledby="attachProofTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <form asp-action="AttachProof" method="post" enctype="multipart/form-data" class="modal-content">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="source" id="proofSource" />
+            <input type="hidden" name="sourceId" id="proofSourceId" />
+            <input type="hidden" name="returnUrl" value="@($"{Context.Request.Path}{Context.Request.QueryString}")" />
+
+            <div class="modal-header">
+                <h5 class="modal-title" id="attachProofTitle">Attach proof of payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <p class="mb-3" id="proofFor"></p>
+                <label class="form-label" for="proofFile">Receipt or screenshot</label>
+                <input type="file" class="form-control" id="proofFile" name="proof"
+                       accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" required />
+                <div class="form-text">
+                    JPG, PNG, WEBP or PDF, up to 5 MB. Attaching a new file replaces the one already there.
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-zx">Attach</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var modalElement = document.getElementById('attachProofModal');
+            if (!modalElement) { return; }
+
+            var modal = new bootstrap.Modal(modalElement);
+
+            document.querySelectorAll('.attach-proof').forEach(function (button) {
+                button.addEventListener('click', function () {
+                    document.getElementById('proofSource').value = button.dataset.source;
+                    document.getElementById('proofSourceId').value = button.dataset.sourceId;
+                    document.getElementById('proofFor').textContent =
+                        button.dataset.invoice + ' was paid by ' + button.dataset.mode +
+                        '. Attach what the customer sent.';
+
+                    // A file input keeps its last selection; clear it so the
+                    // dialog never opens holding the previous row's receipt.
+                    document.getElementById('proofFile').value = '';
+                    modal.show();
+                });
+            });
+        })();
+    </script>
+}

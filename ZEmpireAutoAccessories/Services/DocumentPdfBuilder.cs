@@ -54,8 +54,11 @@ namespace ZEmpireAutoAccessories.Services
                             SubTotal: d.SubTotal
                         )), includeDiscountColumn: false);
 
-                        ComposeTotals(column, ("Sub Total", quotation.SubTotal), ("Discount", -quotation.DiscountAmount),
-                            ("Tax", quotation.TaxAmount), ("Total", quotation.TotalAmount));
+                        ComposeTotals(column, WithVat(
+                            ("Sub Total", quotation.SubTotal),
+                            ("Discount", -quotation.DiscountAmount),
+                            ("Tax entered separately", quotation.TaxAmount),
+                            ("Total", quotation.TotalAmount)));
 
                         if (!string.IsNullOrWhiteSpace(quotation.Remarks))
                             ComposeRemarks(column, quotation.Remarks);
@@ -92,17 +95,22 @@ namespace ZEmpireAutoAccessories.Services
                             });
                         });
 
+                        // The unit column earns its place here: a sale line for
+                        // film is written in metres (CreateSale converts it),
+                        // so a bare "3" beside a roll product says nothing.
                         ComposeLineItemsTable(column, sale.SaleDetails.Select(d => (
                             Description: (string?)d.Product.ProductName,
-                            Note: (string?)null,
+                            // A sale naming a vehicle is film going onto that
+                            // car; one without is goods over the counter.
+                            Note: LineNote(d.Product, fitted: sale.Vehicle != null),
                             Qty: (decimal)d.Quantity,
-                            Unit: "Unit",
+                            Unit: SoldByLength(d.Product) ? UnitOfMeasure.Meter : UnitOfMeasure.DefaultCountUnit,
                             UnitPrice: d.UnitPrice,
                             Discount: (decimal?)null,
                             SubTotal: d.SubTotal
-                        )), includeDiscountColumn: false, includeUnitColumn: false);
+                        )), includeDiscountColumn: false);
 
-                        ComposeTotals(column, ("Total", sale.TotalAmount));
+                        ComposeTotals(column, WithVat(("Total", sale.TotalAmount)));
                     });
 
                     page.Footer().Element(c => ComposeFooter(c, "Thank you for your business!"));
@@ -140,7 +148,17 @@ namespace ZEmpireAutoAccessories.Services
 
                         ComposeLineItemsTable(column, invoice.Details.Select(d => (
                             Description: (string?)(d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description),
-                            Note: d.Product == null && d.Service == null ? null : d.Description,
+                            Note: LineNote(
+                                d.Product,
+                                // A service invoice is work on a car by
+                                // definition, so the fitting is always in it.
+                                fitted: true,
+                                d.TintVariant?.VariantName,
+                                d.Shade?.ShadeName,
+                                d.Panel?.PanelName,
+                                // The line's own wording, unless it is the
+                                // only thing naming the line already.
+                                d.Product == null && d.Service == null ? null : d.Description),
                             Qty: d.Quantity,
                             Unit: d.Unit,
                             UnitPrice: d.UnitPrice,
@@ -148,13 +166,13 @@ namespace ZEmpireAutoAccessories.Services
                             SubTotal: d.SubTotal
                         )), includeDiscountColumn: true);
 
-                        ComposeTotals(column,
+                        ComposeTotals(column, WithVat(
                             ("Sub Total", invoice.SubTotal),
                             ("Discount", -invoice.DiscountAmount),
-                            ("Tax", invoice.TaxAmount),
+                            ("Tax entered separately", invoice.TaxAmount),
                             ("Total", invoice.TotalAmount),
                             ("Amount Paid", invoice.AmountPaid),
-                            ("Change", invoice.ChangeAmount));
+                            ("Change", invoice.ChangeAmount)));
 
                         if (!string.IsNullOrWhiteSpace(invoice.Remarks))
                             ComposeRemarks(column, invoice.Remarks);
@@ -309,6 +327,52 @@ namespace ZEmpireAutoAccessories.Services
             });
         }
 
+        /// <summary>
+        /// What is fitted off a roll - film and tint - is quoted as one price
+        /// with the work in it: the shop does not charge separately for
+        /// cutting and applying it. Saying so on the line keeps the customer
+        /// from wondering where the labour went, and stops anyone reading the
+        /// price as material only.
+        /// </summary>
+        private const string ApplicationIncluded = "Cutting and application included";
+
+        /// <summary>
+        /// The small print under a line: what exactly was fitted (which tint,
+        /// which shade, which panel), whatever was typed on the line itself,
+        /// and a note where the work is included in the price.
+        /// </summary>
+        /// <param name="fitted">
+        /// Whether this line is work on a car rather than goods handed over.
+        /// Film bought off the counter to take away has had nothing applied
+        /// to it, and a receipt saying the application was included would be
+        /// promising something that never happened.
+        /// </param>
+        private static string? LineNote(
+            Product? product,
+            bool fitted,
+            string? tintVariant = null,
+            string? shade = null,
+            string? panel = null,
+            string? typed = null)
+        {
+            var parts = new List<string>();
+
+            foreach (var detail in new[] { tintVariant, shade, panel, typed })
+            {
+                if (!string.IsNullOrWhiteSpace(detail))
+                    parts.Add(detail.Trim());
+            }
+
+            if (fitted && SoldByLength(product))
+                parts.Add(ApplicationIncluded);
+
+            return parts.Count == 0 ? null : string.Join(" · ", parts);
+        }
+
+        /// <summary>Whether this product comes off a roll and is measured.</summary>
+        private static bool SoldByLength(Product? product) =>
+            product != null && UnitOfMeasure.IsSoldByLength(product.Category?.CategoryName);
+
         private static void ComposeLineItemsTable(
             ColumnDescriptor column,
             IEnumerable<(string? Description, string? Note, decimal Qty, string Unit, decimal UnitPrice, decimal? Discount, decimal SubTotal)> lines,
@@ -354,10 +418,28 @@ namespace ZEmpireAutoAccessories.Services
                     table.Cell().Element(BodyCell).AlignRight().Text(line.Qty.ToString("0.##"));
                     if (includeUnitColumn)
                         table.Cell().Element(BodyCell).Text(line.Unit);
-                    table.Cell().Element(BodyCell).AlignRight().Text("₱" + line.UnitPrice.ToString("N2"));
-                    if (includeDiscountColumn)
-                        table.Cell().Element(BodyCell).AlignRight().Text("₱" + (line.Discount ?? 0).ToString("N2"));
-                    table.Cell().Element(BodyCell).AlignRight().Text("₱" + line.SubTotal.ToString("N2"));
+
+                    // Work that was done and not charged for. Printing P0.00
+                    // twice reads like a mistake, or like the customer was
+                    // owed something; "Included" says what actually happened.
+                    var included = line.UnitPrice == 0m && line.SubTotal == 0m;
+
+                    if (included)
+                    {
+                        table.Cell().Element(BodyCell).AlignRight()
+                            .Text("Included").FontColor(Colors.Grey.Darken1);
+                        if (includeDiscountColumn)
+                            table.Cell().Element(BodyCell).AlignRight().Text("—").FontColor(Colors.Grey.Medium);
+                        table.Cell().Element(BodyCell).AlignRight()
+                            .Text("Included").FontColor(Colors.Grey.Darken1);
+                    }
+                    else
+                    {
+                        table.Cell().Element(BodyCell).AlignRight().Text("₱" + line.UnitPrice.ToString("N2"));
+                        if (includeDiscountColumn)
+                            table.Cell().Element(BodyCell).AlignRight().Text("₱" + (line.Discount ?? 0).ToString("N2"));
+                        table.Cell().Element(BodyCell).AlignRight().Text("₱" + line.SubTotal.ToString("N2"));
+                    }
                 }
 
                 if (lineList.Count == 0)
@@ -369,6 +451,33 @@ namespace ZEmpireAutoAccessories.Services
             });
         }
 
+        /// <summary>
+        /// The VAT split, added under the Total row, and any zero "Tax entered
+        /// separately" line dropped on the way through.
+        ///
+        /// Prices are quoted VAT-inclusive, so the 12% is worked out of the
+        /// total rather than charged on top - see Models/Vat.cs. A document
+        /// with no Total row (nothing to divide) comes back untouched.
+        /// </summary>
+        private static (string Label, decimal Value)[] WithVat(params (string Label, decimal Value)[] rows)
+        {
+            var kept = rows.Where(r => r.Label != "Tax entered separately" || r.Value > 0).ToList();
+
+            var totalAt = kept.FindIndex(r => r.Label == "Total");
+            if (totalAt < 0)
+                return kept.ToArray();
+
+            var (vatable, vat) = Vat.Breakdown(kept[totalAt].Value);
+
+            kept.InsertRange(totalAt + 1, new[]
+            {
+                ("VATable Sales", vatable),
+                ($"VAT ({Vat.RateLabel}), included", vat)
+            });
+
+            return kept.ToArray();
+        }
+
         private static void ComposeTotals(ColumnDescriptor column, params (string Label, decimal Value)[] rows)
         {
             column.Item().AlignRight().Width(220).Column(col =>
@@ -376,7 +485,7 @@ namespace ZEmpireAutoAccessories.Services
                 for (var i = 0; i < rows.Length; i++)
                 {
                     var (label, value) = rows[i];
-                    var isTotal = i == rows.Length - 1 && rows.Length > 1 && label == "Total";
+                    var isTotal = rows.Length > 1 && label == "Total";
                     var isLast = i == rows.Length - 1;
 
                     col.Item().Row(row =>

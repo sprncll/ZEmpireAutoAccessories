@@ -10,7 +10,9 @@
     // actually holds it.
     var canPrice = User.HasClaim(AppClaims.ModuleAccess, "Pricing");
     var lengthProducts = ViewData["LengthProducts"] as HashSet<int> ?? new HashSet<int>();
+    var categoryDisplay = ViewData["CategoryDisplay"] as Dictionary<int, string> ?? new Dictionary<int, string>();
     var saved = TempData["Success"] as string;
+    var search = ViewData["Search"] as string;
 }
 
 <style>
@@ -104,6 +106,34 @@
         font-weight: 600;
     }
 
+    .search-wrap { position:relative; max-width:420px; margin-bottom:14px; }
+    .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#98a0ad; }
+    .search-input { padding-left:38px; border-radius:10px; }
+    .search-actions { display:flex; gap:8px; margin-bottom:18px; }
+
+    .cat-row td {
+        background:#f7f8fa; font-weight:700; font-size:11.5px;
+        text-transform:uppercase; letter-spacing:.5px; color:#6b7280;
+        padding-top:9px; padding-bottom:9px;
+    }
+
+    .cat-count { font-weight:600; text-transform:none; letter-spacing:0; color:#98a0ad; margin-left:10px; }
+    .cat-measure { float:right; font-weight:600; text-transform:none; letter-spacing:0; color:#98a0ad; }
+    .product-name { padding-left:26px !important; }
+
+    @@media (max-width: 575.98px) {
+        .cat-measure { display:none; }
+        .product-name { padding-left:14px !important; }
+
+        /* Status is "Active" on nearly every row, and the three action
+           icons were wrapping into a column three rows tall. Drop the
+           badge and tighten the icons so a row stays one line. */
+        .status-col { display:none; }
+        .zx-table td, .zx-table th { padding-left:.4rem; padding-right:.4rem; font-size:12.5px; }
+        .icon-btn { width:28px; height:28px; margin-left:3px; }
+        td.text-end { white-space:nowrap; }
+    }
+
     .badge-nopricing {
         background: rgba(234,179,8,.18);
         color: #a16207;
@@ -121,35 +151,59 @@
     <div class="alert alert-success py-2 px-3">@saved</div>
 }
 
+<form asp-action="Index" method="get">
+    <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+        <input type="text" name="q" value="@search" class="form-control search-input" placeholder="Search product or category" />
+    </div>
+    <div class="search-actions">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+        @if (!string.IsNullOrEmpty(search))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Clear</a>
+        }
+    </div>
+</form>
+
 <div class="zx-card">
     <div class="table-responsive">
     <table class="table zx-table mb-0">
         <thead>
             <tr>
                 <th>@Html.DisplayNameFor(m => m.ProductName)</th>
-                <th>Category</th>
-                <th>Measured</th>
                 <th>Pricing</th>
-                <th>Status</th>
+                <th class="status-col">Status</th>
                 <th class="text-end pe-3">Actions</th>
             </tr>
         </thead>
         <tbody>
+            @* Category and how it is measured were the same value on every row
+               of a shelf. They become a band instead, leaving the row to carry
+               only what differs between one product and the next. *@
+            @{
+                string? currentCategory = null;
+                var byCategory = Model
+                    .GroupBy(p => categoryDisplay.TryGetValue(p.ProductID, out var c) ? c : p.Category.CategoryName)
+                    .ToDictionary(g => g.Key, g => g.Count());
+            }
             @foreach (var item in Model)
             {
+                var cat = categoryDisplay.TryGetValue(item.ProductID, out var c) ? c : item.Category.CategoryName;
+                var byLength = lengthProducts.Contains(item.ProductID);
+
+                if (cat != currentCategory)
+                {
+                    currentCategory = cat;
+                    <tr class="cat-row">
+                        <td colspan="4">
+                            @currentCategory
+                            <span class="cat-count">@byCategory[cat] product@(byCategory[cat] == 1 ? "" : "s")</span>
+                            <span class="cat-measure">@(byLength ? "measured by length" : "counted in pieces")</span>
+                        </td>
+                    </tr>
+                }
                 <tr>
-                    <td>@Html.DisplayFor(modelItem => item.ProductName)</td>
-                    <td>@item.Category.CategoryName</td>
-                    <td>
-                        @if (lengthProducts.Contains(item.ProductID))
-                        {
-                            <span class="measured-pill is-length">By length</span>
-                        }
-                        else
-                        {
-                            <span class="measured-pill is-count">By piece</span>
-                        }
-                    </td>
+                    <td class="product-name">@Html.DisplayFor(modelItem => item.ProductName)</td>
                     <td>
                         @{ var priceCount = priceCounts.TryGetValue(item.ProductID, out var n) ? n : 0; }
                         @if (priceCount == 0)
@@ -161,7 +215,7 @@
                             <span class="text-muted">@priceCount price@(priceCount == 1 ? "" : "s")</span>
                         }
                     </td>
-                    <td>
+                    <td class="status-col">
                         @if (item.IsActive)
                         {
                             <span class="badge badge-active">Active</span>
@@ -176,7 +230,9 @@
                         {
                             <a asp-controller="Pricing" asp-action="Create" asp-route-productId="@item.ProductID"
                                class="icon-btn" title="Set price">
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" x2="12" y1="2" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                                @* Peso, not dollar - the shop prices in PHP. Stem and bowl of a P with
+                                   the two bars through it. *@
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16" /><path d="M8 4h5.5a4 4 0 0 1 0 8H8" /><path d="M4.5 8h13" /><path d="M4.5 12h13" /></svg>
                             </a>
                         }
                         <a asp-action="Details" asp-route-id="@item.ProductID" class="icon-btn" title="View details">
@@ -194,7 +250,9 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">No products yet.</td>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        @(string.IsNullOrEmpty(search) ? "No products yet." : $"No product matches \"{search}\".")
+                    </td>
                 </tr>
             }
         </tbody>

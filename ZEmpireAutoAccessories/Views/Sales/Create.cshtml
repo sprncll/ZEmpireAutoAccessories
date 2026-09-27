@@ -26,6 +26,20 @@
     .zx-table thead { background:#0b0b0c; color:#fff; }
     .zx-table thead th { border-bottom:none; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     #grandTotal { font-weight:700; font-size:18px; }
+
+    /* Same payment card as the service invoice, so the counter reads the
+       same whichever document is being settled. */
+    .pay-card { border-top:1px solid #e8ebf0; margin-top:6px; padding-top:18px; }
+    .pay-form { display:flex; align-items:flex-end; gap:22px; flex-wrap:wrap; }
+    .pay-due { display:flex; flex-direction:column; gap:2px; }
+    .pay-label { font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:#7b8290; }
+    .pay-total { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; color:#0b0b0c; }
+    .pay-vat { font-size:12px; color:#7b8290; }
+    .pay-field { min-width:190px; }
+    .pay-change { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; color:#15803d; padding-top:2px; }
+    .pay-change.is-short { color:#b91c1c; }
+    .pay-note { font-size:12.5px; color:#7b8290; margin-top:8px; }
+    @@media (max-width: 575.98px) { .pay-form { gap:14px; } .pay-field { min-width:0; flex:1 1 100%; } }
     .stock-warning { color:#b91c1c; font-size:11.5px; font-weight:600; margin-top:3px; }
 </style>
 
@@ -142,6 +156,40 @@
 
         <div class="text-end mb-3">
             Total: <span id="grandTotal">₱0.00</span>
+        </div>
+
+        @* Nothing about the tender is stored - sales.Sales holds the total and
+           nothing else - so this is the counter's working-out: what is due,
+           what was handed over, and the change to give back. The figures reach
+           the receipt page for this one visit; the sale itself records the
+           line items and the total, as it always has. *@
+        <div class="pay-card">
+            <h6 class="mb-1">Take payment</h6>
+            <p class="zx-page-sub mb-3" style="margin-top:0;">
+                Enter what the customer handed over. The change is worked out for you.
+            </p>
+            <div class="pay-form">
+                <div class="pay-due">
+                    <span class="pay-label">Total due</span>
+                    <span class="pay-total" id="payTotal">₱0.00</span>
+                    <span class="pay-vat">Includes <span id="payVat">₱0.00</span> VAT (@Vat.RateLabel)</span>
+                </div>
+                <div class="pay-field">
+                    <label class="form-label" for="amountTendered">Amount tendered</label>
+                    <div class="input-group">
+                        <input type="number" step="0.01" min="0" id="amountTendered" name="amountTendered"
+                               class="form-control" placeholder="0.00" />
+                        @* Card and exact cash are the common case; this saves
+                           retyping a figure that is already on the screen. *@
+                        <button type="button" class="btn btn-outline-secondary" id="payExact">Exact</button>
+                    </div>
+                </div>
+                <div class="pay-field">
+                    <span class="form-label d-block">Change</span>
+                    <div class="pay-change" id="payChange">₱0.00</div>
+                </div>
+            </div>
+            <div class="pay-note" id="payNote">Add a line item to take payment.</div>
         </div>
 
         <div class="form-actions">
@@ -338,14 +386,80 @@
                 return true;
             }
 
+            // Two things can hold the sale back - a line that outruns stock,
+            // and a tender that does not cover the total. One place decides
+            // the button so neither can quietly re-enable it behind the other.
+            var stockOk = true;
+            var paymentOk = false;
+            var saleTotal = 0;
+
+            function updateSubmit() {
+                $('#saleForm button[type=submit]').prop('disabled', !(stockOk && paymentOk));
+            }
+
             function refreshStockState() {
-                var ok = true;
+                stockOk = true;
                 $('.line-row').each(function () {
-                    if (!checkStockRow($(this))) { ok = false; }
+                    if (!checkStockRow($(this))) { stockOk = false; }
                 });
-                $('#saleForm button[type=submit]').prop('disabled', !ok);
-                $('#stockBlocked').toggle(!ok);
-                return ok;
+                $('#stockBlocked').toggle(!stockOk);
+                updateSubmit();
+                return stockOk;
+            }
+
+            function peso(value) {
+                return '₱' + value.toLocaleString('en-US',
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            // The 12% is inside the price, not added to it - the same split
+            // Models/Vat.cs does on the server, and the figure the receipt
+            // will show, so the two have to agree to the centavo.
+            //
+            // Worked in whole centavos because the plain division does not.
+            // The server divides in decimal, where 6.30 / 1.12 is exactly
+            // 5.625 and rounds up to 5.63; in a double it comes out a hair
+            // under and rounds down to 5.62, leaving the form a centavo away
+            // from the receipt on about one total in fifty. Dividing by 1.12
+            // is the same as multiplying by 25/28, which stays whole.
+            function vatOf(total) {
+                var cents = Math.round(total * 100);
+                var numerator = cents * 25;
+                var vatable = Math.floor(numerator / 28);
+
+                // Half a centavo goes away from zero, as decimal.Round does.
+                if ((numerator % 28) * 2 >= 28) { vatable += 1; }
+
+                return (cents - vatable) / 100;
+            }
+
+            function updateChange() {
+                var tendered = parseFloat($('#amountTendered').val());
+                var typed = !isNaN(tendered);
+                if (!typed) { tendered = 0; }
+
+                var change = tendered - saleTotal;
+                var $change = $('#payChange');
+
+                if (saleTotal <= 0) {
+                    $change.text(peso(0)).removeClass('is-short');
+                    $('#payNote').text('Add a line item to take payment.').show();
+                    paymentOk = false;
+                } else if (change < 0) {
+                    $change.text(peso(-change) + ' short').addClass('is-short');
+                    $('#payNote')
+                        .text(typed
+                            ? 'This is short of the total - the sale cannot be completed yet.'
+                            : 'Enter what the customer handed over, or press Exact.')
+                        .show();
+                    paymentOk = false;
+                } else {
+                    $change.text(peso(change)).removeClass('is-short');
+                    $('#payNote').hide();
+                    paymentOk = true;
+                }
+
+                updateSubmit();
             }
 
             function recalcTotal() {
@@ -355,8 +469,20 @@
                     var price = parseFloat($(this).find('input[name=unitPrice]').val()) || 0;
                     total += qty * price;
                 });
-                $('#grandTotal').text('₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+                saleTotal = total;
+                $('#grandTotal').text(peso(total));
+                $('#payTotal').text(peso(total));
+                $('#payVat').text(peso(vatOf(total)));
+                updateChange();
             }
+
+            $('#amountTendered').on('input', updateChange);
+
+            $('#payExact').on('click', function () {
+                $('#amountTendered').val(saleTotal.toFixed(2));
+                updateChange();
+            });
 
             $(document).on('change', '.product-select', function () {
                 evaluateProductRow($(this).closest('tr'));
@@ -405,7 +531,16 @@
                 }
 
                 recalcTotal();
+
+                // The removed row may have been the one outrunning stock, so
+                // the warning and the button are worked out again rather than
+                // left on the last answer.
+                refreshStockState();
             });
+
+            // Settle the total, the change and the button before anything is
+            // touched - an empty cart cannot be completed.
+            recalcTotal();
         });
     </script>
 }

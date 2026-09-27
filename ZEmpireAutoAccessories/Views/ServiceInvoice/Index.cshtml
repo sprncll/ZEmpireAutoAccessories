@@ -217,6 +217,12 @@
                     <td>@("₱" + item.TotalAmount.ToString("N2"))</td>
                     <td><span class="badge badge-@item.Status.ToLower()">@item.Status</span></td>
                     <td class="text-end pe-3">
+                        @* Same order as the sales list: reprint first, then
+                           open. The PDF is built from the invoice as it stands
+                           now, so a reprint carries any later correction. *@
+                        <a asp-action="Pdf" asp-route-id="@item.ServiceInvoiceID" class="icon-btn" title="Reprint service invoice" target="_blank">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 9V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v5"/><rect width="12" height="8" x="6" y="14" rx="1"/></svg>
+                        </a>
                         <a asp-action="Details" asp-route-id="@item.ServiceInvoiceID" class="icon-btn" title="View details">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
                         </a>

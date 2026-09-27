@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
 using ZEmpireAutoAccessories.Services.Interfaces;
@@ -56,8 +56,16 @@ namespace ZEmpireAutoAccessories.Services
                     p.Panel.PanelName.Contains(term));
             }
 
+            // Ordered so the list groups cleanly: product, then variant, then
+            // panel, then the classifications within a panel. The screen reads
+            // these as nested bands, which only works if every row of a group
+            // arrives together.
             return await query
                 .OrderBy(p => p.Product.ProductName)
+                .ThenBy(p => p.TintVariant == null ? 0 : 1)
+                .ThenBy(p => p.TintVariant!.VariantName)
+                .ThenBy(p => p.Panel.PanelName)
+                .ThenBy(p => p.VehicleClassification.ClassificationName)
                 .ToListAsync();
         }
 

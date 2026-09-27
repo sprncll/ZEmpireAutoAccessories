@@ -4,6 +4,11 @@
     ViewData["Title"] = "Warranty Details";
     var successMessage = ViewData["Success"] as string;
     var claimError = ViewData["ClaimError"] as string;
+
+    // Whether a file showing the claim actually happened is on file. Kept in
+    // a folder, not a column - see ProofStore.
+    var hasClaimProof = ViewData["HasClaimProof"] is true;
+    var claimed = Model.WarrantyStatus == "Claimed";
 }
 
 <style>
@@ -20,6 +25,9 @@
     .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
 
     .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
+    .proof-sub { color:#7b8290; font-size:13px; margin:0 0 14px; }
+    .proof-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .proof-file { max-width:360px; }
     dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
     .badge-active { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
@@ -113,6 +121,52 @@
         }
     </dl>
 </div>
+
+@* Proof that the customer really claimed this - the signed slip, the
+   replacement receipt, a photo of the work redone. Shown once the warranty is
+   claimed; before that there is nothing to evidence. *@
+@if (claimed)
+{
+    <div class="zx-card">
+        <h6 class="mb-1">Proof of claim</h6>
+        <p class="proof-sub">
+            What shows the claim was honoured. JPG, PNG, WEBP or PDF, up to 5 MB.
+        </p>
+
+        @if (hasClaimProof)
+        {
+            <div class="proof-row">
+                <a class="btn btn-outline-secondary btn-sm"
+                   asp-action="ClaimProof" asp-route-id="@Model.WarrantyID" target="_blank">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
+                    View attached file
+                </a>
+
+                <form asp-action="RemoveClaimProof" method="post" class="d-inline"
+                      onsubmit="return confirm('Remove the file attached to this warranty claim? The claim itself stays recorded.');">
+                    <input type="hidden" name="id" value="@Model.WarrantyID" />
+                    <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                </form>
+            </div>
+
+            <form asp-action="AttachClaimProof" method="post" enctype="multipart/form-data" class="proof-row mt-3">
+                <input type="hidden" name="id" value="@Model.WarrantyID" />
+                <input type="file" class="form-control form-control-sm proof-file" name="proof"
+                       accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" required />
+                <button type="submit" class="btn btn-outline-secondary btn-sm">Replace</button>
+            </form>
+        }
+        else
+        {
+            <form asp-action="AttachClaimProof" method="post" enctype="multipart/form-data" class="proof-row">
+                <input type="hidden" name="id" value="@Model.WarrantyID" />
+                <input type="file" class="form-control form-control-sm proof-file" name="proof"
+                       accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf" required />
+                <button type="submit" class="btn btn-zx btn-sm">Attach</button>
+            </form>
+        }
+    </div>
+}
 
 <a asp-action="Index" class="back-link">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>

@@ -7,12 +7,24 @@
     // reached after completing a sale, and never again on a revisit.
     var justCompleted = TempData["SaleCompleted"] is string;
 
+    // Set by Create when payment was taken at the counter. sales.Sales has no
+    // column for either figure, so they are shown on this one visit and not
+    // again - which is honest: they were never recorded.
+    // Already formatted by Create - TempData cannot carry a decimal.
+    var tendered = TempData["SaleTendered"] as string;
+    var change = TempData["SaleChange"] as string;
+
     // sales.Warranty.SalesDetailID points back at these lines, so each one can
     // show its cover or offer to create it. Only shown to users who hold the
     // Warranty module, since WarrantyController enforces it anyway.
     var warrantyByLine = ViewData["WarrantyByLine"] as Dictionary<int, ZEmpireAutoAccessories.Models.Warranty>
                          ?? new Dictionary<int, ZEmpireAutoAccessories.Models.Warranty>();
     var canUseWarranty = User.HasClaim(AppClaims.ModuleAccess, "Warranty");
+
+    // sales.Sales has no tax column, and dbo.vw_SalesSummary reconciles
+    // TotalAmount against the sum of its lines, so the 12% is shown rather
+    // than stored - it is inside the price either way. See Models/Vat.cs.
+    var vat = Vat.Breakdown(Model.TotalAmount);
 }
 
 <style>
@@ -114,7 +126,23 @@
             }
             <tr class="totals-row">
                 <td colspan="3" class="text-end">Total</td>
-                <td>@("₱" + Model.TotalAmount.ToString("N2"))</td>
+                <td><strong>@("₱" + Model.TotalAmount.ToString("N2"))</strong></td>
+                @if (canUseWarranty)
+                {
+                    <td></td>
+                }
+            </tr>
+            <tr class="totals-row">
+                <td colspan="3" class="text-end text-muted">VATable Sales</td>
+                <td class="text-muted">@("₱" + vat.VatableSales.ToString("N2"))</td>
+                @if (canUseWarranty)
+                {
+                    <td></td>
+                }
+            </tr>
+            <tr class="totals-row">
+                <td colspan="3" class="text-end text-muted">VAT (@Vat.RateLabel), included</td>
+                <td class="text-muted">@("₱" + vat.Amount.ToString("N2"))</td>
                 @if (canUseWarranty)
                 {
                     <td></td>
@@ -131,6 +159,14 @@
         <strong>Sale recorded.</strong>
         The receipt should have opened in a new tab &mdash;
         <a href="@Url.Action("Pdf", new { id = Model.SalesID })" target="_blank">open it here</a> if your browser blocked it.
+        @if (tendered != null && change != null)
+        {
+            <div class="mt-2">
+                Tendered <strong>@("₱" + tendered)</strong>
+                &middot; change to give back <strong>@("₱" + change)</strong>.
+                <span class="text-muted">Shown once - the sale record keeps the total only.</span>
+            </div>
+        }
     </div>
 }
 

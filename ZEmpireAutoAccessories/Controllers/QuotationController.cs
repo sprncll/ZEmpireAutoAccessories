@@ -29,13 +29,22 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Quotation?status=Draft&q=...
+        //
+        // Two states: still being worked on, or converted to a job order. The
+        // filter reads the job order rather than the status text, because the
+        // quotations converted before the status was written carry whatever
+        // they had at the time - see Models/QuotationStatuses.cs.
         public async Task<IActionResult> Index(string? status, string? q)
         {
             var query = _context.Quotations
                 .Include(quotation => quotation.Customer)
                 .Include(quotation => quotation.Vehicle)
                 .Include(quotation => quotation.JobOrder)
-                .Where(quotation => status == null || quotation.Status == status);
+                .Where(quotation =>
+                    status == null
+                    || (status == QuotationStatuses.Converted
+                        ? quotation.JobOrder != null
+                        : quotation.JobOrder == null));
 
             if (!string.IsNullOrWhiteSpace(q))
             {
@@ -358,25 +367,6 @@ namespace ZEmpireAutoAccessories.Controllers
             return RedirectToAction(nameof(Details), new { id = quotationId });
         }
 
-        // POST: Quotation/SetStatus
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SetStatus(int id, string status)
-        {
-            var allowed = new[] { "Draft", "Sent", "Accepted", "Rejected" };
-            if (!allowed.Contains(status))
-                return BadRequest();
-
-            var quotation = await _context.Quotations.FindAsync(id);
-            if (quotation != null)
-            {
-                quotation.Status = status;
-                await _context.SaveChangesAsync();
-            }
-
-            return RedirectToAction(nameof(Details), new { id });
-        }
-
         // POST: Quotation/Convert/5
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -404,6 +394,14 @@ namespace ZEmpireAutoAccessories.Controllers
             try
             {
                 var jobOrderId = await _quotationService.ConvertToJobOrder(id, CurrentUserId, jobOrderNumber);
+
+                // The job order is what makes a quotation converted, but say
+                // so on the quotation as well: CK_Quotation_Status has always
+                // allowed Converted, and a row that reads "Draft" next to a
+                // job order invites someone to wonder which is right.
+                quotation.Status = QuotationStatuses.Converted;
+                await _context.SaveChangesAsync();
+
                 TempData["Success"] = $"Converted to Job Order #{jobOrderId} ({jobOrderNumber}).";
             }
             catch (Exception ex)

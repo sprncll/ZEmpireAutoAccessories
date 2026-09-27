@@ -24,10 +24,8 @@
     .btn-pdf { display:inline-flex; align-items:center; gap:7px; background:#0b0b0c; border-color:#0b0b0c; color:#fff; font-weight:600; }
     .btn-pdf:hover { background:#262626; border-color:#262626; color:#fff; }
     .badge-draft { background:rgba(148,163,184,.2); color:#64748b; font-weight:600; }
-    .badge-sent { background:rgba(59,130,246,.15); color:#1d4ed8; font-weight:600; }
-    .badge-accepted { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
     .badge-converted { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
-    .badge-rejected { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
+    .badge-cancelled { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
     .badge-expired { background:rgba(245,158,11,.15); color:#b45309; font-weight:600; }
 </style>
 
@@ -57,10 +55,7 @@
         <select name="status" class="form-select">
             <option value="">All</option>
             <option value="Draft" selected="@(status == "Draft")">Draft</option>
-            <option value="Sent" selected="@(status == "Sent")">Sent</option>
-            <option value="Accepted" selected="@(status == "Accepted")">Accepted</option>
             <option value="Converted" selected="@(status == "Converted")">Converted</option>
-            <option value="Rejected" selected="@(status == "Rejected")">Rejected</option>
             <option value="Expired" selected="@(status == "Expired")">Expired</option>
         </select>
     </div>
@@ -95,7 +90,13 @@
                     <td>@item.QuotationNumber</td>
                     <td>@item.QuotationDate.ToString("MMM d, yyyy")</td>
                     <td>@(item.CustomerName ?? "—")</td>
-                    <td><span class="badge badge-@item.Status.ToLower()">@item.Status</span></td>
+                    @* The same two states the quotation screens show, read
+                       from the job order rather than the stored text. *@
+                    <td>
+                        <span class="badge @QuotationStatuses.BadgeClass(item.Status, item.ConvertedJobOrderID != null)">
+                            @QuotationStatuses.Display(item.Status, item.ConvertedJobOrderID != null)
+                        </span>
+                    </td>
                     <td>@(item.ConvertedJobOrderNumber ?? "—")</td>
                     <td>@(item.PreparedBy ?? "—")</td>
                     <td>@("₱" + item.TotalAmount.ToString("N2"))</td>

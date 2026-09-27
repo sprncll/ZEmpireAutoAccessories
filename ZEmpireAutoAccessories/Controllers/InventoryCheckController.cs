@@ -212,8 +212,6 @@ namespace ZEmpireAutoAccessories.Controllers
             var products = await _context.Products
                 .Include(p => p.Category)
                 .Where(p => p.IsActive)
-                .OrderBy(p => p.Category.CategoryName)
-                .ThenBy(p => p.ProductName)
                 .ToListAsync();
 
             return products
@@ -221,10 +219,14 @@ namespace ZEmpireAutoAccessories.Controllers
                 {
                     ProductID = p.ProductID,
                     ProductName = p.ProductName,
-                    CategoryName = p.Category.CategoryName,
+                    CategoryName = ProductCategories.Canonical(p.Category.CategoryName),
                     SystemStock = stock.TryGetValue(p.ProductID, out var s) ? s : 0,
                     SoldByLength = UnitOfMeasure.IsSoldByLength(p.Category.CategoryName)
                 })
+                // Sorted after the canonical name is resolved, so a shelf with
+                // two names still comes out as one contiguous block.
+                .OrderBy(r => r.CategoryName)
+                .ThenBy(r => r.ProductName)
                 .ToList();
         }
 

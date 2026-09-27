@@ -160,7 +160,8 @@ namespace ZEmpireAutoAccessories.Controllers
             int paymentModeId,
             List<int> productId,
             List<int> quantity,
-            List<decimal> unitPrice)
+            List<decimal> unitPrice,
+            decimal? amountTendered = null)
         {
             var items = new List<SaleLineRequest>();
             for (int i = 0; i < productId.Count; i++)
@@ -191,6 +192,25 @@ namespace ZEmpireAutoAccessories.Controllers
 
                 // Details opens the receipt by itself on this one visit.
                 TempData["SaleCompleted"] = sale.InvoiceNumber;
+
+                // sales.Sales holds the total and nothing else - no tender, no
+                // change, no status - so this is carried to the receipt page
+                // for this one visit rather than stored. It is what the cashier
+                // needs while the customer is still at the counter; the sale
+                // record itself is unchanged. A figure that does not cover the
+                // total is dropped rather than reported as change: the form
+                // will not submit one, so it can only be a stale or tampered
+                // post, and a wrong change figure is worse than none.
+                //
+                // Written as text because TempData's serializer refuses a
+                // decimal outright - it would throw at the end of this request
+                // and take the whole sale down with it.
+                if (amountTendered is { } tendered && tendered >= sale.TotalAmount)
+                {
+                    TempData["SaleTendered"] = tendered.ToString("N2");
+                    TempData["SaleChange"] = (tendered - sale.TotalAmount).ToString("N2");
+                }
+
                 return RedirectToAction(nameof(Details), new { id = sale.SalesID });
             }
             catch (Exception ex)
@@ -286,8 +306,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 .ToListAsync();
             ViewData["VehicleID"] = new SelectList(vehicles, "VehicleID", "Display");
 
+            // Only the modes the shop offers, in the order it offers them -
+            // see Models/PaymentModes.cs.
             ViewData["PaymentModeID"] = new SelectList(
-                await _context.PaymentModes.OrderBy(p => p.PaymentModeName).ToListAsync(),
+                PaymentModes.ForSelection(await _context.PaymentModes.ToListAsync()),
                 "PaymentModeID", "PaymentModeName");
 
             var saleProducts = await _context.Products

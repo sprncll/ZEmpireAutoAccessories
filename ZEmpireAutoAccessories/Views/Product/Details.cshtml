@@ -123,7 +123,7 @@
     <div>
         <h1>@Model.ProductName</h1>
         <div class="meta">
-            <span>@Model.Category.CategoryName</span>
+            <span>@(ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName)</span>
             <span>@(Model.DefaultPrice.HasValue ? Model.DefaultPrice.Value.ToString("C") : "No default price")</span>
             @if (Model.IsActive)
             {
@@ -149,7 +149,7 @@
         <dd class="col-sm-9">@Html.DisplayFor(m => m.ProductName)</dd>
 
         <dt class="col-sm-3">Category</dt>
-        <dd class="col-sm-9">@Model.Category.CategoryName</dd>
+        <dd class="col-sm-9">@(ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName)</dd>
 
         <dt class="col-sm-3">@Html.DisplayNameFor(m => m.Description)</dt>
         <dd class="col-sm-9">@(Model.Description ?? "—")</dd>
@@ -167,14 +167,14 @@
                 <span class="measured-pill is-length">By length</span>
                 <span class="measured-help d-block mt-1">
                     Stock is kept in centimetres and can be entered in cm, in or m.
-                    This follows the &ldquo;@Model.Category.CategoryName&rdquo; category.
+                    This follows the &ldquo;@(ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName)&rdquo; category.
                 </span>
             }
             else
             {
                 <span class="measured-pill is-count">By piece</span>
                 <span class="measured-help d-block mt-1">
-                    Stock is whole units. This follows the &ldquo;@Model.Category.CategoryName&rdquo; category.
+                    Stock is whole units. This follows the &ldquo;@(ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName)&rdquo; category.
                 </span>
             }
         </dd>

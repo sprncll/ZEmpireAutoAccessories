@@ -1,4 +1,4 @@
-@model IEnumerable<ZEmpireAutoAccessories.Models.Pricing>
+﻿@model IEnumerable<ZEmpireAutoAccessories.Models.Pricing>
 
 @{
     ViewData["Title"] = "Pricing";
@@ -22,6 +22,47 @@
     .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#98a0ad; }
     .search-input { padding-left:38px; border-radius:10px; }
     .search-actions { display:flex; gap:8px; margin-top:8px; margin-bottom:18px; }
+
+    /* Three levels of grouping, set apart by indent, weight and background
+       rather than by rules, so the depth reads at a glance without the table
+       turning into a grid of boxes. */
+    .grp td { border-bottom:none; }
+
+    .grp-product td {
+        background:#0f1115; color:#fff;
+        padding-top:10px; padding-bottom:10px;
+    }
+
+    .grp-toggle {
+        background:none; border:none; padding:0; color:#fff;
+        font-weight:700; font-size:14px; letter-spacing:.2px;
+        display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+    }
+
+    .grp-caret { transition:transform .15s ease; flex:none; }
+    .grp-toggle[aria-expanded="false"] .grp-caret { transform:rotate(-90deg); }
+
+    .grp-count { color:#9aa3b2; font-size:12px; margin-left:10px; }
+
+    .grp-variant td {
+        background:#f2f4f7; font-weight:700; font-size:12px;
+        text-transform:uppercase; letter-spacing:.4px; color:#4b5563;
+        padding-left:34px !important;
+    }
+
+    .grp-panel td {
+        background:#fafbfc; font-weight:600; font-size:12.5px; color:#6b7280;
+        padding-left:58px !important;
+    }
+
+    .leaf { padding-left:82px !important; }
+    .price-cell { font-variant-numeric:tabular-nums; font-weight:600; }
+
+    @@media (max-width: 575.98px) {
+        .grp-variant td { padding-left:20px !important; }
+        .grp-panel td { padding-left:34px !important; }
+        .leaf { padding-left:48px !important; }
+    }
 </style>
 
 @* A price always belongs to a product, so it is set from the Products
@@ -51,23 +92,77 @@
     <table class="table zx-table mb-0">
         <thead>
             <tr>
-                <th>Product</th>
-                <th>Tint Variant</th>
                 <th>Vehicle Classification</th>
-                <th>Panel</th>
-                <th>Price</th>
+                <th class="text-end">Price</th>
                 <th class="text-end pe-3">Actions</th>
             </tr>
         </thead>
         <tbody>
+            @* Product, variant and panel repeat down every row of a group -
+               135 prices for one product means 135 identical "Black Series"
+               cells. They become bands instead: product, then variant inside
+               it, then panel inside that, with only the classification and
+               price left on the row. Product bands collapse, since one
+               product can fill the screen on its own. *@
+            @{
+                string? currentProduct = null, currentVariant = null, currentPanel = null;
+                var productIndex = 0;
+
+                // The catalogue runs to hundreds of prices - one product can be
+                // 135 of them - so products start closed and you open the one
+                // you want. A search is different: the rows that matched are
+                // the point, so those come back open.
+                var startCollapsed = string.IsNullOrEmpty(search);
+                var hidden = startCollapsed ? "display:none" : null;
+
+                // Row counts per product, so a collapsed band can say what is inside it.
+                var perProduct = Model.GroupBy(p => p.Product.ProductName)
+                                      .ToDictionary(g => g.Key, g => g.Count());
+            }
             @foreach (var item in Model)
             {
-                <tr>
-                    <td>@item.Product.ProductName</td>
-                    <td>@(item.TintVariant?.VariantName ?? "—")</td>
-                    <td>@item.VehicleClassification.ClassificationName</td>
-                    <td>@item.Panel.PanelName</td>
-                    <td>@("₱" + item.Price.ToString("N2"))</td>
+                var variantName = item.TintVariant?.VariantName ?? "No tint variant";
+
+                if (item.Product.ProductName != currentProduct)
+                {
+                    currentProduct = item.Product.ProductName;
+                    currentVariant = null;
+                    currentPanel = null;
+                    productIndex++;
+
+                    <tr class="grp grp-product" data-group="@productIndex">
+                        <td colspan="3">
+                            <button type="button" class="grp-toggle" aria-expanded="@(startCollapsed ? "false" : "true")">
+                                <svg class="grp-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                                <span>@currentProduct</span>
+                            </button>
+                            <span class="grp-count">@perProduct[currentProduct] price@(perProduct[currentProduct] == 1 ? "" : "s")</span>
+                        </td>
+                    </tr>
+                }
+
+                if (variantName != currentVariant)
+                {
+                    currentVariant = variantName;
+                    currentPanel = null;
+
+                    <tr class="grp grp-variant" data-child-of="@productIndex" style="@hidden">
+                        <td colspan="3">@currentVariant</td>
+                    </tr>
+                }
+
+                if (item.Panel.PanelName != currentPanel)
+                {
+                    currentPanel = item.Panel.PanelName;
+
+                    <tr class="grp grp-panel" data-child-of="@productIndex" style="@hidden">
+                        <td colspan="3">@currentPanel</td>
+                    </tr>
+                }
+
+                <tr data-child-of="@productIndex" style="@hidden">
+                    <td class="leaf">@item.VehicleClassification.ClassificationName</td>
+                    <td class="text-end price-cell">@("₱" + item.Price.ToString("N2"))</td>
                     <td class="text-end pe-3">
                         <a asp-action="Edit" asp-route-id="@item.PricingID" class="icon-btn" title="Edit">
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -84,7 +179,7 @@
             @if (!Model.Any())
             {
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">
+                    <td colspan="3" class="text-center text-muted py-4">
                         @(string.IsNullOrEmpty(search) ? "No pricing records yet." : $"No pricing records match \"{search}\".")
                     </td>
                 </tr>
@@ -93,3 +188,29 @@
     </table>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        // Collapse a product and everything under it. Rows carry the index of
+        // the product band they belong to, so one pass hides the whole subtree
+        // without needing to know how many variants or panels are inside.
+        (function () {
+            var table = document.querySelector('.zx-table');
+            if (!table) { return; }
+
+            table.addEventListener('click', function (e) {
+                var toggle = e.target.closest('.grp-toggle');
+                if (!toggle) { return; }
+
+                var band = toggle.closest('tr');
+                var group = band.dataset.group;
+                var open = toggle.getAttribute('aria-expanded') !== 'false';
+
+                toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
+
+                table.querySelectorAll('tr[data-child-of="' + group + '"]')
+                     .forEach(function (row) { row.style.display = open ? 'none' : ''; });
+            });
+        })();
+    </script>
+}

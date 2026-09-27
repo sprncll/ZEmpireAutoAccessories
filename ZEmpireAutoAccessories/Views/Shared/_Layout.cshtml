@@ -129,6 +129,9 @@
                                                 @* Stock counts share the Inventory module rather than
                                                    owning a sec.Module row of their own. *@
                                                 <li><a class="dropdown-item" asp-controller="InventoryCheck" asp-action="Index">Stock Counts</a></li>
+                                                @* Cut sizes decide what a tint job takes off
+                                                   the roll, so they live with Inventory too. *@
+                                                <li><a class="dropdown-item" asp-controller="CutSize" asp-action="Index">Cut Sizes</a></li>
                                             }
                                             else if (m == "Sales")
                                             {

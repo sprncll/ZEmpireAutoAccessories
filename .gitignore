@@ -361,3 +361,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# Proof of payment attached in Cashiering: customers' bank and wallet
+# receipts, with names, reference numbers and account details on them.
+# They belong on the shop's machine, not in the repository.
+**/App_Data/payment-proofs/
+
+# Cut sizes set in Inventory - how much film each panel takes per vehicle
+# class. Local shop data, not source.
+**/App_Data/cut-sizes.json

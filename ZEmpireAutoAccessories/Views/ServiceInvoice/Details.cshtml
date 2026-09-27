@@ -12,9 +12,25 @@
 
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
     var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
+
+    // Settled means the money is in: Paid, or Refunded after having been.
+    var settled = Model.Status == "Paid" || Model.Status == "Refunded";
+
+    // The 12% inside the total, worked out once for the whole page.
+    var vat = Vat.Breakdown(Model.TotalAmount);
 }
 
 <style>
+    .pay-form { display:flex; align-items:flex-end; gap:22px; flex-wrap:wrap; }
+    .pay-due { display:flex; flex-direction:column; gap:2px; }
+    .pay-label { font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:#7b8290; }
+    .pay-total { font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; color:#0b0b0c; }
+    .pay-field { min-width:190px; }
+    .pay-change { font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; color:#15803d; padding-top:2px; }
+    .pay-change.is-short { color:#b91c1c; }
+    .pay-vat { font-size:12px; color:#7b8290; }
+    @@media (max-width: 575.98px) { .pay-form { gap:14px; } .pay-field { min-width:0; flex:1 1 100%; } }
+
     .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
     .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
     .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
@@ -83,17 +99,52 @@
         <dt class="col-sm-3">Discount</dt>
         <dd class="col-sm-9">@("₱" + Model.DiscountAmount.ToString("N2"))</dd>
 
-        <dt class="col-sm-3">Tax</dt>
-        <dd class="col-sm-9">@("₱" + Model.TaxAmount.ToString("N2"))</dd>
+        @if (Model.TaxAmount > 0)
+        {
+            @* Older invoices were written with a figure typed into Tax, which
+               CK_ServiceInvoice_Math adds to the total. Shown so the total
+               still adds up on screen. *@
+            <dt class="col-sm-3">Tax entered separately</dt>
+            <dd class="col-sm-9">@("₱" + Model.TaxAmount.ToString("N2"))</dd>
+        }
 
         <dt class="col-sm-3">Total Amount</dt>
-        <dd class="col-sm-9">@("₱" + Model.TotalAmount.ToString("N2"))</dd>
+        <dd class="col-sm-9"><strong>@("₱" + Model.TotalAmount.ToString("N2"))</strong></dd>
 
+        @* Prices are quoted VAT-inclusive, so the 12% is worked out of the
+           total rather than added to it - the same split a BIR sales invoice
+           prints. Nothing here is stored; see Models/Vat.cs. *@
+        <dt class="col-sm-3">VATable Sales</dt>
+        <dd class="col-sm-9">@("₱" + vat.VatableSales.ToString("N2"))</dd>
+
+        <dt class="col-sm-3">VAT (@Vat.RateLabel)</dt>
+        <dd class="col-sm-9">
+            @("₱" + vat.Amount.ToString("N2"))
+            <span class="text-muted">- included in the total above</span>
+        </dd>
+
+        @* CK_ServiceInvoice_Math ties ChangeAmount to AmountPaid minus the
+           total, and CK_ServiceInvoice_Change keeps that at or above zero, so
+           an unpaid invoice still carries AmountPaid equal to its total.
+           Showing that figure would claim money had been taken. *@
         <dt class="col-sm-3">Amount Paid</dt>
-        <dd class="col-sm-9">@("₱" + Model.AmountPaid.ToString("N2"))</dd>
+        <dd class="col-sm-9">
+            @if (settled)
+            {
+                @("₱" + Model.AmountPaid.ToString("N2"))
+            }
+            else
+            {
+                <span class="text-muted">Not yet paid</span>
+            }
+        </dd>
 
-        <dt class="col-sm-3">@(Model.ChangeAmount < 0 ? "Balance Due" : "Change")</dt>
-        <dd class="col-sm-9">@("₱" + Math.Abs(Model.ChangeAmount).ToString("N2"))</dd>
+        <dt class="col-sm-3">@(settled ? "Change" : "Balance Due")</dt>
+        <dd class="col-sm-9">
+            @(settled
+                ? "₱" + Model.ChangeAmount.ToString("N2")
+                : "₱" + Model.TotalAmount.ToString("N2"))
+        </dd>
 
         @if (!string.IsNullOrEmpty(Model.Remarks))
         {
@@ -105,11 +156,9 @@
     <div class="status-actions">
         @if (Model.Status != "Paid")
         {
-            <form asp-action="SetStatus" method="post">
-                <input type="hidden" name="id" value="@Model.ServiceInvoiceID" />
-                <input type="hidden" name="status" value="Paid" />
-                <button type="submit" class="btn btn-sm btn-zx">Mark Paid</button>
-            </form>
+            @* Paid means money changed hands, so it goes through the payment
+               box below rather than a button that just flips the status. *@
+            <a href="#takePayment" class="btn btn-sm btn-zx">Take payment</a>
         }
         @if (Model.Status != "Pending")
         {
@@ -137,6 +186,39 @@
         }
     </div>
 </div>
+
+@if (!settled)
+{
+    <div class="zx-card" id="takePayment">
+        <h6 class="mb-1">Take payment</h6>
+        <p class="zx-page-sub mb-3" style="margin-top:0;">
+            Enter what the customer handed over. The change is worked out for you,
+            and the invoice is marked Paid.
+        </p>
+        <form asp-action="RecordPayment" method="post" class="pay-form">
+            <input type="hidden" name="id" value="@Model.ServiceInvoiceID" />
+            <div class="pay-due">
+                <span class="pay-label">Total due</span>
+                <span class="pay-total" id="payTotal"
+                      data-total="@Model.TotalAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+                    @("₱" + Model.TotalAmount.ToString("N2"))
+                </span>
+                <span class="pay-vat">Includes @("₱" + vat.Amount.ToString("N2")) VAT (@Vat.RateLabel)</span>
+            </div>
+            <div class="pay-field">
+                <label class="form-label" for="amountTendered">Amount tendered</label>
+                <input type="number" step="0.01" min="0" id="amountTendered" name="amountTendered"
+                       class="form-control"
+                       value="@Model.TotalAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" required />
+            </div>
+            <div class="pay-field">
+                <span class="form-label d-block">Change</span>
+                <div class="pay-change" id="payChange">₱0.00</div>
+            </div>
+            <button type="submit" class="btn btn-zx" id="payButton">Record payment</button>
+        </form>
+    </div>
+}
 
 <div class="zx-card">
     <h6 class="mb-3">Line Items</h6>
@@ -278,8 +360,13 @@
                separate decision. *@
             <div class="input-group">
                 <input type="number" step="0.01" name="quantity" class="form-control" value="1" min="0.01" />
-                <select name="unit" class="form-select line-unit" data-searchable="false">
-                    <option value="Unit">Unit</option>
+                <select name="unit" class="form-select line-unit" data-searchable="false"
+                        data-length-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)"
+                        data-count-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)">
+                    @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)
+                    {
+                        <option value="@u">@u</option>
+                    }
                 </select>
             </div>
             <div id="lineStockNote" class="form-text mt-1"></div>
@@ -327,6 +414,45 @@
 </div>
 
 @section Scripts {
+    <script>
+        // Change as the amount is typed. The server works it out again on
+        // save - this is so the cashier sees it before committing, and cannot
+        // submit a payment that is short of the total.
+        (function () {
+            var tendered = document.getElementById('amountTendered');
+            var changeBox = document.getElementById('payChange');
+            var totalBox = document.getElementById('payTotal');
+            var button = document.getElementById('payButton');
+            if (!tendered || !changeBox || !totalBox) { return; }
+
+            var total = parseFloat(totalBox.dataset.total) || 0;
+
+            function peso(value) {
+                return '\u20B1' + value.toLocaleString(undefined,
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function update() {
+                var paid = parseFloat(tendered.value);
+                if (isNaN(paid)) { paid = 0; }
+
+                var change = paid - total;
+
+                if (change < 0) {
+                    changeBox.textContent = peso(-change) + ' short';
+                    changeBox.className = 'pay-change is-short';
+                    if (button) { button.disabled = true; }
+                } else {
+                    changeBox.textContent = peso(change);
+                    changeBox.className = 'pay-change';
+                    if (button) { button.disabled = false; }
+                }
+            }
+
+            tendered.addEventListener('input', update);
+            update();
+        })();
+    </script>
     <script src="~/js/line-unit.js" asp-append-version="true"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
