@@ -658,6 +658,11 @@ namespace ZEmpireAutoAccessories.Controllers
             {
                 await tx.RollbackAsync();
                 TempData["StatusError"] = ex.Message;
+
+                // The only stock problem that is fixed somewhere else, so the
+                // banner carries a way to get there.
+                if (ex is CutSizeMissingException)
+                    TempData["StatusErrorFix"] = "CutSize";
             }
         }
 

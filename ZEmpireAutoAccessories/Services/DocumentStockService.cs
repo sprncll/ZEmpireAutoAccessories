@@ -126,7 +126,7 @@ namespace ZEmpireAutoAccessories.Services
                 var centimeters = _cutSizes.Centimeters(vehicleClassificationId.Value, row.PanelID.Value);
 
                 if (centimeters == null)
-                    throw new InvalidOperationException(
+                    throw new CutSizeMissingException(
                         $"No cut size is set for {row.PanelName} on " +
                         $"{classificationName ?? "this class of vehicle"}. " +
                         "Set it under Inventory → Cut Sizes, then complete this document again.");
