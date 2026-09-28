@@ -151,7 +151,10 @@ namespace ZEmpireAutoAccessories.Controllers
             // Shown in the browser rather than downloaded - a cashier is
             // checking a screenshot, not collecting files. The content type
             // comes from the store's own allow-list, never from the upload.
-            return File(content, contentType, fileName, enableRangeProcessing: false);
+            // No file name on purpose: passing one sets Content-Disposition
+            // to attachment, which downloads the receipt instead of showing
+            // it, and scatters customers' bank details through Downloads.
+            return File(content, contentType);
         }
 
         // POST: Cashiering/RemoveProof

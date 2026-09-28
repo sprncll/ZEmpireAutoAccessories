@@ -50,15 +50,21 @@ namespace ZEmpireAutoAccessories.Models
             Display(quotation.Status, quotation.JobOrder != null);
 
         /// <summary>
-        /// The stored statuses a filter for <paramref name="status"/> should
-        /// match. Asking for Draft has to pick up the retired ones too, or a
-        /// report would leave out the very quotations the list is showing as
-        /// drafts.
+        /// Whether a quotation with this stored status and this job order
+        /// belongs under the asked-for filter.
+        ///
+        /// It has to decide the same way Display does, or a report can leave
+        /// out a quotation it is simultaneously labelling Converted: the ones
+        /// converted before the status was written carry "Accepted" and a job
+        /// order, which reads as Converted but is not stored as it.
         /// </summary>
-        public static string[] StoredValuesFor(string status) =>
-            string.Equals(status, Draft, StringComparison.OrdinalIgnoreCase)
-                ? new[] { Draft, "Sent", "Accepted", "Rejected" }
-                : new[] { status };
+        public static bool Matches(string asked, string? status, bool converted)
+        {
+            if (string.IsNullOrEmpty(asked))
+                return true;
+
+            return string.Equals(Display(status, converted), asked, StringComparison.OrdinalIgnoreCase);
+        }
 
         /// <summary>The CSS modifier for that status's badge.</summary>
         public static string BadgeClass(string? status, bool converted) =>

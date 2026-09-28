@@ -373,6 +373,17 @@
         {
             <a class="btn btn-zx" asp-controller="ServiceInvoice" asp-action="Create">+ New Service Invoice</a>
         }
+        @* The other way round: this screen is today at the counter, the
+           report is the same figures over a period, with a PDF to keep. *@
+        @if (User.HasClaim(AppClaims.ModuleAccess, "Reports"))
+        {
+            <a class="btn btn-outline-secondary"
+               asp-controller="Report" asp-action="Collections"
+               asp-route-from="@Model.DateFrom.ToString("yyyy-MM-dd")"
+               asp-route-to="@Model.DateTo.ToString("yyyy-MM-dd")">
+                Collections report
+            </a>
+        }
     </div>
 </div>
 

@@ -31,15 +31,51 @@ namespace ZEmpireAutoAccessories.Services
         private readonly ApplicationDbContext _context;
         private readonly IInventoryService _inventory;
         private readonly ICutSizeStore _cutSizes;
+        private readonly IStockPostingLog _postings;
 
         public DocumentStockService(
             ApplicationDbContext context,
             IInventoryService inventory,
-            ICutSizeStore cutSizes)
+            ICutSizeStore cutSizes,
+            IStockPostingLog postings)
         {
             _context = context;
             _inventory = inventory;
             _cutSizes = cutSizes;
+            _postings = postings;
+        }
+
+        public async Task Post(DocumentKind kind, int documentId, bool consume, string userId)
+        {
+            if (consume)
+            {
+                var lines = kind == DocumentKind.JobOrder
+                    ? await ForJobOrder(documentId)
+                    : await ForServiceInvoice(documentId);
+
+                await _inventory.PostDocumentStock(lines, consume: true, userId);
+
+                // Only once the stock actually moved - a document short on
+                // stock throws above and must not leave a record of a
+                // posting that never happened.
+                await _postings.Record(kind, documentId, lines);
+                return;
+            }
+
+            // Putting it back takes back what was taken, not what the cut
+            // sizes would say today. They are maintained figures and get
+            // corrected; recomputing here would return a different length
+            // than went out and drift the shelf by the difference, or throw
+            // outright if the cut size has since been cleared. A document
+            // completed before this was recorded falls back to recomputing,
+            // which is what used to happen either way.
+            var taken = _postings.Taken(kind, documentId)
+                        ?? (kind == DocumentKind.JobOrder
+                            ? await ForJobOrder(documentId)
+                            : await ForServiceInvoice(documentId));
+
+            await _inventory.PostDocumentStock(taken, consume: false, userId);
+            await _postings.Clear(kind, documentId);
         }
 
         public async Task<IReadOnlyCollection<DocumentStockLine>> ForJobOrder(int jobOrderId)

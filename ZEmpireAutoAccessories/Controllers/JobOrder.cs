@@ -85,10 +85,6 @@ namespace ZEmpireAutoAccessories.Controllers
                     .ThenInclude(d => d.Shade)
                 .Include(j => j.Details)
                     .ThenInclude(d => d.Panel)
-                .Include(j => j.Details)
-                    .ThenInclude(d => d.TintVariant)
-                .Include(j => j.Details)
-                    .ThenInclude(d => d.Panel)
                 .FirstOrDefaultAsync(j => j.JobOrderID == id);
 
             if (jobOrder == null)
@@ -144,9 +140,19 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Include(j => j.JobType)
                 .Include(j => j.AssignedEmployee)
                 .Include(j => j.Details)
-                    .ThenInclude(d => d.Product)
+                    // The receipt asks the category whether a product comes
+                    // off a roll, and the panel how much of it - without
+                    // these it silently prints "pc" and no measure.
+                    .ThenInclude(d => d.Product!)
+                        .ThenInclude(p => p.Category)
                 .Include(j => j.Details)
                     .ThenInclude(d => d.Service)
+                .Include(j => j.Details)
+                    .ThenInclude(d => d.TintVariant)
+                .Include(j => j.Details)
+                    .ThenInclude(d => d.Shade)
+                .Include(j => j.Details)
+                    .ThenInclude(d => d.Panel)
                 .FirstOrDefaultAsync(j => j.JobOrderID == id);
 
             if (jobOrder == null)
@@ -424,8 +430,8 @@ namespace ZEmpireAutoAccessories.Controllers
             try
             {
                 if (holdsStock != willHoldStock)
-                    await _inventoryService.PostDocumentStock(
-                        await _documentStock.ForJobOrder(id), willHoldStock, CurrentUserId);
+                    await _documentStock.Post(
+                        DocumentKind.JobOrder, id, willHoldStock, CurrentUserId);
 
                 jobOrder.Status = status;
                 await _context.SaveChangesAsync();

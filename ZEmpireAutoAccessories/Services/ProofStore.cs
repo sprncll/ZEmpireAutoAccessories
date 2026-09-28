@@ -98,8 +98,17 @@ namespace ZEmpireAutoAccessories.Services
             // back to a browser later with an image content type on it.
             await using (var probe = file.OpenReadStream())
             {
+                // Read until the header is full or the file ends: one Read is
+                // not obliged to return all twelve bytes, and a short one
+                // would fail a perfectly good WEBP or PDF while telling the
+                // user they had renamed something.
                 var header = new byte[12];
-                var read = await probe.ReadAsync(header);
+                var read = 0;
+                int got;
+                while (read < header.Length &&
+                       (got = await probe.ReadAsync(header.AsMemory(read))) > 0)
+                    read += got;
+
                 if (!LooksLike(contentType, header.AsSpan(0, read)))
                     return "That file is not the kind it claims to be. Attach a screenshot or a PDF receipt.";
             }

@@ -85,6 +85,11 @@ builder.Services.AddScoped<IProofStore, ProofStore>();
 // because the point of them is the cache; see CutSizeStore.
 builder.Services.AddSingleton<ICutSizeStore, CutSizeStore>();
 builder.Services.AddScoped<IDocumentStockService, DocumentStockService>();
+
+// What each completed document took off the shelf, so reversing it takes back
+// the same even after a cut size is corrected. A singleton for its cache, the
+// same as the cut sizes.
+builder.Services.AddSingleton<IStockPostingLog, StockPostingLog>();
 ZEmpireAutoAccessories.Models.PaymentModes.Configure(
     builder.Configuration.GetSection("Payments:Modes").Get<string[]>(),
     builder.Configuration.GetSection("Payments:ModesNeedingProof").Get<string[]>());

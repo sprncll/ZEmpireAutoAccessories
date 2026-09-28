@@ -122,7 +122,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 return NotFound();
 
             var (content, contentType, fileName) = stored.Value;
-            return File(content, contentType, fileName, enableRangeProcessing: false);
+            // No file name on purpose: passing one sets Content-Disposition
+            // to attachment, which downloads the receipt instead of showing
+            // it, and scatters customers' bank details through Downloads.
+            return File(content, contentType);
         }
 
         // POST: Warranty/RemoveClaimProof/5

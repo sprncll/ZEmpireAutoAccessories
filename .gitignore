@@ -369,3 +369,6 @@ FodyWeavers.xsd
 # Cut sizes set in Inventory - how much film each panel takes per vehicle
 # class. Local shop data, not source.
 **/App_Data/cut-sizes.json
+
+# What each completed document took off the shelf. Local shop state.
+**/App_Data/stock-postings.json

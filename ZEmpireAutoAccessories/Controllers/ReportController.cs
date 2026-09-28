@@ -13,11 +13,16 @@ namespace ZEmpireAutoAccessories.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IReportService _reportService;
+        private readonly ICashieringService _cashieringService;
 
-        public ReportController(ApplicationDbContext context, IReportService reportService)
+        public ReportController(
+            ApplicationDbContext context,
+            IReportService reportService,
+            ICashieringService cashieringService)
         {
             _context = context;
             _reportService = reportService;
+            _cashieringService = cashieringService;
         }
 
         // GET: Report
@@ -30,6 +35,66 @@ namespace ZEmpireAutoAccessories.Controllers
             ViewData["RecentSales"] = await _reportService.GetRecentSales();
 
             return View();
+        }
+
+        // GET: Report/Collections?from=&to=
+        //
+        // What was actually collected over a range, from the same service the
+        // Cashiering screen uses - so the two can never disagree about a day's
+        // takings. Cashiering is the counter's view of today; this is the same
+        // thing over a period, beside the other reports.
+        public async Task<IActionResult> Collections(DateOnly? from, DateOnly? to)
+        {
+            var model = await GetCollectionsReport(from, to);
+
+            ViewData["From"] = model.DateFrom;
+            ViewData["To"] = model.DateTo;
+
+            return View(model);
+        }
+
+        // GET: Report/CollectionsPdf?from=&to=
+        public async Task<IActionResult> CollectionsPdf(DateOnly? from, DateOnly? to)
+        {
+            var model = await GetCollectionsReport(from, to);
+            var pdf = ReportPdfBuilder.BuildCollectionsPdf(model);
+
+            return File(pdf, "application/pdf", $"Collections-Report-{DateTime.Now:yyyyMMdd-HHmm}.pdf");
+        }
+
+        private async Task<CashieringViewModel> GetCollectionsReport(DateOnly? from, DateOnly? to)
+        {
+            // A month to date, where the other reports default to everything -
+            // collections are read by period, and "all of it" is not a period
+            // anyone closes out.
+            var today = DateOnly.FromDateTime(DateTime.Now);
+            var dateFrom = from ?? new DateOnly(today.Year, today.Month, 1);
+            var dateTo = to ?? today;
+
+            var model = await _cashieringService.GetCashiering(dateFrom, dateTo);
+
+            model.CanSeeSales = true;
+            model.CanSeeServiceInvoices = true;
+
+            // The day's takings are Admin-only on the Cashiering screen, the
+            // same way the dashboard withholds peso figures from Staff.
+            // Holding Reports must not be a way around that, so the same rule
+            // applies here and the figures are cleared rather than hidden -
+            // a Staff response never carries them at all.
+            model.CanSeeTotals = User.IsInRole("Admin");
+            if (!model.CanSeeTotals)
+            {
+                model.SalesTotal = 0m;
+                model.ServiceInvoiceTotal = 0m;
+                model.GrandTotal = 0m;
+                model.UncollectedTotal = 0m;
+                model.CollectedCount = 0;
+                model.UncollectedCount = 0;
+                model.ByPaymentMode.Clear();
+                model.ByCashier.Clear();
+            }
+
+            return model;
         }
 
         // GET: Report/Sales?from=&to=
@@ -155,16 +220,18 @@ namespace ZEmpireAutoAccessories.Controllers
                 query = query.Where(q => q.QuotationDate >= from.Value.ToDateTime(TimeOnly.MinValue));
             if (to.HasValue)
                 query = query.Where(q => q.QuotationDate < to.Value.AddDays(1).ToDateTime(TimeOnly.MinValue));
-            if (!string.IsNullOrEmpty(status))
-            {
-                // Draft covers the statuses the quotation screens retired, so
-                // this report shows the same set they do - see
-                // Models/QuotationStatuses.cs.
-                var stored = QuotationStatuses.StoredValuesFor(status);
-                query = query.Where(q => stored.Contains(q.Status));
-            }
-
             var results = await query.OrderByDescending(q => q.QuotationDate).ToListAsync();
+
+            // Filtered after the query rather than in it: a quotation reads as
+            // Converted because a job order exists, not because of the word
+            // stored on it, and the two disagree on everything converted
+            // before that word was being written. Deciding it here is the only
+            // way the filter and the label can agree - see
+            // Models/QuotationStatuses.cs.
+            if (!string.IsNullOrEmpty(status))
+                results = results
+                    .Where(q => QuotationStatuses.Matches(status, q.Status, q.ConvertedJobOrderID != null))
+                    .ToList();
             return (results, results.Sum(q => q.TotalAmount));
         }
     }

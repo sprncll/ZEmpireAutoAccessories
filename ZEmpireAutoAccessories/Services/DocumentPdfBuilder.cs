@@ -429,10 +429,19 @@ namespace ZEmpireAutoAccessories.Services
         /// printed beside it - the add-line form fills the description in
         /// from the product, so most lines carry their own name twice.
         /// </summary>
-        private static string? Typed(string? description, params string?[] names) =>
-            names.Any(n => string.Equals(n?.Trim(), description?.Trim(), StringComparison.OrdinalIgnoreCase))
+        private static string? Typed(string? description, params string?[] names)
+        {
+            // A line with neither a product nor a service is named by its
+            // description alone - which is already the Description column, so
+            // repeating it underneath prints the same words twice.
+            if (names.All(string.IsNullOrWhiteSpace))
+                return null;
+
+            return names.Any(n => string.Equals(n?.Trim(), description?.Trim(),
+                                                StringComparison.OrdinalIgnoreCase))
                 ? null
                 : description;
+        }
 
         /// <summary>Whether this product comes off a roll and is measured.</summary>
         private static bool SoldByLength(Product? product) =>

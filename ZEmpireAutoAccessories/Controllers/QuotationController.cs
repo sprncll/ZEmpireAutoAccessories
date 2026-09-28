@@ -43,11 +43,16 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Include(quotation => quotation.Customer)
                 .Include(quotation => quotation.Vehicle)
                 .Include(quotation => quotation.JobOrder)
+                // Converted is the job order, not the status text. Draft is
+                // everything not converted and not put away - a quotation
+                // somebody cancelled should not read as live work.
                 .Where(quotation =>
                     status == null
                     || (status == QuotationStatuses.Converted
                         ? quotation.JobOrder != null
-                        : quotation.JobOrder == null));
+                        : quotation.JobOrder == null
+                          && quotation.Status != "Cancelled"
+                          && quotation.Status != "Expired"));
 
             if (!string.IsNullOrWhiteSpace(q))
             {
@@ -397,15 +402,23 @@ namespace ZEmpireAutoAccessories.Controllers
             try
             {
                 var jobOrderId = await _quotationService.ConvertToJobOrder(id, CurrentUserId, jobOrderNumber);
-
-                // The job order is what makes a quotation converted, but say
-                // so on the quotation as well: CK_Quotation_Status has always
-                // allowed Converted, and a row that reads "Draft" next to a
-                // job order invites someone to wonder which is right.
-                quotation.Status = QuotationStatuses.Converted;
-                await _context.SaveChangesAsync();
-
                 TempData["Success"] = $"Converted to Job Order #{jobOrderId} ({jobOrderNumber}).";
+
+                // Stamping the quotation is separate, and deliberately after
+                // the message. The job order is already committed by here, so
+                // a failure writing this word is not a failed conversion -
+                // reporting one would send someone to convert again and be
+                // told it had already happened. The screens read the job
+                // order anyway; this only saves the next reader a question.
+                try
+                {
+                    quotation.Status = QuotationStatuses.Converted;
+                    await _context.SaveChangesAsync();
+                }
+                catch (Exception)
+                {
+                    // Left as it was. Display() still reads Converted.
+                }
             }
             catch (Exception ex)
             {

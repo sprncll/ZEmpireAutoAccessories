@@ -110,7 +110,11 @@ namespace ZEmpireAutoAccessories.Services
                                 table.Cell().Element(BodyCell).Text(item.QuotationNumber);
                                 table.Cell().Element(BodyCell).Text(item.QuotationDate.ToString("MMM d, yyyy"));
                                 table.Cell().Element(BodyCell).Text(item.CustomerName ?? "—");
-                                table.Cell().Element(BodyCell).Text(item.Status);
+                                // The same two states the screens show, from
+                                // the job order rather than the stored word -
+                                // see Models/QuotationStatuses.cs.
+                                table.Cell().Element(BodyCell).Text(
+                                    QuotationStatuses.Display(item.Status, item.ConvertedJobOrderID != null));
                                 table.Cell().Element(BodyCell).Text(item.ConvertedJobOrderNumber ?? "—");
                                 table.Cell().Element(BodyCell).Text(item.PreparedBy ?? "—");
                                 table.Cell().Element(BodyCell).AlignRight().Text("₱" + item.TotalAmount.ToString("N2"));
@@ -190,6 +194,157 @@ namespace ZEmpireAutoAccessories.Services
             page.Size(PageSizes.A4);
             page.Margin(30);
             page.DefaultTextStyle(x => x.FontSize(9));
+        }
+
+        /// <summary>
+        /// What was collected over a range: the transactions, then the two
+        /// breakdowns the cashiering screen closes a day out with.
+        ///
+        /// Takes the same view model that screen renders, so the report and
+        /// the counter cannot disagree about a day's takings. The totals are
+        /// already cleared for anyone not entitled to them, which is why this
+        /// simply prints what it is given.
+        /// </summary>
+        public static byte[] BuildCollectionsPdf(CashieringViewModel model)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    ConfigurePage(page);
+                    page.Header().Element(c => ComposeHeader(c, "Collections Report",
+                        BuildRangeSubtitle(model.DateFrom, model.DateTo, null)));
+
+                    page.Content().Column(column =>
+                    {
+                        column.Spacing(6);
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(1.6f);
+                                columns.RelativeColumn(2.4f);
+                                columns.RelativeColumn(2.2f);
+                                columns.RelativeColumn(3);
+                                columns.RelativeColumn(2);
+                                columns.RelativeColumn(2.4f);
+                                columns.RelativeColumn(1.6f);
+                                columns.RelativeColumn(2);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCell).Text("Type");
+                                header.Cell().Element(HeaderCell).Text("Invoice #");
+                                header.Cell().Element(HeaderCell).Text("Date");
+                                header.Cell().Element(HeaderCell).Text("Customer");
+                                header.Cell().Element(HeaderCell).Text("Payment");
+                                header.Cell().Element(HeaderCell).Text("Cashier");
+                                header.Cell().Element(HeaderCell).Text("Status");
+                                header.Cell().Element(HeaderCell).AlignRight().Text("Total");
+                            });
+
+                            foreach (var txn in model.Transactions)
+                            {
+                                table.Cell().Element(BodyCell).Text(
+                                    txn.Source == CashierSource.Sale ? "Sale" : "Service");
+                                table.Cell().Element(BodyCell).Text(txn.InvoiceNumber);
+                                table.Cell().Element(BodyCell).Text(txn.TransactionDate.ToString("MMM d, yyyy"));
+                                table.Cell().Element(BodyCell).Text(txn.CustomerName ?? "—");
+                                table.Cell().Element(BodyCell).Text(txn.PaymentModeName);
+                                table.Cell().Element(BodyCell).Text(txn.CashierName ?? "—");
+                                table.Cell().Element(BodyCell).Text(txn.Status);
+
+                                // An uncollected row is listed but is not part
+                                // of the takings, and the figure is greyed so
+                                // nobody adds it in by eye.
+                                var amount = table.Cell().Element(BodyCell).AlignRight()
+                                    .Text("₱" + txn.TotalAmount.ToString("N2"));
+                                if (!txn.IsCollected)
+                                    amount.FontColor(Colors.Grey.Medium);
+                            }
+                        });
+
+                        if (model.Transactions.Count == 0)
+                        {
+                            column.Item().PaddingTop(10).AlignCenter()
+                                .Text("Nothing was collected in this range.").FontColor(Colors.Grey.Medium);
+                        }
+                        else if (model.CanSeeTotals)
+                        {
+                            ComposeEmptyOrTotal(column, model.Transactions.Count,
+                                "Nothing was collected in this range.", model.GrandTotal);
+                        }
+                        else
+                        {
+                            // The takings are cleared for anyone not entitled
+                            // to them, so printing the figure would read as
+                            // "nothing was taken" rather than "not for you".
+                            column.Item().PaddingTop(4).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                            column.Item().PaddingTop(2).AlignRight()
+                                .Text("Totals are shown to administrators only.")
+                                .FontSize(9).FontColor(Colors.Grey.Darken1);
+                        }
+
+                        if (model.ByPaymentMode.Count > 0)
+                            ComposeBreakdown(column, "Collected by Payment Mode", "Mode",
+                                model.ByPaymentMode.Select(m =>
+                                    (m.PaymentModeName, m.TransactionCount, m.Total)));
+
+                        if (model.ByCashier.Count > 0)
+                            ComposeBreakdown(column, "Collected by Cashier", "Cashier",
+                                model.ByCashier.Select(c =>
+                                    (c.CashierName ?? "—", c.TransactionCount, c.Total)));
+                    });
+
+                    page.Footer().Element(ComposeFooter);
+                });
+            }).GeneratePdf();
+        }
+
+        /// <summary>One of the two roll-ups under a collections report.</summary>
+        private static void ComposeBreakdown(
+            ColumnDescriptor column, string title, string firstHeading,
+            IEnumerable<(string Name, int Count, decimal Total)> rows)
+        {
+            var list = rows.ToList();
+
+            column.Item().PaddingTop(14).Text(title).FontSize(11).SemiBold();
+
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(4);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(2);
+                });
+
+                table.Header(header =>
+                {
+                    header.Cell().Element(HeaderCell).Text(firstHeading);
+                    header.Cell().Element(HeaderCell).AlignRight().Text("Transactions");
+                    header.Cell().Element(HeaderCell).AlignRight().Text("Amount");
+                });
+
+                foreach (var (name, count, total) in list)
+                {
+                    table.Cell().Element(BodyCell).Text(name);
+                    table.Cell().Element(BodyCell).AlignRight().Text(count.ToString("N0"));
+                    table.Cell().Element(BodyCell).AlignRight().Text("₱" + total.ToString("N2"));
+                }
+
+                // A total under a single line only repeats it.
+                if (list.Count > 1)
+                {
+                    table.Cell().Element(BodyCell).Text("Total").SemiBold();
+                    table.Cell().Element(BodyCell).AlignRight()
+                        .Text(list.Sum(r => r.Count).ToString("N0")).SemiBold();
+                    table.Cell().Element(BodyCell).AlignRight()
+                        .Text("₱" + list.Sum(r => r.Total).ToString("N2")).SemiBold();
+                }
+            });
         }
 
         private static void ComposeHeader(IContainer container, string title, string subtitle)

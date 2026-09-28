@@ -639,8 +639,9 @@ namespace ZEmpireAutoAccessories.Controllers
             try
             {
                 if (holdsStock != willHoldStock)
-                    await _inventoryService.PostDocumentStock(
-                        await _documentStock.ForServiceInvoice(invoice.ServiceInvoiceID), willHoldStock, CurrentUserId);
+                    await _documentStock.Post(
+                        DocumentKind.ServiceInvoice, invoice.ServiceInvoiceID,
+                        willHoldStock, CurrentUserId);
 
                 // Sent back to be worked on or written off: the tender that
                 // was recorded no longer stands. Cleared to the total, which
