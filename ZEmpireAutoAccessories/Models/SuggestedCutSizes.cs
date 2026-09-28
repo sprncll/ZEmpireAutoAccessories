@@ -10,10 +10,8 @@ namespace ZEmpireAutoAccessories.Models
     /// measure one job, and if a sedan windshield really pulls 1.35 m, every
     /// column moves by the same ratio.
     ///
-    /// Only glass is here. A full wrap, a siding or a painted door is a
-    /// different order of magnitude - fifteen to twenty-five metres, not one
-    /// or two - and guessing at those would put a badly wrong number on the
-    /// shelf, so they are left blank on purpose.
+    /// Sidings and the door panels are left blank: nothing in the shop's
+    /// pricing is sold against them, so there is nothing to base a figure on.
     ///
     /// Matching is by name and case-insensitive, and a name nobody has is
     /// skipped. Panels that are two names for one thing - "Front Windshield"
@@ -30,7 +28,19 @@ namespace ZEmpireAutoAccessories.Models
             ("front windows",    new[] { "2FWS", "2 FWS", "Front Windows", "2 Front Windows" }),
             ("rear windows",     new[] { "2RWS", "2 RWS", "Rear Windows", "2 Rear Windows" }),
             ("quarter",          new[] { "Qtr Window", "Quarter Window", "Qtr Glass", "Quarter Glass" }),
-            ("sunroof",          new[] { "Sunroof", "Moonroof" })
+            ("sunroof",          new[] { "Sunroof", "Moonroof" }),
+
+            // Not a body wrap: in this shop's pricing, Full Wrap is only ever
+            // priced against tint films - Black Series, Clear Series, Profilm
+            // Nano Ceramic - so it means every piece of glass on the car. It
+            // is the sum of the panels above with a little for offcuts.
+            ("all glass",        new[] { "Full Wrap" }),
+
+            // This one is a body wrap. Whole Vehicle is priced against the
+            // ProFilm PPF products and against the coatings; only the PPF
+            // takes film, and a coating is a liquid whose category is not
+            // measured by length, so it never reaches a cut size at all.
+            ("whole body",       new[] { "Whole Vehicle" })
         };
 
         /// <summary>
@@ -41,20 +51,22 @@ namespace ZEmpireAutoAccessories.Models
         private static readonly Dictionary<string, Dictionary<string, decimal?>> ByClass =
             new(StringComparer.OrdinalIgnoreCase)
             {
-                ["Small"]                 = Row(110, 115,  90,  80, 35,  85),
-                ["Hatchback"]             = Row(110, 115,  90,  80, 35,  85),
-                ["Subcompact/Crossover"]  = Row(115, 125,  95,  85, 40,  90),
-                ["Sedan"]                 = Row(120, 130, 100,  90, 40,  90),
-                ["MPV"]                   = Row(130, 145, 110, 100, 50,  95),
-                ["Pickup"]                = Row(130,  80, 110,  55, 30, null),
-                ["SUV"]                   = Row(140, 150, 115, 105, 50,  95),
-                ["Big SUV"]               = Row(150, 160, 125, 115, 55, 100),
-                ["Van"]                   = Row(155, 170, 120, 110, 60, 100)
+                //                            FWS  RWS  2FWS 2RWS Qtr  Roof  Glass  Body
+                ["Small"]                 = Row(110, 115,  90,  80, 35,  85,  450, 1400),
+                ["Hatchback"]             = Row(110, 115,  90,  80, 35,  85,  450, 1500),
+                ["Subcompact/Crossover"]  = Row(115, 125,  95,  85, 40,  90,  485, 1600),
+                ["Sedan"]                 = Row(120, 130, 100,  90, 40,  90,  505, 1800),
+                ["MPV"]                   = Row(130, 145, 110, 100, 50,  95,  560, 2100),
+                ["Pickup"]                = Row(130,  80, 110,  55, 30, null, 425, 2000),
+                ["SUV"]                   = Row(140, 150, 115, 105, 50,  95,  590, 2200),
+                ["Big SUV"]               = Row(150, 160, 125, 115, 55, 100,  635, 2500),
+                ["Van"]                   = Row(155, 170, 120, 110, 60, 100,  645, 2600)
             };
 
         private static Dictionary<string, decimal?> Row(
             decimal? frontWindshield, decimal? rearWindshield, decimal? frontWindows,
-            decimal? rearWindows, decimal? quarter, decimal? sunroof) =>
+            decimal? rearWindows, decimal? quarter, decimal? sunroof,
+            decimal? allGlass, decimal? wholeBody) =>
             new()
             {
                 ["front windshield"] = frontWindshield,
@@ -62,7 +74,17 @@ namespace ZEmpireAutoAccessories.Models
                 ["front windows"] = frontWindows,
                 ["rear windows"] = rearWindows,
                 ["quarter"] = quarter,
-                ["sunroof"] = sunroof
+                ["sunroof"] = sunroof,
+
+                // Every pane plus about five per cent for offcuts, rather than
+                // the panels added up exactly - glass is cut with a margin and
+                // the trimmings do not go back on the roll.
+                ["all glass"] = allGlass,
+
+                // A body wrap on film about 60 inches wide. Far more variable
+                // than glass, because it depends on how much of the car is
+                // covered and how the cutter nests the pieces.
+                ["whole body"] = wholeBody
             };
 
         /// <summary>
