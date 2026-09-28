@@ -2,6 +2,7 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Services
 {
@@ -14,7 +15,7 @@ namespace ZEmpireAutoAccessories.Services
     {
         private static readonly string BrandRed = "#e5464d";
 
-        public static byte[] BuildQuotationPdf(Quotation quotation)
+        public static byte[] BuildQuotationPdf(Quotation quotation, ICutSizeStore? cutSizes = null)
         {
             return Document.Create(container =>
             {
@@ -44,15 +45,24 @@ namespace ZEmpireAutoAccessories.Services
                             });
                         });
 
-                        ComposeLineItemsTable(column, quotation.Details.Select(d => (
-                            Description: d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description ?? "—",
-                            Note: d.Product == null && d.Service == null ? null : d.Description,
-                            Qty: (decimal)d.Quantity,
-                            Unit: d.Unit,
-                            UnitPrice: d.UnitPrice,
-                            Discount: (decimal?)null,
-                            SubTotal: d.SubTotal
-                        )), includeDiscountColumn: false);
+                        ComposeLineItemsTable(column, quotation.Details.Select(d => new LineItem
+                        {
+                            Description = d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description ?? "—",
+                            Note = LineNote(
+                                d.Product,
+                                fitted: true,
+                                d.TintVariant?.VariantName,
+                                null,
+                                d.Panel?.PanelName,
+                                Typed(d.Description, d.Product?.ProductName, d.Service?.ServiceName)),
+                            Qty = d.Quantity,
+                            Unit = UnitFor(d.Product, d.PanelID, d.Unit, d.Quantity),
+                            Measure = Measure(cutSizes, d.Product, d.PanelID,
+                                              quotation.Vehicle?.VehicleClassificationID, d.Quantity),
+                            UnitPrice = d.UnitPrice,
+                            Discount = null,
+                            SubTotal = d.SubTotal
+                        }), includeDiscountColumn: false);
 
                         ComposeTotals(column, WithVat(
                             ("Sub Total", quotation.SubTotal),
@@ -98,17 +108,20 @@ namespace ZEmpireAutoAccessories.Services
                         // The unit column earns its place here: a sale line for
                         // film is written in metres (CreateSale converts it),
                         // so a bare "3" beside a roll product says nothing.
-                        ComposeLineItemsTable(column, sale.SaleDetails.Select(d => (
-                            Description: (string?)d.Product.ProductName,
+                        ComposeLineItemsTable(column, sale.SaleDetails.Select(d => new LineItem
+                        {
+                            Description = d.Product.ProductName,
                             // A sale naming a vehicle is film going onto that
                             // car; one without is goods over the counter.
-                            Note: LineNote(d.Product, fitted: sale.Vehicle != null),
-                            Qty: (decimal)d.Quantity,
-                            Unit: SoldByLength(d.Product) ? UnitOfMeasure.Meter : UnitOfMeasure.DefaultCountUnit,
-                            UnitPrice: d.UnitPrice,
-                            Discount: (decimal?)null,
-                            SubTotal: d.SubTotal
-                        )), includeDiscountColumn: false);
+                            Note = LineNote(d.Product, fitted: sale.Vehicle != null),
+                            Qty = d.Quantity,
+                            // A counter sale has no panel, so film is the
+                            // length that was written - in metres.
+                            Unit = SoldByLength(d.Product) ? UnitOfMeasure.Meter : UnitOfMeasure.DefaultCountUnit,
+                            UnitPrice = d.UnitPrice,
+                            Discount = null,
+                            SubTotal = d.SubTotal
+                        }), includeDiscountColumn: false);
 
                         ComposeTotals(column, WithVat(("Total", sale.TotalAmount)));
                     });
@@ -118,7 +131,7 @@ namespace ZEmpireAutoAccessories.Services
             }).GeneratePdf();
         }
 
-        public static byte[] BuildServiceInvoicePdf(ServiceInvoice invoice)
+        public static byte[] BuildServiceInvoicePdf(ServiceInvoice invoice, ICutSizeStore? cutSizes = null)
         {
             return Document.Create(container =>
             {
@@ -146,9 +159,10 @@ namespace ZEmpireAutoAccessories.Services
                             });
                         });
 
-                        ComposeLineItemsTable(column, invoice.Details.Select(d => (
-                            Description: (string?)(d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description),
-                            Note: LineNote(
+                        ComposeLineItemsTable(column, invoice.Details.Select(d => new LineItem
+                        {
+                            Description = d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description,
+                            Note = LineNote(
                                 d.Product,
                                 // A service invoice is work on a car by
                                 // definition, so the fitting is always in it.
@@ -156,15 +170,15 @@ namespace ZEmpireAutoAccessories.Services
                                 d.TintVariant?.VariantName,
                                 d.Shade?.ShadeName,
                                 d.Panel?.PanelName,
-                                // The line's own wording, unless it is the
-                                // only thing naming the line already.
-                                d.Product == null && d.Service == null ? null : d.Description),
-                            Qty: d.Quantity,
-                            Unit: d.Unit,
-                            UnitPrice: d.UnitPrice,
-                            Discount: (decimal?)d.DiscountAmount,
-                            SubTotal: d.SubTotal
-                        )), includeDiscountColumn: true);
+                                Typed(d.Description, d.Product?.ProductName, d.Service?.ServiceName)),
+                            Qty = d.Quantity,
+                            Unit = UnitFor(d.Product, d.PanelID, d.Unit, d.Quantity),
+                            Measure = Measure(cutSizes, d.Product, d.PanelID,
+                                              invoice.Vehicle?.VehicleClassificationID, d.Quantity),
+                            UnitPrice = d.UnitPrice,
+                            Discount = d.DiscountAmount,
+                            SubTotal = d.SubTotal
+                        }), includeDiscountColumn: true);
 
                         ComposeTotals(column, WithVat(
                             ("Sub Total", invoice.SubTotal),
@@ -183,7 +197,7 @@ namespace ZEmpireAutoAccessories.Services
             }).GeneratePdf();
         }
 
-        public static byte[] BuildJobOrderPdf(JobOrder jobOrder)
+        public static byte[] BuildJobOrderPdf(JobOrder jobOrder, ICutSizeStore? cutSizes = null)
         {
             var total = jobOrder.Details.Sum(d => d.SubTotal);
 
@@ -233,15 +247,24 @@ namespace ZEmpireAutoAccessories.Services
                             });
                         }
 
-                        ComposeLineItemsTable(column, jobOrder.Details.Select(d => (
-                            Description: (string?)(d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description),
-                            Note: d.Product == null && d.Service == null ? null : d.Description,
-                            Qty: (decimal)d.Quantity,
-                            Unit: d.Unit,
-                            UnitPrice: d.UnitPrice,
-                            Discount: (decimal?)null,
-                            SubTotal: d.SubTotal
-                        )), includeDiscountColumn: false);
+                        ComposeLineItemsTable(column, jobOrder.Details.Select(d => new LineItem
+                        {
+                            Description = d.Product?.ProductName ?? d.Service?.ServiceName ?? d.Description,
+                            Note = LineNote(
+                                d.Product,
+                                fitted: true,
+                                d.TintVariant?.VariantName,
+                                d.Shade?.ShadeName,
+                                d.Panel?.PanelName,
+                                Typed(d.Description, d.Product?.ProductName, d.Service?.ServiceName)),
+                            Qty = d.Quantity,
+                            Unit = UnitFor(d.Product, d.PanelID, d.Unit, d.Quantity),
+                            Measure = Measure(cutSizes, d.Product, d.PanelID,
+                                              jobOrder.Vehicle?.VehicleClassificationID, d.Quantity),
+                            UnitPrice = d.UnitPrice,
+                            Discount = null,
+                            SubTotal = d.SubTotal
+                        }), includeDiscountColumn: false);
 
                         ComposeTotals(column, ("Total", total));
 
@@ -369,13 +392,79 @@ namespace ZEmpireAutoAccessories.Services
             return parts.Count == 0 ? null : string.Join(" · ", parts);
         }
 
+        /// <summary>
+        /// What one panel line takes off the roll, written out, or null where
+        /// the line is not measured that way - anything counted, film sold by
+        /// the metre with no panel against it, or a pairing nobody has set a
+        /// cut size for yet.
+        /// </summary>
+        private static string? Measure(
+            ICutSizeStore? cutSizes, Product? product, int? panelId,
+            int? vehicleClassificationId, decimal quantity)
+        {
+            if (cutSizes == null || panelId == null || !SoldByLength(product)
+                || vehicleClassificationId == null)
+                return null;
+
+            var centimeters = cutSizes.Centimeters(vehicleClassificationId.Value, panelId.Value);
+
+            return centimeters == null
+                ? null
+                : UnitOfMeasure.Describe(centimeters.Value * quantity, true) + " of film";
+        }
+
+        /// <summary>
+        /// What to print in the Unit column. A panel line counts panels; the
+        /// stored "pc" is left over from before these were measured and says
+        /// nothing true about a roll.
+        /// </summary>
+        private static string UnitFor(
+            Product? product, int? panelId, string storedUnit, decimal quantity) =>
+            SoldByLength(product) && panelId != null
+                ? "panel" + (quantity == 1m ? "" : "s")
+                : storedUnit;
+
+        /// <summary>
+        /// The line's own wording, unless it only repeats the name already
+        /// printed beside it - the add-line form fills the description in
+        /// from the product, so most lines carry their own name twice.
+        /// </summary>
+        private static string? Typed(string? description, params string?[] names) =>
+            names.Any(n => string.Equals(n?.Trim(), description?.Trim(), StringComparison.OrdinalIgnoreCase))
+                ? null
+                : description;
+
         /// <summary>Whether this product comes off a roll and is measured.</summary>
         private static bool SoldByLength(Product? product) =>
             product != null && UnitOfMeasure.IsSoldByLength(product.Category?.CategoryName);
 
+        /// <summary>
+        /// One printed line. A record rather than a seven-field tuple now
+        /// that it carries a measure as well - the tuple had reached the
+        /// point where the call sites were the only thing naming the fields,
+        /// and a string in the wrong position would have compiled.
+        /// </summary>
+        private sealed record LineItem
+        {
+            public string? Description { get; init; }
+            public string? Note { get; init; }
+            public decimal Qty { get; init; }
+            public string Unit { get; init; } = "";
+            public decimal UnitPrice { get; init; }
+            public decimal? Discount { get; init; }
+            public decimal SubTotal { get; init; }
+
+            /// <summary>
+            /// What the line takes off a roll, where that is not the quantity
+            /// as written - "5.05 m of film" under a panel count. Null for
+            /// anything counted.
+            /// </summary>
+            public string? Measure { get; init; }
+        }
+
         private static void ComposeLineItemsTable(
             ColumnDescriptor column,
-            IEnumerable<(string? Description, string? Note, decimal Qty, string Unit, decimal UnitPrice, decimal? Discount, decimal SubTotal)> lines,
+            IEnumerable<LineItem> lines,
             bool includeDiscountColumn,
             bool includeUnitColumn = true)
         {
@@ -417,7 +506,16 @@ namespace ZEmpireAutoAccessories.Services
                     });
                     table.Cell().Element(BodyCell).AlignRight().Text(line.Qty.ToString("0.##"));
                     if (includeUnitColumn)
-                        table.Cell().Element(BodyCell).Text(line.Unit);
+                        table.Cell().Element(BodyCell).Column(unitColumn =>
+                        {
+                            unitColumn.Item().Text(line.Unit);
+
+                            // The figure that actually came off the roll. A
+                            // panel count alone says nothing about the film.
+                            if (!string.IsNullOrWhiteSpace(line.Measure))
+                                unitColumn.Item().Text(line.Measure)
+                                    .FontSize(8).FontColor(Colors.Grey.Darken1);
+                        });
 
                     // Work that was done and not charged for. Printing P0.00
                     // twice reads like a mistake, or like the customer was

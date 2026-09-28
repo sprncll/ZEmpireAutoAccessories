@@ -16,15 +16,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IInventoryService _inventoryService;
         private readonly IDocumentStockService _documentStock;
+        private readonly ICutSizeStore _cutSizes;
 
         public JobOrderController(
             ApplicationDbContext context,
             IInventoryService inventoryService,
-            IDocumentStockService documentStock)
+            IDocumentStockService documentStock,
+            ICutSizeStore cutSizes)
         {
             _context = context;
             _inventoryService = inventoryService;
             _documentStock = documentStock;
+            _cutSizes = cutSizes;
         }
 
         // GET: JobOrder?status=Pending&q=...
@@ -70,9 +73,18 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Include(j => j.Quotation)
                 .Include(j => j.ServiceInvoices)
                 .Include(j => j.Details)
-                    .ThenInclude(d => d.Product)
+                    // The category says whether the product comes off a roll,
+                    // and the panel says how much of it - see the receipt.
+                    .ThenInclude(d => d.Product!)
+                        .ThenInclude(p => p.Category)
                 .Include(j => j.Details)
                     .ThenInclude(d => d.Service)
+                .Include(j => j.Details)
+                    .ThenInclude(d => d.TintVariant)
+                .Include(j => j.Details)
+                    .ThenInclude(d => d.Shade)
+                .Include(j => j.Details)
+                    .ThenInclude(d => d.Panel)
                 .Include(j => j.Details)
                     .ThenInclude(d => d.TintVariant)
                 .Include(j => j.Details)
@@ -140,7 +152,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (jobOrder == null)
                 return NotFound();
 
-            var pdf = DocumentPdfBuilder.BuildJobOrderPdf(jobOrder);
+            var pdf = DocumentPdfBuilder.BuildJobOrderPdf(jobOrder, _cutSizes);
             return File(pdf, "application/pdf", $"{jobOrder.JobOrderNumber}.pdf");
         }
 

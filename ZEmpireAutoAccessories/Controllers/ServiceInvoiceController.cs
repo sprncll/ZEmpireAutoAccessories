@@ -17,17 +17,20 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IQuotationService _quotationService; // GetNextInvoiceNumber lives here
         private readonly IInventoryService _inventoryService;
         private readonly IDocumentStockService _documentStock;
+        private readonly ICutSizeStore _cutSizes;
 
         public ServiceInvoiceController(
             ApplicationDbContext context,
             IQuotationService quotationService,
             IInventoryService inventoryService,
-            IDocumentStockService documentStock)
+            IDocumentStockService documentStock,
+            ICutSizeStore cutSizes)
         {
             _context = context;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
             _documentStock = documentStock;
+            _cutSizes = cutSizes;
         }
 
         // GET: ServiceInvoice?status=Paid
@@ -183,7 +186,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (invoice == null)
                 return NotFound();
 
-            var pdf = DocumentPdfBuilder.BuildServiceInvoicePdf(invoice);
+            var pdf = DocumentPdfBuilder.BuildServiceInvoicePdf(invoice, _cutSizes);
             return File(pdf, "application/pdf", $"{invoice.InvoiceNumber}.pdf");
         }
 

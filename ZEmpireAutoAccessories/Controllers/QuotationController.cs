@@ -17,15 +17,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IQuotationService _quotationService;
 
         private readonly IInventoryService _inventoryService;
+        private readonly ICutSizeStore _cutSizes;
 
         public QuotationController(
             ApplicationDbContext context,
             IQuotationService quotationService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            ICutSizeStore cutSizes)
         {
             _context = context;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
+            _cutSizes = cutSizes;
         }
 
         // GET: Quotation?status=Draft&q=...
@@ -122,7 +125,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (quotation == null)
                 return NotFound();
 
-            var pdf = DocumentPdfBuilder.BuildQuotationPdf(quotation);
+            var pdf = DocumentPdfBuilder.BuildQuotationPdf(quotation, _cutSizes);
             return File(pdf, "application/pdf", $"{quotation.QuotationNumber}.pdf");
         }
 
