@@ -223,7 +223,14 @@
                         }
                     </td>
                     <td>@line.Quantity</td>
-                    <td>@line.Unit</td>
+                    <td>
+                        <partial name="_PanelFilm" model="new PanelFilm {
+                            SoldByLength = line.ProductID != null && rollProducts.Contains(line.ProductID.Value),
+                            PanelID = line.PanelID,
+                            VehicleClassificationID = Model.Vehicle?.VehicleClassificationID,
+                            Quantity = line.Quantity,
+                            StoredUnit = line.Unit }" />
+                    </td>
                     <td>@("₱" + line.UnitPrice.ToString("N2"))</td>
                     <td>@("₱" + line.SubTotal.ToString("N2"))</td>
                     <td class="text-end pe-3">

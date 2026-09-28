@@ -1,0 +1,41 @@
+@using ZEmpireAutoAccessories.Services.Interfaces
+@model ZEmpireAutoAccessories.Models.PanelFilm
+@inject ICutSizeStore CutSizes
+
+@*
+    The Unit cell of a document line.
+
+    For anything counted this is the unit as stored. For film cut to a panel
+    it is the panel count plus what that actually costs the roll, because
+    "1 pc" of a windshield is not a thing and the figure that matters -
+    the metres - was nowhere on the screen until the job was completed.
+*@
+@if (!Model.IsMeasured)
+{
+    @(Model.StoredUnit ?? UnitOfMeasure.DefaultCountUnit)
+}
+else
+{
+    var centimeters = Model.VehicleClassificationID is { } classification
+        ? CutSizes.Centimeters(classification, Model.PanelID!.Value)
+        : null;
+
+    <span>panel@(Model.Quantity == 1m ? "" : "s")</span>
+
+    @if (centimeters != null)
+    {
+        <div class="text-muted small">
+            @UnitOfMeasure.Describe(centimeters.Value * Model.Quantity, true) of film
+        </div>
+    }
+    else if (Model.VehicleClassificationID == null)
+    {
+        <div class="small text-danger">No vehicle, so no cut size</div>
+    }
+    else
+    {
+        @* Said here rather than at completion, which is where it used to
+           surface - by then the customer is waiting. *@
+        <div class="small text-danger">No cut size set</div>
+    }
+}
