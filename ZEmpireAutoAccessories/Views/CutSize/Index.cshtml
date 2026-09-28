@@ -31,6 +31,19 @@
 
     .cut-legend { color:#7b8290; font-size:12.5px; margin-top:12px; }
     .cut-count { font-weight:600; color:#0b0b0c; }
+
+    /* The unit lives beside every box, not only in a sentence at the bottom.
+       A grid of bare numbers is the one thing that must not be ambiguous. */
+    .cut-cell { display:flex; align-items:center; gap:4px; }
+    .cut-unit { color:#9aa1ad; font-size:11.5px; }
+
+    .unit-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+    .unit-label { font-size:12.5px; font-weight:600; color:#7b8290;
+                  text-transform:uppercase; letter-spacing:.3px; }
+    .unit-pill { padding:4px 12px; border-radius:999px; border:1px solid #e2e6ec; background:#fff;
+                 color:#4b5563; font-size:12.5px; font-weight:600; text-decoration:none; }
+    .unit-pill:hover { border-color:#c9ced6; color:#0b0b0c; }
+    .unit-pill.active { background:#0b0b0c; border-color:#0b0b0c; color:#fff; }
 </style>
 
 <div class="zx-page-head">
@@ -39,8 +52,8 @@
 <p class="zx-page-sub">
     How much film each panel takes, per class of vehicle. When a tint or film job is completed,
     this is what comes off the roll &mdash; a line reading &ldquo;Front Windshield &times;1&rdquo; deducts the
-    length set here, not one of anything. Written in metres. Leave a box empty where the panel
-    does not apply; a job that uses an empty pairing cannot be completed until it is filled in.
+    length set here, not one of anything. Leave a box empty where the panel does not apply;
+    a job that uses an empty pairing cannot be completed until it is filled in.
 </p>
 
 @if (!string.IsNullOrEmpty(successMessage))
@@ -64,7 +77,36 @@
 }
 else
 {
+    <div class="unit-bar">
+        <span class="unit-label">Measured in</span>
+        @foreach (var unit in UnitOfMeasure.LengthUnits)
+        {
+            <a class="unit-pill @(Model.Unit == unit ? "active" : "")"
+               asp-action="Index" asp-route-unit="@unit">@UnitName(unit)</a>
+        }
+        <span class="cut-legend" style="margin:0 0 0 6px;">
+            Switching converts what is already here &mdash; nothing is retyped or lost.
+        </span>
+    </div>
+
+    @if (Model.Fillable > 0)
+    {
+        @* Typing a hundred boxes from nothing is why this table sits empty in
+           most shops. These are estimates and say so, and they only ever land
+           in boxes that are blank. *@
+        <form method="post" asp-action="FillSuggested" class="mb-3">
+            <input type="hidden" name="unit" value="@Model.Unit" />
+            <button type="submit" class="btn btn-outline-secondary btn-sm">
+                Fill @Model.Fillable blank glass box@(Model.Fillable == 1 ? "" : "es") with starting sizes
+            </button>
+            <span class="cut-legend" style="margin-left:6px;">
+                Estimates for glass only, scaled by vehicle class. Check them against a real job.
+            </span>
+        </form>
+    }
+
     <form method="post" asp-action="Index">
+        <input type="hidden" name="unit" value="@Model.Unit" />
         <div class="zx-card">
             <div class="table-responsive">
                 <table class="cut-table">
@@ -84,17 +126,22 @@ else
                                 <th class="rowhead">@classification.ClassificationName</th>
                                 @foreach (var panel in Model.Panels)
                                 {
-                                    var metres = Model.For(classification.VehicleClassificationID, panel.PanelID);
+                                    var size = Model.For(classification.VehicleClassificationID, panel.PanelID);
+                                    var suggested = Model.Suggested(classification, panel);
                                     <td>
                                         @* Every box posts its own pair of ids, so the server never has
                                            to work out which cell a number belonged to. *@
                                         <input type="hidden" name="vehicleClassificationId" value="@classification.VehicleClassificationID" />
                                         <input type="hidden" name="panelId" value="@panel.PanelID" />
-                                        <input type="number" name="meters" step="0.01" min="0"
-                                               class="cut-input @(metres.HasValue ? "is-set" : "")"
-                                               value="@(metres?.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))"
-                                               placeholder="—"
-                                               aria-label="@classification.ClassificationName, @panel.PanelName, metres" />
+                                        <div class="cut-cell">
+                                            <input type="number" name="size" step="@(Model.Unit == UnitOfMeasure.Centimeter ? "0.1" : "0.01")" min="0"
+                                                   class="cut-input @(size.HasValue ? "is-set" : "")"
+                                                   value="@(size.HasValue ? Model.Format(size.Value) : "")"
+                                                   placeholder="@(suggested.HasValue ? Model.Format(suggested.Value) : "—")"
+                                                   title="@(suggested.HasValue ? $"Suggested: {Model.Format(suggested.Value)} {Model.Unit}" : null)"
+                                                   aria-label="@classification.ClassificationName, @panel.PanelName, in @UnitName(Model.Unit)" />
+                                            <span class="cut-unit">@Model.Unit</span>
+                                        </div>
                                     </td>
                                 }
                             </tr>
@@ -105,7 +152,9 @@ else
 
             <div class="cut-legend">
                 <span class="cut-count">@Model.Filled of @Model.Total</span> pairings have a cut size.
-                All figures are in metres.
+                All figures on this screen are in @UnitName(Model.Unit) (@Model.Unit); they are kept in
+                centimetres underneath, which is what stock is counted in.
+                A greyed figure in an empty box is a suggestion, not a saved value.
             </div>
         </div>
 
@@ -117,4 +166,15 @@ else
             <a asp-controller="Inventory" asp-action="Index" class="btn btn-outline-secondary">Back to Inventory</a>
         </div>
     </form>
+}
+
+@functions {
+    // "m" is fine beside a box; a sentence wants the word.
+    static string UnitName(string unit) => unit switch
+    {
+        UnitOfMeasure.Centimeter => "centimetres",
+        UnitOfMeasure.Inch => "inches",
+        UnitOfMeasure.Meter => "metres",
+        _ => unit
+    };
 }

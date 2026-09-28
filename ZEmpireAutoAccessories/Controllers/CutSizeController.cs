@@ -31,10 +31,15 @@ namespace ZEmpireAutoAccessories.Controllers
             _cutSizes = cutSizes;
         }
 
-        // GET: CutSize
-        public async Task<IActionResult> Index()
+        // GET: CutSize?unit=cm
+        //
+        // The unit is a round trip rather than a bit of arithmetic in the
+        // browser: the server renders the figures in it and reads them back in
+        // it, so there is one conversion, in one place, and no chance of the
+        // screen and the save disagreeing.
+        public async Task<IActionResult> Index(string? unit)
         {
-            return View(await BuildGrid());
+            return View(await BuildGrid(unit));
         }
 
         // POST: CutSize
@@ -47,30 +52,31 @@ namespace ZEmpireAutoAccessories.Controllers
         public async Task<IActionResult> Index(
             List<int> vehicleClassificationId,
             List<int> panelId,
-            List<decimal?> meters)
+            List<decimal?> size,
+            string? unit)
         {
+            var chosen = Unit(unit);
             var sizes = new List<CutSize>();
 
             for (var i = 0; i < vehicleClassificationId.Count && i < panelId.Count; i++)
             {
-                var typed = i < meters.Count ? meters[i] : null;
+                var typed = i < size.Count ? size[i] : null;
                 if (typed == null)
                     continue;
 
                 if (typed < 0)
                 {
                     ViewData["CutSizeError"] = "A cut size can't be negative.";
-                    return View(await BuildGrid());
+                    return View(await BuildGrid(chosen));
                 }
 
                 sizes.Add(new CutSize
                 {
                     VehicleClassificationID = vehicleClassificationId[i],
                     PanelID = panelId[i],
-                    // Typed in metres because that is how a roll is bought and
-                    // talked about; held in centimetres because that is what
-                    // stock is counted in.
-                    Centimeters = UnitOfMeasure.ToBase(typed.Value, UnitOfMeasure.Meter)
+                    // Typed in whatever the shop measures in; held in
+                    // centimetres, because that is what stock is counted in.
+                    Centimeters = UnitOfMeasure.ToBase(typed.Value, chosen)
                 });
             }
 
@@ -80,10 +86,76 @@ namespace ZEmpireAutoAccessories.Controllers
                 ? "Cut sizes cleared."
                 : $"{sizes.Count} cut size{(sizes.Count == 1 ? "" : "s")} saved.";
 
-            return RedirectToAction(nameof(Index));
+            return RedirectToAction(nameof(Index), new { unit = chosen });
         }
 
-        private async Task<CutSizeGrid> BuildGrid()
+        // POST: CutSize/FillSuggested
+        //
+        // Puts a starting figure in every blank box it has one for, and leaves
+        // every box that already has a number alone - a fill must never quietly
+        // overwrite a size somebody measured.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> FillSuggested(string? unit)
+        {
+            var grid = await BuildGrid(unit);
+
+            var filled = grid.Classifications
+                .SelectMany(c => grid.Panels.Select(p => new { Class = c, Panel = p }))
+                .Select(pair => new
+                {
+                    pair.Class,
+                    pair.Panel,
+                    Centimeters = grid.Centimeters.ContainsKey(
+                        (pair.Class.VehicleClassificationID, pair.Panel.PanelID))
+                        ? null
+                        : SuggestedCutSizes.Centimeters(
+                            pair.Class.ClassificationName, pair.Panel.PanelName)
+                })
+                .Where(x => x.Centimeters != null)
+                .Select(x => new CutSize
+                {
+                    VehicleClassificationID = x.Class.VehicleClassificationID,
+                    PanelID = x.Panel.PanelID,
+                    Centimeters = x.Centimeters!.Value
+                })
+                .ToList();
+
+            if (filled.Count == 0)
+            {
+                TempData["Success"] = "Nothing to fill - every panel this table covers already has a size.";
+                return RedirectToAction(nameof(Index), new { unit = Unit(unit) });
+            }
+
+            // Everything already on record, plus the blanks just filled.
+            var all = grid.Centimeters
+                .Select(entry => new CutSize
+                {
+                    VehicleClassificationID = entry.Key.VehicleClassificationID,
+                    PanelID = entry.Key.PanelID,
+                    Centimeters = entry.Value
+                })
+                .Concat(filled)
+                .ToList();
+
+            await _cutSizes.Save(all);
+
+            TempData["Success"] =
+                $"Filled {filled.Count} blank box{(filled.Count == 1 ? "" : "es")} with starting sizes. " +
+                "These are estimates - check them against a real job and correct them.";
+
+            return RedirectToAction(nameof(Index), new { unit = Unit(unit) });
+        }
+
+        /// <summary>
+        /// The unit asked for, or metres. A length unit only - anything else
+        /// would be read as centimetres by UnitOfMeasure and quietly mean
+        /// something other than what the screen said.
+        /// </summary>
+        private static string Unit(string? unit) =>
+            UnitOfMeasure.IsLengthUnit(unit) ? unit! : UnitOfMeasure.Meter;
+
+        private async Task<CutSizeGrid> BuildGrid(string? unit)
         {
             var classifications = await _context.VehicleClassifications
                 .OrderBy(c => c.ClassificationName)
@@ -94,13 +166,14 @@ namespace ZEmpireAutoAccessories.Controllers
                 .ToListAsync();
 
             var existing = _cutSizes.All()
-                .ToDictionary(s => (s.VehicleClassificationID, s.PanelID), s => s.Meters);
+                .ToDictionary(s => (s.VehicleClassificationID, s.PanelID), s => s.Centimeters);
 
             return new CutSizeGrid
             {
                 Classifications = classifications,
                 Panels = panels,
-                Meters = existing
+                Centimeters = existing,
+                Unit = Unit(unit)
             };
         }
     }
