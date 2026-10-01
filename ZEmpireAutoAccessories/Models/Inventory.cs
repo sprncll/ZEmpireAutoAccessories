@@ -47,6 +47,41 @@ namespace ZEmpireAutoAccessories.Models
 
         /// <summary>Roll goods: counted in cm/in/m rather than pieces.</summary>
         public bool SoldByLength { get; set; }
+
+        /// <summary>
+        /// The shade this line counts, where the product is broken down.
+        /// inv.InventoryCheckDetail has carried TintVariantID and ShadeID all
+        /// along, so a count CAN be recorded per shade even though the running
+        /// balance cannot: inv.InventoryTransaction records a product and
+        /// nothing finer. Null on both means the line counts the product whole,
+        /// which is every piece good and every film with no shades on file.
+        /// </summary>
+        public int? TintVariantID { get; set; }
+        public int? ShadeID { get; set; }
+
+        public string? TintVariantName { get; set; }
+        public string? ShadeName { get; set; }
+
+        /// <summary>Whether this line counts one shade rather than the product.</summary>
+        public bool IsShadeLine => ShadeID != null;
+
+        /// <summary>
+        /// Whether this is the first line of its product, which is where the
+        /// system figure belongs. The system knows one number per product, so
+        /// repeating it beside every shade would read as though each shade had
+        /// that much.
+        /// </summary>
+        public bool FirstOfProduct { get; set; }
+
+        /// <summary>How many lines this product is split across.</summary>
+        public int ShadeLineCount { get; set; } = 1;
+
+        /// <summary>"BF Stone - Superdark", or the product name when whole.</summary>
+        public string Label =>
+            IsShadeLine
+                ? string.Join(" - ", new[] { TintVariantName, ShadeName }
+                      .Where(x => !string.IsNullOrWhiteSpace(x)))
+                : ProductName;
     }
 
     /// <summary>
@@ -63,7 +98,23 @@ namespace ZEmpireAutoAccessories.Models
         public string StockLevel { get; set; } = "Normal";
         public bool SoldByLength { get; set; }
 
+        /// <summary>
+        /// What was counted against each shade, where the product was counted
+        /// that way. The variance itself stays at product level - there is one
+        /// system figure per product to compare against, and reconciling posts
+        /// to inv.InventoryTransaction, which has no shade. This is the
+        /// breakdown behind the total, for reading.
+        /// </summary>
+        public List<StockCountShade> Shades { get; set; } = new();
+
         public decimal Variance => PhysicalStock - SystemStock;
+    }
+
+    /// <summary>One shade's share of a counted product.</summary>
+    public class StockCountShade
+    {
+        public string Label { get; set; } = string.Empty;
+        public decimal PhysicalStock { get; set; }
     }
 
     /// <summary>

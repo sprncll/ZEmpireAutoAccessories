@@ -32,6 +32,8 @@
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
     .num { font-variant-numeric:tabular-nums; }
     .variance { font-variant-numeric:tabular-nums; font-weight:600; }
+    .shade-breakdown { margin-top:4px; font-size:12px; color:#7b8290; }
+    .shade-breakdown > div { display:flex; gap:10px; justify-content:space-between; max-width:230px; padding-left:12px; }
     .variance.over { color:#15803d; }
     .variance.short { color:#b91c1c; }
     .variance.match { color:#98a0ad; font-weight:500; }
@@ -44,7 +46,12 @@
     <h1>Stock Count — @Model.CheckDate.ToString("dd MMM yyyy")</h1>
     <a class="btn btn-outline-secondary" asp-action="Index">Back to counts</a>
 </div>
-<p class="zx-page-sub">Variance is against stock on hand right now, not when the count was saved.</p>
+<p class="zx-page-sub">
+    Variance is against stock on hand right now, not when the count was saved.
+    A film counted shade by shade is reconciled as one product &mdash; stock itself
+    is kept per product, so the shade split is a record of the rack at the time
+    of the count rather than a running balance.
+</p>
 
 @if (!string.IsNullOrEmpty(success))
 {
@@ -105,7 +112,26 @@
                 @foreach (var v in variances)
                 {
                     <tr>
-                        <td>@v.ProductName</td>
+                        <td>
+                            @v.ProductName
+                            @if (v.Shades.Count > 0)
+                            {
+                                @* What was on the rack, shade by shade. The
+                                   variance beside it is the product's, because
+                                   the system holds one figure for the product -
+                                   this is the breakdown behind the total, and
+                                   the only place the shade mix is recorded. *@
+                                <div class="shade-breakdown">
+                                    @foreach (var shade in v.Shades)
+                                    {
+                                        <div>
+                                            <span>@shade.Label</span>
+                                            <span class="num">@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(shade.PhysicalStock, v.SoldByLength)</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </td>
                         <td class="num">@ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(v.PhysicalStock, v.SoldByLength)</td>
                         <td>@v.Unit</td>
                         <td>

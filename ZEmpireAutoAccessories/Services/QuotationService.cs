@@ -37,6 +37,10 @@ namespace ZEmpireAutoAccessories.Services
                 .Include(q => q.Details)
                     .ThenInclude(d => d.TintVariant)
                 .Include(q => q.Details)
+                    // Without this the shade on a line reads as null, so the
+                    // screen and the printed quotation both quietly omit it.
+                    .ThenInclude(d => d.Shade)
+                .Include(q => q.Details)
                     .ThenInclude(d => d.Panel)
                 .FirstOrDefaultAsync(q => q.QuotationID == quotationId);
         }

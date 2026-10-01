@@ -271,10 +271,10 @@
                 <tr>
                     <td>
                         @(line.Product?.ProductName ?? line.Service?.ServiceName ?? "—")
-                        @if (line.TintVariant != null || line.Panel != null)
+                        @if (line.TintVariant != null || line.Shade != null || line.Panel != null)
                         {
                             <div class="text-muted small">
-                                @string.Join(" · ", new[] { line.TintVariant?.VariantName, line.Panel?.PanelName }.Where(s => !string.IsNullOrEmpty(s)))
+                                @string.Join(" · ", new[] { line.TintVariant?.VariantName, line.Shade?.ShadeName, line.Panel?.PanelName }.Where(s => !string.IsNullOrEmpty(s)))
                             </div>
                         }
                         @if (!string.IsNullOrEmpty(line.Description))
@@ -355,7 +355,7 @@
                 <option value="">-- None --</option>
                 @foreach (var p in (List<Product>)ViewData["Products"]!)
                 {
-                    <option value="@p.ProductID" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@((stockByProduct.TryGetValue(p.ProductID, out var onHand) ? onHand : 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName @(stockByProduct.TryGetValue(p.ProductID, out var sh) && sh > 0 ? $"({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sh, rollProducts.Contains(p.ProductID))} in stock)" : "(out of stock)")</option>
+                    <option value="@p.ProductID" data-name="@p.ProductName" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@((stockByProduct.TryGetValue(p.ProductID, out var onHand) ? onHand : 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName @(stockByProduct.TryGetValue(p.ProductID, out var sh) && sh > 0 ? $"({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sh, rollProducts.Contains(p.ProductID))} in stock)" : "(out of stock)")</option>
                 }
             </select>
         </div>
@@ -365,13 +365,19 @@
                 <option value="">-- None --</option>
                 @foreach (var s in (List<Service>)ViewData["Services"]!)
                 {
-                    <option value="@s.ServiceID" data-price="@s.DefaultPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)">@s.ServiceName</option>
+                    <option value="@s.ServiceID" data-name="@s.ServiceName" data-price="@s.DefaultPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)">@s.ServiceName</option>
                 }
             </select>
         </div>
         <div class="col-md-3">
             <label class="form-label" title="Only applies to products with more than one tint variant (e.g. Play/Freeze/Max)">Tint Variant</label>
             <select id="addLineTintVariant" name="tintVariantId" class="form-select" disabled>
+                <option value="">-- N/A --</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label" title="Which shade of the chosen tint variant was fitted - e.g. Light, Medium, Superdark">Shade</label>
+            <select id="addLineShade" name="shadeId" class="form-select" disabled>
                 <option value="">-- N/A --</option>
             </select>
         </div>
@@ -509,7 +515,13 @@
             var pricingMatrix = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["PricingMatrix"]));
             var $product = $('#addLineProduct');
             var $service = $('#addLineService');
+            // The shades each tint variant comes in. Keyed by variant because
+            // a shade belongs to one - "Superdark" on BF Stone is a different
+            // row from "Superdark" on Profilm X Lite.
+            var shadesByVariant = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["ShadesByVariant"]));
+
             var $tintVariant = $('#addLineTintVariant');
+            var $shade = $('#addLineShade');
             var $panel = $('#addLinePanel');
             var $price = $('#addLinePrice');
             var $description = $('#addLineDescription');
@@ -548,6 +560,37 @@
                 }
             }
 
+            function refreshShades() {
+                var tintVariantId = $tintVariant.prop('disabled') ? null : ($tintVariant.val() || null);
+
+                var shades = tintVariantId
+                    ? shadesByVariant.filter(function (sh) {
+                          return String(sh.tintVariantId) === String(tintVariantId);
+                      })
+                    : [];
+
+                if (shades.length === 0) {
+                    // Two different situations that looked identical: no variant
+                    // picked yet, and a variant whose shades nobody has recorded.
+                    resetSelect($shade, tintVariantId
+                        ? '-- No shades on file for this variant --'
+                        : '-- N/A --');
+                    return;
+                }
+
+                $shade.empty()
+                      .append($('<option></option>').val('').text('-- Select Shade --'))
+                      .prop('disabled', false);
+
+                shades.forEach(function (sh) {
+                    $shade.append($('<option></option>').val(sh.shadeId).text(sh.shadeName));
+                });
+
+                if (shades.length === 1) {
+                    $shade.val(shades[0].shadeId);
+                }
+            }
+
             function refreshTintVariants() {
                 var productId = parseInt($product.val(), 10);
                 var rows = productId ? rowsForProduct(productId) : [];
@@ -573,6 +616,7 @@
                 }
 
                 refreshPanels();
+                refreshShades();
             }
 
             // Guarded on $(this).val() being truthy: clearing the other field
@@ -583,6 +627,16 @@
             // that was picked - leaving it to be typed is what made Add look
             // like it did nothing. A description the user has edited is left
             // alone; clearing the box opts back into auto-fill.
+            // The option's LABEL is not the product's name - it carries
+            // "(98.98 m in stock)" so the picker is useful, and that was
+            // landing in the description and printing on the receipt. The
+            // clean name rides along on data-name; fall back to the label only
+            // if some option has not got one.
+            function nameOf($select) {
+                var $selected = $select.find(':selected');
+                return ($selected.data('name') || $selected.text() || '').toString().trim();
+            }
+
             function autoFillDescription(text) {
                 if (!$description.length) { return; }
                 if ($description.data('touched')) { return; }
@@ -597,18 +651,20 @@
                 var productId = parseInt($(this).val(), 10) || 0;
                 if (!productId) {
                     resetSelect($tintVariant, '-- N/A --');
+                    resetSelect($shade, '-- N/A --');
                     resetSelect($panel, '-- N/A --');
                     return;
                 }
 
                 $service.val('').trigger('change');
-                autoFillDescription($(this).find(':selected').text().trim());
+                autoFillDescription(nameOf($(this)));
 
                 var rows = rowsForProduct(productId);
                 if (rows.length === 0) {
                     // No matrix pricing for this product - fall back to its
                     // own flat default price, and there's nothing to pick.
                     resetSelect($tintVariant, '-- N/A --');
+                    resetSelect($shade, '-- N/A --');
                     resetSelect($panel, '-- N/A --');
                     var flatPrice = $(this).find(':selected').data('price');
                     if (flatPrice !== undefined) { $price.val(parseFloat(flatPrice).toFixed(2)); }
@@ -617,7 +673,10 @@
                 }
             });
 
-            $tintVariant.on('change', refreshPanels);
+            $tintVariant.on('change', function () {
+                refreshPanels();
+                refreshShades();
+            });
 
             $panel.on('change', function () {
                 var price = $(this).find(':selected').data('price');
@@ -632,9 +691,10 @@
                 var price = $(this).find(':selected').data('price');
                 if (price !== undefined) { $price.val(parseFloat(price).toFixed(2)); }
 
-                autoFillDescription($(this).find(':selected').text().trim());
+                autoFillDescription(nameOf($(this)));
                 $product.val('').trigger('change');
                 resetSelect($tintVariant, '-- N/A --');
+                resetSelect($shade, '-- N/A --');
                 resetSelect($panel, '-- N/A --');
             });
         })();

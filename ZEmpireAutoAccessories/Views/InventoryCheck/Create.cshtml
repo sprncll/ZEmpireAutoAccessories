@@ -19,6 +19,11 @@
     .count-input { max-width:140px; }
     .unit-select { max-width:130px; }
     .sys-stock { font-variant-numeric:tabular-nums; color:#4b5563; }
+    .sys-note { font-size:11.5px; color:#9aa1ad; font-weight:400; }
+    /* A shade line belongs to the product above it, so it is indented and the
+       product name is not repeated. */
+    .shade-label { font-size:12.5px; color:#7b8290; padding-left:14px; }
+    .shade-row td:first-child { padding-top:2px; padding-bottom:2px; }
     .variance { font-variant-numeric:tabular-nums; font-weight:600; }
     .variance.over { color:#15803d; }
     .variance.short { color:#b91c1c; }
@@ -86,13 +91,39 @@
                             currentCategory = row.CategoryName;
                             <tr class="cat-row" data-category="@currentCategory"><td colspan="5">@currentCategory</td></tr>
                         }
-                        <tr data-name="@row.ProductName.ToLowerInvariant()" data-category="@row.CategoryName">
+                        @* A film with shades on file is counted one shade at a
+                           time. Its first line carries the product name and the
+                           system figure; the rest are indented shade lines with
+                           the system column left empty, because the system holds
+                           one number for the product and printing it beside each
+                           shade would read as though each shade had that much. *@
+                        <tr data-name="@row.ProductName.ToLowerInvariant()" data-category="@row.CategoryName" data-product="@row.ProductID" data-first="@row.FirstOfProduct.ToString().ToLowerInvariant()" class="@(row.IsShadeLine && !row.FirstOfProduct ? "shade-row" : null)">
                             <td>
-                                @row.ProductName
+                                @if (row.IsShadeLine)
+                                {
+                                    @if (row.FirstOfProduct)
+                                    {
+                                        <div>@row.ProductName</div>
+                                    }
+                                    <div class="shade-label">@row.Label</div>
+                                }
+                                else
+                                {
+                                    @row.ProductName
+                                }
                                 <input type="hidden" name="productId[@i]" value="@row.ProductID" />
+                                <input type="hidden" name="tintVariantId[@i]" value="@row.TintVariantID" />
+                                <input type="hidden" name="shadeId[@i]" value="@row.ShadeID" />
                             </td>
-                            <td class="sys-stock" data-system="@row.SystemStock" data-roll="@row.SoldByLength.ToString().ToLowerInvariant()">
-                                @ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(row.SystemStock, row.SoldByLength)
+                            <td class="sys-stock" data-system="@(row.FirstOfProduct ? row.SystemStock : 0)" data-roll="@row.SoldByLength.ToString().ToLowerInvariant()">
+                                @if (row.FirstOfProduct)
+                                {
+                                    @ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(row.SystemStock, row.SoldByLength)
+                                    @if (row.ShadeLineCount > 1)
+                                    {
+                                        <div class="sys-note">for all @row.ShadeLineCount shades together</div>
+                                    }
+                                }
                             </td>
                             <td>
                                 <input type="number" step="0.01" min="0" name="physicalStock[@i]"
@@ -164,23 +195,51 @@
                 return value * (factor || 1);
             }
 
-            table.addEventListener('input', function (e) {
-                if (e.target.name.indexOf('physicalStock') !== 0) { return; }
+            // The variance belongs to the PRODUCT, not to the row. A film
+            // counted across three shades has one system figure, so the three
+            // counts are added up and compared with it once - the same way the
+            // server groups them before reconciling. Showing a per-shade
+            // variance would compare one shade against the whole roll and read
+            // as a huge shortfall on every line.
+            function refreshProduct(productId) {
+                var group = table.querySelectorAll('tr[data-product="' + productId + '"]');
+                if (!group.length) { return; }
 
-                var row = e.target.closest('tr');
-                var system = parseFloat(row.querySelector('[data-system]').dataset.system) || 0;
-                var cell = row.querySelector('.variance');
+                var first = group[0];
+                var system = parseFloat(first.querySelector('[data-system]').dataset.system) || 0;
+                var cell = first.querySelector('.variance');
 
-                if (e.target.value === '') {
+                var typedAnything = false;
+                var total = 0;
+
+                Array.prototype.forEach.call(group, function (row) {
+                    var input = row.querySelector('input[name^="physicalStock"]');
+                    if (!input || input.value === '') { return; }
+                    typedAnything = true;
+                    total += toBase(row, parseFloat(input.value) || 0);
+
+                    // Only the first row of a product carries the variance.
+                    if (row !== first) {
+                        var own = row.querySelector('.variance');
+                        if (own) { own.textContent = '—'; own.className = 'variance match'; }
+                    }
+                });
+
+                if (!typedAnything) {
                     cell.textContent = '—';
                     cell.className = 'variance match';
                     return;
                 }
 
-                var diff = toBase(row, parseFloat(e.target.value) || 0) - system;
-                diff = Math.round(diff * 100) / 100;
+                var diff = Math.round((total - system) * 100) / 100;
                 cell.textContent = diff === 0 ? 'Match' : (diff > 0 ? '+' : '') + diff.toLocaleString();
                 cell.className = 'variance ' + (diff === 0 ? 'match' : diff > 0 ? 'over' : 'short');
+            }
+
+            table.addEventListener('input', function (e) {
+                if (e.target.name.indexOf('physicalStock') !== 0) { return; }
+                var row = e.target.closest('tr');
+                if (row) { refreshProduct(row.dataset.product); }
             });
 
             // Narrowing the sheet to the shelf being counted, and a running
@@ -226,7 +285,9 @@
             // Switching a row's unit changes what the typed figure means.
             table.addEventListener('change', function (e) {
                 if (e.target.name.indexOf('unit') !== 0) { return; }
-                var qty = e.target.closest('tr').querySelector('input[name^="physicalStock"]');
+                var unitRow = e.target.closest('tr');
+                if (unitRow) { refreshProduct(unitRow.dataset.product); }
+                var qty = unitRow.querySelector('input[name^="physicalStock"]');
                 if (qty) { qty.dispatchEvent(new Event('input', { bubbles: true })); }
             });
 

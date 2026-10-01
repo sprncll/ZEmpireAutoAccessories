@@ -13,9 +13,18 @@ namespace ZEmpireAutoAccessories.Controllers
     /// actually on the shelf; reconciling it posts the difference to
     /// inv.InventoryTransaction so the system figure matches.
     ///
-    /// Counts are per product, not per tint variant, because stock itself is
-    /// tracked per product - inv.InventoryTransaction has no TintVariantID, so
-    /// a variant-level count would have nothing to reconcile against.
+    /// A film that has shades on file is counted one shade at a time.
+    /// inv.InventoryCheckDetail has carried TintVariantID and ShadeID all
+    /// along, so the sheet can record which shade the metres were on - what
+    /// the shop actually wants to know when it is down to one roll of
+    /// Superdark.
+    ///
+    /// The variance stays at PRODUCT level, and reconciling posts at product
+    /// level, because inv.InventoryTransaction records a product and nothing
+    /// finer: there is one system figure to compare against, so the shade
+    /// counts are summed before they are matched to it. The breakdown is a
+    /// record of the shelf at that moment, not a running balance - it will
+    /// drift until the next count, and the screens say so.
     ///
     /// Shares the Inventory module rather than owning one, so no new
     /// sec.Module row is needed.
@@ -65,7 +74,9 @@ namespace ZEmpireAutoAccessories.Controllers
         public async Task<IActionResult> Create(
             List<int> productId,
             List<decimal?> physicalStock,
-            List<string> unit)
+            List<string> unit,
+            List<int?> tintVariantId,
+            List<int?> shadeId)
         {
             var counted = new List<InventoryCheckDetail>();
             var roll = await _inventoryService.SoldByLength(productId);
@@ -98,6 +109,8 @@ namespace ZEmpireAutoAccessories.Controllers
                 counted.Add(new InventoryCheckDetail
                 {
                     ProductID = productId[i],
+                    TintVariantID = i < tintVariantId.Count ? tintVariantId[i] : null,
+                    ShadeID = i < shadeId.Count ? shadeId[i] : null,
                     PhysicalStock = counting,
                     // CK on inv.InventoryCheckDetail allows Piece or Roll only,
                     // so the measured unit lives in the figure, not the label.
@@ -214,20 +227,93 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Where(p => p.IsActive)
                 .ToListAsync();
 
-            return products
-                .Select(p => new StockCountRow
+            // The shades each product's variants come in, so a film can be
+            // counted one shade at a time. A product whose variants have no
+            // shades on file keeps a single line, which is what every product
+            // had before this.
+            var shades = await _context.Shades
+                .Include(sh => sh.TintVariant)
+                .OrderBy(sh => sh.TintVariant.VariantName).ThenBy(sh => sh.ShadeName)
+                .Select(sh => new
                 {
-                    ProductID = p.ProductID,
-                    ProductName = p.ProductName,
-                    CategoryName = ProductCategories.Canonical(p.Category.CategoryName),
-                    SystemStock = stock.TryGetValue(p.ProductID, out var s) ? s : 0,
-                    SoldByLength = UnitOfMeasure.ForProduct(
-                        p.ProductID, p.CategoryID, p.Category.CategoryName)
+                    sh.TintVariant.ProductID,
+                    sh.TintVariantID,
+                    sh.ShadeID,
+                    sh.TintVariant.VariantName,
+                    sh.ShadeName
                 })
+                .ToListAsync();
+
+            var shadesByProduct = shades
+                .GroupBy(sh => sh.ProductID)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var rows = new List<StockCountRow>();
+
+            foreach (var p in products)
+            {
+                var byLength = UnitOfMeasure.ForProduct(
+                    p.ProductID, p.CategoryID, p.Category.CategoryName);
+
+                var category = ProductCategories.Canonical(p.Category.CategoryName);
+                var systemStock = stock.TryGetValue(p.ProductID, out var onHand) ? onHand : 0;
+
+                // Only roll goods are worth splitting. A piece good with tint
+                // variants - there are none today, but nothing stops one -
+                // would be counted whole, because the shade tells you nothing
+                // about a boxed item.
+                var split = byLength && shadesByProduct.TryGetValue(p.ProductID, out var list)
+                    ? list
+                    : null;
+
+                if (split == null)
+                {
+                    rows.Add(new StockCountRow
+                    {
+                        ProductID = p.ProductID,
+                        ProductName = p.ProductName,
+                        CategoryName = category,
+                        SystemStock = systemStock,
+                        SoldByLength = byLength,
+                        FirstOfProduct = true,
+                        ShadeLineCount = 1
+                    });
+                    continue;
+                }
+
+                for (var i = 0; i < split.Count; i++)
+                {
+                    rows.Add(new StockCountRow
+                    {
+                        ProductID = p.ProductID,
+                        ProductName = p.ProductName,
+                        CategoryName = category,
+                        // Carried on every line of the product, but only shown
+                        // against the first: the system holds one figure for
+                        // the product, and repeating it beside each shade would
+                        // read as though each shade had that much.
+                        SystemStock = systemStock,
+                        SoldByLength = byLength,
+                        TintVariantID = split[i].TintVariantID,
+                        ShadeID = split[i].ShadeID,
+                        TintVariantName = split[i].VariantName,
+                        ShadeName = split[i].ShadeName,
+                        FirstOfProduct = i == 0,
+                        ShadeLineCount = split.Count
+                    });
+                }
+            }
+
+            return rows
                 // Sorted after the canonical name is resolved, so a shelf with
-                // two names still comes out as one contiguous block.
+                // two names still comes out as one contiguous block. The shade
+                // lines of a product must stay together and in order, so the
+                // product name sorts before anything below it.
                 .OrderBy(r => r.CategoryName)
                 .ThenBy(r => r.ProductName)
+                .ThenByDescending(r => r.FirstOfProduct)
+                .ThenBy(r => r.TintVariantName)
+                .ThenBy(r => r.ShadeName)
                 .ToList();
         }
 
@@ -246,16 +332,56 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var roll = await _inventoryService.SoldByLength(check.Details.Select(d => d.ProductID));
 
+            // Labels for the shade lines, so the breakdown reads as names
+            // rather than ids.
+            var shadeIds = check.Details
+                .Where(d => d.ShadeID != null)
+                .Select(d => d.ShadeID!.Value)
+                .Distinct()
+                .ToList();
+
+            var shadeLabels = shadeIds.Count == 0
+                ? new Dictionary<int, string>()
+                : await _context.Shades
+                    .Include(sh => sh.TintVariant)
+                    .Where(sh => shadeIds.Contains(sh.ShadeID))
+                    .ToDictionaryAsync(
+                        sh => sh.ShadeID,
+                        sh => sh.TintVariant.VariantName + " - " + sh.ShadeName);
+
+            // GROUPED BY PRODUCT, deliberately. A film counted across three
+            // shades is three detail rows, but there is one system figure for
+            // it and reconciling posts to inv.InventoryTransaction, which has
+            // no shade - so the counts are summed first. One row per detail
+            // here would compare each shade against the product's whole stock
+            // and post the adjustment three times over.
             return check.Details
-                .Select(d => new StockVarianceRow
+                .GroupBy(d => d.ProductID)
+                .Select(g => new StockVarianceRow
                 {
-                    SoldByLength = roll.Contains(d.ProductID),
-                    ProductID = d.ProductID,
-                    ProductName = names.TryGetValue(d.ProductID, out var n) ? n : $"Product {d.ProductID}",
-                    PhysicalStock = d.PhysicalStock,
-                    SystemStock = stock.TryGetValue(d.ProductID, out var s) ? s : 0,
-                    Unit = d.Unit,
-                    StockLevel = d.StockLevel
+                    SoldByLength = roll.Contains(g.Key),
+                    ProductID = g.Key,
+                    ProductName = names.TryGetValue(g.Key, out var n) ? n : $"Product {g.Key}",
+                    PhysicalStock = g.Sum(d => d.PhysicalStock),
+                    SystemStock = stock.TryGetValue(g.Key, out var s) ? s : 0,
+                    Unit = g.First().Unit,
+                    // The worst of the group: a product is only Normal when
+                    // every shade of it is.
+                    StockLevel =
+                        g.Any(d => d.StockLevel == "Critical") ? "Critical"
+                        : g.Any(d => d.StockLevel == "Low") ? "Low"
+                        : "Normal",
+                    Shades = g
+                        .Where(d => d.ShadeID != null)
+                        .Select(d => new StockCountShade
+                        {
+                            Label = shadeLabels.TryGetValue(d.ShadeID!.Value, out var label)
+                                ? label
+                                : $"Shade {d.ShadeID}",
+                            PhysicalStock = d.PhysicalStock
+                        })
+                        .OrderBy(x => x.Label)
+                        .ToList()
                 })
                 .OrderBy(v => v.ProductName)
                 .ToList();

@@ -484,6 +484,7 @@ namespace ZEmpireAutoAccessories.Controllers
             int? productId,
             int? serviceId,
             int? tintVariantId,
+            int? shadeId,
             int? panelId,
             string description,
             decimal quantity,
@@ -523,12 +524,27 @@ namespace ZEmpireAutoAccessories.Controllers
                 return RedirectToAction(nameof(Details), new { id = serviceInvoiceId });
             }
 
+            // The shade belongs to the tint variant, so it is only kept where
+            // that variant was kept and the shade really is one of its own - a
+            // stale value left on the form after the variant changed would
+            // otherwise record a shade the film never came in.
+            int? keptShadeId = null;
+            if (productId != null && tintVariantId != null && shadeId != null)
+            {
+                var belongsToVariant = await _context.Shades.AnyAsync(sh =>
+                    sh.ShadeID == shadeId && sh.TintVariantID == tintVariantId);
+
+                if (belongsToVariant)
+                    keptShadeId = shadeId;
+            }
+
             _context.ServiceInvoiceDetails.Add(new ServiceInvoiceDetail
             {
                 ServiceInvoiceID = serviceInvoiceId,
                 ProductID = productId,
                 ServiceID = serviceId,
                 TintVariantID = productId != null ? tintVariantId : null,
+                ShadeID = keptShadeId,
                 PanelID = productId != null ? panelId : null,
                 Description = description,
                 Quantity = quantity,
@@ -841,6 +857,20 @@ namespace ZEmpireAutoAccessories.Controllers
                 })
                 .ToDictionaryAsync(x => x.ProductID, x => x.Stock);
             ViewData["Services"] = await _context.Services.Where(s => s.IsActive).OrderBy(s => s.ServiceName).ToListAsync();
+
+            // The shades each tint variant comes in, so a line can record
+            // which one was fitted. Named camelCase deliberately: System.Text.Json
+            // keeps anonymous-type property names exactly as written, so
+            // "ShadeID" would reach the browser as "ShadeID".
+            ViewData["ShadesByVariant"] = await _context.Shades
+                .OrderBy(sh => sh.ShadeName)
+                .Select(sh => new
+                {
+                    tintVariantId = sh.TintVariantID,
+                    shadeId = sh.ShadeID,
+                    shadeName = sh.ShadeName
+                })
+                .ToListAsync();
         }
     }
 }

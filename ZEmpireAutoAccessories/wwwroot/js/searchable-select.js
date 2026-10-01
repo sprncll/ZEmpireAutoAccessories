@@ -228,13 +228,27 @@
             }
         }
 
+        // Tell everybody the value moved.
+        //
+        // This used to be $(select).trigger("change") alone, which only wakes
+        // handlers bound through jQuery. A plain
+        // select.addEventListener("change", ...) never heard it - and that is
+        // how line-unit.js listens, so picking film through one of these boxes
+        // left the unit list on pieces and the stock note blank. Dispatching a
+        // real DOM event reaches both: jQuery binds natively underneath, so
+        // its handlers still run, and anything listening the plain way finally
+        // does too.
+        function notifyChanged(element) {
+            element.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+
         function commit(row) {
             if (!row) { return; }
             select.value = row.dataset.value;
             input.value = currentOptionText();
             markSelected();
             closeMenu(false);
-            $(select).trigger("change");
+            notifyChanged(select);
         }
 
         // Dropdown first, search second: focusing or clicking shows the whole

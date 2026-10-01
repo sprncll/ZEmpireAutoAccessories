@@ -264,7 +264,7 @@
                     <option value="">-- None --</option>
                     @foreach (var p in (List<Product>)ViewData["Products"]!)
                     {
-                        <option value="@p.ProductID" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@((stockByProduct.TryGetValue(p.ProductID, out var onHand) ? onHand : 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName @(stockByProduct.TryGetValue(p.ProductID, out var sh) && sh > 0 ? $"({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sh, rollProducts.Contains(p.ProductID))} in stock)" : "(out of stock)")</option>
+                        <option value="@p.ProductID" data-name="@p.ProductName" data-price="@((p.DefaultPrice ?? 0).ToString(System.Globalization.CultureInfo.InvariantCulture))" data-roll="@(rollProducts.Contains(p.ProductID).ToString().ToLowerInvariant())" data-stock="@((stockByProduct.TryGetValue(p.ProductID, out var onHand) ? onHand : 0).ToString(System.Globalization.CultureInfo.InvariantCulture))">@p.ProductName @(stockByProduct.TryGetValue(p.ProductID, out var sh) && sh > 0 ? $"({ZEmpireAutoAccessories.Models.UnitOfMeasure.Describe(sh, rollProducts.Contains(p.ProductID))} in stock)" : "(out of stock)")</option>
                     }
                 </select>
             </div>
@@ -274,7 +274,7 @@
                     <option value="">-- None --</option>
                     @foreach (var s in (List<Service>)ViewData["Services"]!)
                     {
-                        <option value="@s.ServiceID" data-price="@s.DefaultPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)">@s.ServiceName</option>
+                        <option value="@s.ServiceID" data-name="@s.ServiceName" data-price="@s.DefaultPrice.ToString(System.Globalization.CultureInfo.InvariantCulture)">@s.ServiceName</option>
                     }
                 </select>
             </div>
