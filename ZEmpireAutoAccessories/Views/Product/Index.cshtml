@@ -143,7 +143,10 @@
 
 <div class="zx-page-head">
     <h1>Products</h1>
-    <a class="btn btn-zx" asp-action="Create">+ New Product</a>
+    <div>
+        <a class="btn btn-outline-secondary" asp-controller="ProductCategory" asp-action="Index">Categories</a>
+        <a class="btn btn-zx" asp-action="Create">+ New Product</a>
+    </div>
 </div>
 
 @if (!string.IsNullOrEmpty(saved))

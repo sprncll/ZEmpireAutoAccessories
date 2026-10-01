@@ -91,6 +91,56 @@
         /// <summary>What a line is written in when nothing else is chosen.</summary>
         public const string DefaultCountUnit = "pc";
 
+        /// <summary>
+        /// Products and categories that have been set by hand, overriding the
+        /// category-name list. cat.Product has no column for this and nothing
+        /// may be added to the schema, so the choices live in a JSON file that
+        /// MeasureStore loads at startup and pushes in here - the same shape
+        /// as the category list above, replaced whole rather than mutated so
+        /// a reader never sees half an update.
+        ///
+        /// A product beats its category, and a category beats the name list.
+        /// Absent from both means the name list decides, which is what every
+        /// product did before any of this existed.
+        /// </summary>
+        private static IReadOnlyDictionary<int, bool> ProductOverrides =
+            new Dictionary<int, bool>();
+
+        private static IReadOnlyDictionary<int, bool> CategoryOverrides =
+            new Dictionary<int, bool>();
+
+        /// <summary>
+        /// Replaces the hand-set overrides. Called once at startup and again
+        /// whenever someone saves a product or a category.
+        /// </summary>
+        public static void ConfigureOverrides(
+            IReadOnlyDictionary<int, bool>? products,
+            IReadOnlyDictionary<int, bool>? categories)
+        {
+            ProductOverrides = products ?? new Dictionary<int, bool>();
+            CategoryOverrides = categories ?? new Dictionary<int, bool>();
+        }
+
+        /// <summary>
+        /// Whether a category's products come off a roll, by its own setting
+        /// if it has one and otherwise by its name.
+        /// </summary>
+        public static bool ForCategory(int categoryId, string? categoryName) =>
+            CategoryOverrides.TryGetValue(categoryId, out var set)
+                ? set
+                : IsSoldByLength(categoryName);
+
+        /// <summary>
+        /// Whether this product comes off a roll. Its own setting wins, so a
+        /// boxed pre-cut kit can sit in a film category and still be counted
+        /// in pieces, and a roll of something filed elsewhere can be measured.
+        /// </summary>
+        public static bool ForProduct(int productId, int categoryId, string? categoryName) =>
+            ProductOverrides.TryGetValue(productId, out var set)
+                ? set
+                : ForCategory(categoryId, categoryName);
+
+        /// <summary>Whether a category NAME alone reads as roll goods.</summary>
         public static bool IsSoldByLength(string? categoryName) =>
             categoryName != null && LengthCategories.Contains(categoryName.Trim());
 

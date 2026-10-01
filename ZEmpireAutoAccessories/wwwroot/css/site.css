@@ -450,3 +450,52 @@ body {
   font-size: 12.5px;
   color: #7b8290;
 }
+
+/* How a product or a category is measured, as a choice. Cards rather than
+   bare radios: picking one changes how everything under it is counted and
+   how much comes off the roll, which is worth more than a 13px line of
+   text. Used by the Product form and the Category form alike, so it lives
+   here rather than in either one's page styles. */
+.measure-choice {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(230px,1fr));
+  gap: 12px;
+}
+
+.measure-option {
+  border: 1px solid #e8ebf0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all .15s ease;
+  margin: 0;
+}
+
+.measure-option:hover {
+  border-color: #cbd5e1;
+}
+
+/* :has is not in every browser the shop might open this on; without it the
+   card simply never highlights, and the radio inside still shows which one
+   is picked. */
+.measure-option:has(input:checked) {
+  border-color: var(--zx-red);
+  background: rgba(220,38,38,.04);
+}
+
+.measure-option-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #0b0b0c;
+}
+
+.measure-option-help {
+  display: block;
+  font-size: 12.5px;
+  color: #7b8290;
+  margin-top: 6px;
+  line-height: 1.45;
+}

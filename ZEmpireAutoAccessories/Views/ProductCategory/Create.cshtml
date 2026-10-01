@@ -1,0 +1,35 @@
+@model ZEmpireAutoAccessories.Models.ProductCategory
+
+@{
+    ViewData["Title"] = "New Category";
+}
+
+<partial name="_Styles" />
+
+<div class="zx-page-head">
+    <h1>New Category</h1>
+</div>
+<p class="zx-page-sub">Add a shelf for products to be filed under.</p>
+
+<div class="zx-card padded">
+    <form asp-action="Create" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="mb-3">
+            <label asp-for="CategoryName" class="form-label">Category name</label>
+            <input asp-for="CategoryName" class="form-control" autofocus />
+            <span asp-validation-for="CategoryName" class="text-danger"></span>
+        </div>
+
+        <partial name="_MeasureChoice" />
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-zx">Save</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -10,11 +10,13 @@ Three things have to travel together for everyone to see the same system:
 | --- | --- | --- |
 | The database | A SQL Server backup, committed | `Database/ZEmpireUpdated.bak` |
 | Cut sizes | A JSON file, committed | `App_Data/cut-sizes.json` |
+| How products are measured | A JSON file, committed | `App_Data/product-measures.json` |
 | Settings | Committed already | `appsettings.json` |
 
-They must be refreshed **together**. Cut sizes are keyed by
-`VehicleClassificationID` and `PanelID` — the database's own ids — so a
-cut-size file from one database points at the wrong panels in another.
+They must be refreshed **together**. Both JSON files are keyed by the
+database's own ids — cut sizes by `VehicleClassificationID` and `PanelID`,
+measures by `CategoryID` and `ProductID` — so a file from one database points
+at the wrong panels and the wrong products in another.
 
 ---
 
@@ -88,6 +90,7 @@ Two errors come up, and they mean different things:
 ```
 git add ZEmpireAutoAccessories/Database/ZEmpireUpdated.bak
 git add ZEmpireAutoAccessories/App_Data/cut-sizes.json
+git add ZEmpireAutoAccessories/App_Data/product-measures.json
 git commit -m "Refresh the shared database snapshot"
 git push -u origin Programmer
 ```

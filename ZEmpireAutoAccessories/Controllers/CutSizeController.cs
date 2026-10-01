@@ -181,6 +181,8 @@ namespace ZEmpireAutoAccessories.Controllers
                 {
                     p.VehicleClassificationID,
                     p.PanelID,
+                    p.ProductID,
+                    p.Product.CategoryID,
                     CategoryName = p.Product.Category.CategoryName
                 })
                 .Distinct()
@@ -193,7 +195,8 @@ namespace ZEmpireAutoAccessories.Controllers
                 Centimeters = existing,
                 Unit = Unit(unit),
                 Sold = sold
-                    .Where(p => UnitOfMeasure.IsSoldByLength(p.CategoryName))
+                    .Where(p => UnitOfMeasure.ForProduct(
+                        p.ProductID, p.CategoryID, p.CategoryName))
                     .Select(p => (p.VehicleClassificationID, p.PanelID))
                     .ToHashSet()
             };

@@ -162,19 +162,32 @@
 
         <dt class="col-sm-3">Measured by</dt>
         <dd class="col-sm-9">
+            @{
+                var categoryLabel = ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName;
+
+                @* Whether this was set on the product itself. Saying "follows
+                   the category" for a product set on its own would send
+                   someone to change the category to fix it, which would move
+                   every other product on that shelf instead. *@
+                var ownSetting = ViewData["ProductSoldByLength"] as bool? != null;
+
+                var source = ownSetting
+                    ? "Set on this product."
+                    : $"This follows the \u201C{categoryLabel}\u201D category.";
+            }
             @if (ViewData["SoldByLength"] as bool? ?? false)
             {
                 <span class="measured-pill is-length">By length</span>
                 <span class="measured-help d-block mt-1">
                     Stock is kept in centimetres and can be entered in cm, in or m.
-                    This follows the &ldquo;@(ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName)&rdquo; category.
+                    @source
                 </span>
             }
             else
             {
                 <span class="measured-pill is-count">By piece</span>
                 <span class="measured-help d-block mt-1">
-                    Stock is whole units. This follows the &ldquo;@(ViewData["CategoryDisplay"] as string ?? Model.Category.CategoryName)&rdquo; category.
+                    Stock is whole units. @source
                 </span>
             }
         </dd>

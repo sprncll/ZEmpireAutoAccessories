@@ -206,11 +206,11 @@ namespace ZEmpireAutoAccessories.Services
 
             var rows = await _context.Products
                 .Where(p => ids.Contains(p.ProductID))
-                .Select(p => new { p.ProductID, p.Category.CategoryName })
+                .Select(p => new { p.ProductID, p.CategoryID, p.Category.CategoryName })
                 .ToListAsync();
 
             return rows
-                .Where(r => UnitOfMeasure.IsSoldByLength(r.CategoryName))
+                .Where(r => UnitOfMeasure.ForProduct(r.ProductID, r.CategoryID, r.CategoryName))
                 .Select(r => r.ProductID)
                 .ToHashSet();
         }

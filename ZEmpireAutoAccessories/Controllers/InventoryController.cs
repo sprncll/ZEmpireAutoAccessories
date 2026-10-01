@@ -74,12 +74,14 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var products = await _context.Products
                 .Include(p => p.Category)
-                .ToDictionaryAsync(p => p.ProductID, p => p.Category.CategoryName);
+                .ToDictionaryAsync(p => p.ProductID,
+                    p => new { p.CategoryID, p.Category.CategoryName });
 
             return levels
                 .Select(l =>
                 {
                     var category = products.TryGetValue(l.ProductID, out var c) ? c : null;
+                    var categoryName = category?.CategoryName;
                     return new InventoryRow
                     {
                         ProductID = l.ProductID,
@@ -87,9 +89,10 @@ namespace ZEmpireAutoAccessories.Controllers
                         // Grouped under the canonical name, so "Paint
                         // Protection" and "Paint Protection Film" are one
                         // band rather than two.
-                        CategoryName = ProductCategories.Canonical(category),
+                        CategoryName = ProductCategories.Canonical(categoryName),
                         StockOnHand = l.StockOnHand ?? 0,
-                        SoldByLength = UnitOfMeasure.IsSoldByLength(category)
+                        SoldByLength = UnitOfMeasure.ForProduct(
+                            l.ProductID, category?.CategoryID ?? 0, categoryName)
                     };
                 })
                 .OrderBy(r => r.CategoryName)

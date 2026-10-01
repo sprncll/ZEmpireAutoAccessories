@@ -86,6 +86,12 @@ builder.Services.AddScoped<IProofStore, ProofStore>();
 builder.Services.AddSingleton<ICutSizeStore, CutSizeStore>();
 builder.Services.AddScoped<IDocumentStockService, DocumentStockService>();
 
+// Products and categories someone has set by hand as roll goods or pieces,
+// overriding the category-name list above. A singleton for its cache, and
+// built eagerly below so the overrides are in place before the first request
+// rather than when a screen first happens to inject it.
+builder.Services.AddSingleton<IMeasureStore, MeasureStore>();
+
 // What each completed document took off the shelf, so reversing it takes back
 // the same even after a cut size is corrected. A singleton for its cache, the
 // same as the cut sizes.
@@ -97,6 +103,12 @@ ZEmpireAutoAccessories.Models.PaymentModes.Configure(
     builder.Configuration.GetSection("Payments:ModesGivingChange").Get<string[]>());
 
 var app = builder.Build();
+
+// Constructing it loads the file and hands the overrides to UnitOfMeasure,
+// which every screen reads. Do it now: until it happens, a product set by
+// hand reads as whatever its category name says, which for a measured product
+// means one centimetre coming off the roll instead of a whole windshield.
+app.Services.GetRequiredService<IMeasureStore>();
 
 // Configure HTTP request pipeline
 if (!app.Environment.IsDevelopment())

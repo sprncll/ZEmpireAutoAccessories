@@ -1,0 +1,39 @@
+@model ZEmpireAutoAccessories.Models.ProductCategory
+
+@{
+    ViewData["Title"] = "Edit Category";
+}
+
+<partial name="_Styles" />
+
+<div class="zx-page-head">
+    <h1>Edit Category</h1>
+</div>
+<p class="zx-page-sub">
+    Changing how this is measured changes every product filed under it, unless
+    the product has been set on its own.
+</p>
+
+<div class="zx-card padded">
+    <form asp-action="Edit" method="post">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <input type="hidden" asp-for="CategoryID" />
+
+        <div class="mb-3">
+            <label asp-for="CategoryName" class="form-label">Category name</label>
+            <input asp-for="CategoryName" class="form-control" autofocus />
+            <span asp-validation-for="CategoryName" class="text-danger"></span>
+        </div>
+
+        <partial name="_MeasureChoice" />
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-zx">Save</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

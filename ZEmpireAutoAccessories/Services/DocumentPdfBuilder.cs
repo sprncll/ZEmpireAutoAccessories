@@ -443,7 +443,8 @@ namespace ZEmpireAutoAccessories.Services
 
         /// <summary>Whether this product comes off a roll and is measured.</summary>
         private static bool SoldByLength(Product? product) =>
-            product != null && UnitOfMeasure.IsSoldByLength(product.Category?.CategoryName);
+            product != null && UnitOfMeasure.ForProduct(
+                product.ProductID, product.CategoryID, product.Category?.CategoryName);
 
         /// <summary>
         /// One printed line. A record rather than a seven-field tuple now

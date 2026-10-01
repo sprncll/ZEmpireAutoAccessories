@@ -221,7 +221,8 @@ namespace ZEmpireAutoAccessories.Controllers
                     ProductName = p.ProductName,
                     CategoryName = ProductCategories.Canonical(p.Category.CategoryName),
                     SystemStock = stock.TryGetValue(p.ProductID, out var s) ? s : 0,
-                    SoldByLength = UnitOfMeasure.IsSoldByLength(p.Category.CategoryName)
+                    SoldByLength = UnitOfMeasure.ForProduct(
+                        p.ProductID, p.CategoryID, p.Category.CategoryName)
                 })
                 // Sorted after the canonical name is resolved, so a shelf with
                 // two names still comes out as one contiguous block.

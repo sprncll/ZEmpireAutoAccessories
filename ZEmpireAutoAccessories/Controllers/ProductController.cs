@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
 {
@@ -11,10 +12,12 @@ namespace ZEmpireAutoAccessories.Controllers
     public class ProductController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IMeasureStore _measures;
 
-        public ProductController(ApplicationDbContext context)
+        public ProductController(ApplicationDbContext context, IMeasureStore measures)
         {
             _context = context;
+            _measures = measures;
         }
 
         // GET: Product
@@ -60,7 +63,8 @@ namespace ZEmpireAutoAccessories.Controllers
             // Which products are measured off a roll rather than counted, so
             // the list says so rather than leaving it implied by the category.
             ViewData["LengthProducts"] = products
-                .Where(p => UnitOfMeasure.IsSoldByLength(p.Category.CategoryName))
+                .Where(p => UnitOfMeasure.ForProduct(
+                    p.ProductID, p.CategoryID, p.Category.CategoryName))
                 .Select(p => p.ProductID)
                 .ToHashSet();
 
@@ -82,7 +86,9 @@ namespace ZEmpireAutoAccessories.Controllers
             if (product == null)
                 return NotFound();
 
-            ViewData["SoldByLength"] = UnitOfMeasure.IsSoldByLength(product.Category.CategoryName);
+            ViewData["SoldByLength"] = UnitOfMeasure.ForProduct(
+                product.ProductID, product.CategoryID, product.Category.CategoryName);
+            ViewData["ProductSoldByLength"] = _measures.ForProduct(product.ProductID);
             ViewData["CategoryDisplay"] = ProductCategories.Canonical(product.Category.CategoryName);
 
             return View(product);
@@ -99,18 +105,23 @@ namespace ZEmpireAutoAccessories.Controllers
         // POST: Product/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create(Product product)
+        public async Task<IActionResult> Create(Product product, bool? soldByLength)
         {
             ModelState.Remove(nameof(Product.Category));
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdowns(product);
+                await LoadDropdowns(product, soldByLength);
                 return View(product);
             }
 
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
+
+            // Stored after the insert, because the id is what it is keyed by.
+            // Null is the default and stores nothing, leaving the product to
+            // follow its category exactly as it would have before the picker.
+            await _measures.SetProduct(product.ProductID, soldByLength);
 
             // A product with no price cannot be sold or quoted, so go straight
             // on to setting one instead of leaving that to be remembered later.
@@ -141,7 +152,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (product == null)
                 return NotFound();
 
-            await LoadDropdowns(product);
+            await LoadDropdowns(product, _measures.ForProduct(product.ProductID));
 
             return View(product);
         }
@@ -151,7 +162,8 @@ namespace ZEmpireAutoAccessories.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             int id,
-            Product product)
+            Product product,
+            bool? soldByLength)
         {
             if (id != product.ProductID)
                 return NotFound();
@@ -160,7 +172,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             if (!ModelState.IsValid)
             {
-                await LoadDropdowns(product);
+                await LoadDropdowns(product, soldByLength);
                 return View(product);
             }
 
@@ -176,6 +188,8 @@ namespace ZEmpireAutoAccessories.Controllers
 
                 throw;
             }
+
+            await _measures.SetProduct(product.ProductID, soldByLength);
 
             return RedirectToAction(nameof(Index));
         }
@@ -227,6 +241,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 return RedirectToAction(nameof(Delete), new { id });
             }
 
+            // Otherwise the setting outlives the product, and attaches itself
+            // to whatever the database next hands this id out to.
+            await _measures.ForgetProduct(id);
+
             return RedirectToAction(nameof(Index));
         }
 
@@ -266,8 +284,10 @@ namespace ZEmpireAutoAccessories.Controllers
                    ". Mark it inactive instead, or remove those records first.";
         }
 
-        private async Task LoadDropdowns(Product? product = null)
+        private async Task LoadDropdowns(Product? product = null, bool? soldByLength = null)
         {
+            ViewData["ProductSoldByLength"] = soldByLength;
+
             var categories = await _context.ProductCategories
                 .OrderBy(c => c.CategoryName)
                 .ToListAsync();
@@ -283,12 +303,13 @@ namespace ZEmpireAutoAccessories.Controllers
             ViewData["CategoryID"] = new SelectList(
                 offered, "CategoryID", "CategoryName", product?.CategoryID);
 
-            // How a product is measured follows its category - there is no
-            // column on cat.Product to say otherwise - so the form can show
+            // What each category would make this product, so the form can show
             // the consequence as soon as a category is picked instead of
-            // leaving it to be discovered at the stock screen.
+            // leaving it to be discovered at the stock screen. Only used for
+            // the "follow the category" option; a product set on its own
+            // ignores it.
             ViewData["LengthCategories"] = offered
-                .Where(c => UnitOfMeasure.IsSoldByLength(c.CategoryName))
+                .Where(c => UnitOfMeasure.ForCategory(c.CategoryID, c.CategoryName))
                 .Select(c => c.CategoryID)
                 .ToHashSet();
         }

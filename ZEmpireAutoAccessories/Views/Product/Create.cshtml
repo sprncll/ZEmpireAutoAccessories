@@ -54,7 +54,13 @@
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
         <div class="mb-3">
-            <label asp-for="CategoryID" class="form-label"></label>
+            <div class="d-flex justify-content-between align-items-baseline">
+                <label asp-for="CategoryID" class="form-label">Category</label>
+                @* Opened in a new tab rather than navigated to: anything already
+                   typed on this form would be lost on the way back. *@
+                <a asp-controller="ProductCategory" asp-action="Create" target="_blank"
+                   class="measured-help text-decoration-none">+ Add a category</a>
+            </div>
             <select asp-for="CategoryID" class="form-select" asp-items="ViewBag.CategoryID">
                 <option value="">-- Select Category --</option>
             </select>

@@ -1,0 +1,42 @@
+@*
+    How a shelf is measured. Posted as `soldByLength`, which the controller
+    takes alongside the category.
+
+    Two options and no "follow the name", unlike the product form: a category
+    IS the thing a name would be read off, so leaving it implicit here would
+    mean the screen could not show an answer at all. Editing an existing
+    category preselects whatever it is measured by today, so saving without
+    touching this changes nothing.
+*@
+@{
+    var soldByLength = ViewData["SoldByLength"] as bool? ?? false;
+}
+
+<div class="mb-3">
+    <label class="form-label">Measured by</label>
+    <div class="measure-choice">
+        <label class="measure-option">
+            <span class="measure-option-head">
+                <input class="form-check-input mt-0" type="radio" name="soldByLength"
+                       value="false" checked="@(!soldByLength)" />
+                Counted in pieces
+            </span>
+            <span class="measure-option-help">
+                Stock is whole units. One line on a job takes one piece off the shelf.
+            </span>
+        </label>
+
+        <label class="measure-option">
+            <span class="measure-option-head">
+                <input class="form-check-input mt-0" type="radio" name="soldByLength"
+                       value="true" checked="@soldByLength" />
+                Measured by length
+            </span>
+            <span class="measure-option-help">
+                Roll goods. Stock is kept in centimetres, deliveries and counts
+                can be entered in cm, in or m, and a tint job deducts the cut
+                size for each panel.
+            </span>
+        </label>
+    </div>
+</div>
