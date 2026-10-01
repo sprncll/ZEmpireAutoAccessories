@@ -277,22 +277,41 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Any(v => v.VehicleID == id);
         }
 
-        // Regex on the model already confirmed the format is 3 letters + 3 or 4
-        // digits (the current and older Philippine LTO formats), optionally
-        // separated by a space or dash - collapse whatever the user typed into
-        // one canonical "ABC 1234" / "ABC 123" form before saving.
+        // Collapses whatever the user typed into one canonical form, so the
+        // duplicate check above compares like with like and "abc-1234",
+        // "ABC 1234" and "ABC1234" cannot all be registered as different cars.
+        //
+        // The regular expression on the model has already confirmed the shape:
+        // up to three letters and up to four digits, in either order (letters
+        // first is a car, digits first is a motorcycle), optionally separated
+        // by a space or a dash.
+        //
+        // This used to assume the first three characters were always the
+        // letters. That held while the rule demanded exactly three letters
+        // first, but it was not revisited when the rule was widened, and it
+        // silently corrupted any plate it did not fit: "2956 XB" was stored as
+        // "295 6XB". Split on the real boundary between letters and digits
+        // instead of on a fixed position.
         private static void NormalizePlateNumber(Vehicle vehicle)
         {
             if (string.IsNullOrWhiteSpace(vehicle.PlateNumber))
                 return;
 
             var compact = vehicle.PlateNumber.Replace(" ", "").Replace("-", "");
-            if (compact.Length < 6)
+
+            var match = System.Text.RegularExpressions.Regex.Match(
+                compact, @"^([A-Za-z]{1,3})(\d{1,4})$|^(\d{1,4})([A-Za-z]{1,3})$");
+
+            // Anything the model's rule let through matches one of those two
+            // shapes. Leave anything else exactly as typed rather than
+            // rearranging characters we have not understood.
+            if (!match.Success)
                 return;
 
-            var letters = compact.Substring(0, 3).ToUpperInvariant();
-            var digits = compact.Substring(3);
-            vehicle.PlateNumber = $"{letters} {digits}";
+            var first = match.Groups[1].Success ? match.Groups[1].Value : match.Groups[3].Value;
+            var second = match.Groups[1].Success ? match.Groups[2].Value : match.Groups[4].Value;
+
+            vehicle.PlateNumber = $"{first.ToUpperInvariant()} {second.ToUpperInvariant()}";
         }
     }
 }
