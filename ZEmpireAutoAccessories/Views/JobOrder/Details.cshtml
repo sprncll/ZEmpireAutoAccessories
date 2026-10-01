@@ -435,8 +435,13 @@
                     : [];
 
                 if (shades.length === 0) {
-                    // No variant chosen, or that variant has no shades on file.
-                    resetSelect($shade, '-- N/A --');
+                    // Two different situations that looked identical: no variant
+                    // picked yet, and a variant whose shades nobody has recorded.
+                    // The second is a gap in the catalogue someone can go and
+                    // fill, so it should not read the same as "not applicable".
+                    resetSelect($shade, tintVariantId
+                        ? '-- No shades on file for this variant --'
+                        : '-- N/A --');
                     return;
                 }
 
