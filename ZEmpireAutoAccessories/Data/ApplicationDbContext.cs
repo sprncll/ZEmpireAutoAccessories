@@ -112,6 +112,16 @@ namespace ZEmpireAutoAccessories.Data
 
             b.Entity<Vehicle>(e =>
             {
+                // The same hazard as FullName above, reached the other way
+                // round. [Required] was put on PlateNumber to make the forms
+                // ask for one, but EF Core reads that attribute as a mapping
+                // rule too and marks the column non-nullable - so the
+                // materializer skipped its DBNull check and every vehicle
+                // filed before a plate was required threw SqlNullValueException
+                // on read. crm.Vehicle.PlateNumber does allow NULL and has
+                // rows in it. Validate on save, read what is actually there.
+                e.Property(x => x.PlateNumber).IsRequired(false);
+
                 e.HasOne(x => x.Customer).WithMany(c => c.Vehicles)
                     .HasForeignKey(x => x.CustomerID).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.VehicleClassification).WithMany(vc => vc.Vehicles)
