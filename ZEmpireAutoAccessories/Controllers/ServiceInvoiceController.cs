@@ -590,6 +590,7 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             var invoice = await _context.ServiceInvoices
                 .Include(i => i.Details)
+                .Include(i => i.PaymentMode)
                 .FirstOrDefaultAsync(i => i.ServiceInvoiceID == id);
 
             if (invoice == null)
@@ -600,6 +601,19 @@ namespace ZEmpireAutoAccessories.Controllers
                 TempData["StatusError"] = "Add at least one line item before taking payment.";
                 return RedirectToAction(nameof(Details), new { id });
             }
+
+            // A transfer, a wallet or a card is charged the total. The form
+            // fills that in and locks it, and this is what makes it true
+            // rather than merely displayed.
+            //
+            // Only upwards, though. Forcing a short figure up to the total
+            // would take the one guard below out of play for every mode but
+            // cash, and quietly record a part payment as settled in full -
+            // which is the opposite of what an exact-amount mode means. A
+            // figure below the total still falls through and is refused.
+            if (amountTendered >= invoice.TotalAmount
+                && PaymentModes.SettlesExactly(invoice.PaymentMode?.PaymentModeName))
+                amountTendered = invoice.TotalAmount;
 
             if (amountTendered < invoice.TotalAmount)
             {
@@ -619,8 +633,9 @@ namespace ZEmpireAutoAccessories.Controllers
             await MoveToStatus(invoice, "Paid");
 
             if (TempData["StatusError"] == null)
-                TempData["Success"] =
-                    $"Payment recorded. Change ₱{invoice.ChangeAmount:N2}.";
+                TempData["Success"] = invoice.ChangeAmount > 0m
+                    ? $"Payment recorded. Change ₱{invoice.ChangeAmount:N2}."
+                    : "Payment recorded.";
 
             return RedirectToAction(nameof(Details), new { id });
         }

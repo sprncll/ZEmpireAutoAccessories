@@ -92,7 +92,9 @@ builder.Services.AddScoped<IDocumentStockService, DocumentStockService>();
 builder.Services.AddSingleton<IStockPostingLog, StockPostingLog>();
 ZEmpireAutoAccessories.Models.PaymentModes.Configure(
     builder.Configuration.GetSection("Payments:Modes").Get<string[]>(),
-    builder.Configuration.GetSection("Payments:ModesNeedingProof").Get<string[]>());
+    builder.Configuration.GetSection("Payments:ModesNeedingProof").Get<string[]>(),
+    builder.Configuration.GetSection("Payments:RenamedModes").Get<Dictionary<string, string>>(),
+    builder.Configuration.GetSection("Payments:ModesGivingChange").Get<string[]>());
 
 var app = builder.Build();
 
@@ -128,6 +130,11 @@ try
     // The payment modes the shop offers, inserted if the table does not
     // already carry them. Insert-only - see PaymentModeSeeder.
     await PaymentModeSeeder.SeedAsync(
+        app.Services,
+        app.Services.GetRequiredService<ILogger<Program>>());
+
+    // The shades each tint variant comes in. Also insert-only.
+    await ShadeSeeder.SeedAsync(
         app.Services,
         app.Services.GetRequiredService<ILogger<Program>>());
 }

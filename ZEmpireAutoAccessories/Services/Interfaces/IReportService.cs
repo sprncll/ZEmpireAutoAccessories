@@ -4,11 +4,11 @@ namespace ZEmpireAutoAccessories.Services.Interfaces
 {
     public interface IReportService
     {
-        Task<decimal> GetDailySales();
+        Task<CollectedTotal> GetDailySales();
 
-        Task<decimal> GetWeeklySales();
+        Task<CollectedTotal> GetWeeklySales();
 
-        Task<decimal> GetMonthlySales();
+        Task<CollectedTotal> GetMonthlySales();
 
         /// <summary>Products at or below the given stock-on-hand threshold.</summary>
         Task<List<VwStockOnHand>> GetLowStock(decimal threshold = 5);

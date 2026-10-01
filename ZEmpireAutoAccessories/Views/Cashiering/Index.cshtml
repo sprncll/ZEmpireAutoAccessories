@@ -13,8 +13,8 @@
     var canOpenInvoices = Model.CanSeeServiceInvoices;
     var seesBothSources = canOpenSales && canOpenInvoices;
 
-    // Collected on a bank transfer or a QRPH payment with no receipt against
-    // it. These are the rows to chase before the day is closed out.
+    // Collected with nothing attached to show for it. These are the rows to
+    // chase before the day is closed out.
     var unproven = Model.Transactions.Count(t => t.ProofMissing);
 }
 
@@ -341,7 +341,7 @@
 {
     <div class="alert alert-warning">
         <strong>@unproven payment@(unproven == 1 ? "" : "s")</strong>
-        in this range came in online with no receipt attached.
+        in this range have no receipt attached.
         Attach what the customer sent, from the Proof column below.
     </div>
 }
@@ -642,9 +642,10 @@
                             @(txn.ChangeAmount.HasValue ? "₱" + txn.ChangeAmount.Value.ToString("N2") : "—")
                         </td>
                         <td><span class="badge badge-@txn.Status.ToLower()">@txn.Status</span></td>
-                        @* Cash and card are settled in front of you. A bank
-                           transfer or a QRPH payment is a claim until the
-                           receipt is attached, so those rows say so. *@
+                        @* Cash is the only payment with nothing behind it -
+                           the money is in the drawer. Everything else has a
+                           screenshot, a receipt or a terminal slip, and is a
+                           claim until that is attached, so those rows say so. *@
                         <td>
                             @if (txn.HasProof)
                             {

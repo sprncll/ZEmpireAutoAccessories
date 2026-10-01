@@ -35,10 +35,31 @@ namespace ZEmpireAutoAccessories.Controllers
 
             // Peso figures are Admin-only - Staff still gets the operational
             // counts below (job orders, stock, warranties), just not revenue.
-            if (modules.Contains("Sales") && User.IsInRole("Admin"))
+            // Everything taken today, not product sales alone - most of this
+            // shop's money comes in on service invoices, which this figure
+            // used to leave out entirely.
+            //
+            // Which half is shown follows what the user holds, the same way
+            // Cashiering narrows its rows. A Sales-only user seeing a figure
+            // with invoice money in it, on a tile linking to a screen that
+            // then hides those rows, is a number they cannot reconcile.
+            var seesSales = modules.Contains("Sales");
+            var seesInvoices = modules.Contains("Service Invoices");
+
+            if ((seesSales || seesInvoices) && User.IsInRole("Admin"))
             {
-                var todaySales = await _reportService.GetDailySales();
-                stats.Add(new DashboardStat("Today's Sales", "₱" + todaySales.ToString("N2"), Url.Action("Index", "Sales")!, "sales"));
+                var today = await _reportService.GetDailySales();
+
+                var amount = seesSales && seesInvoices ? today.Total
+                    : seesSales ? today.Sales
+                    : today.ServiceInvoices;
+
+                var label = seesSales && seesInvoices ? "Collected Today"
+                    : seesSales ? "Today's Sales"
+                    : "Today's Service Invoices";
+
+                stats.Add(new DashboardStat(label, "₱" + amount.ToString("N2"),
+                    Url.Action("Index", "Cashiering")!, "sales"));
             }
 
             if (modules.Contains("Job Orders"))

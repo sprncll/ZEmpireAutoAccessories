@@ -77,8 +77,9 @@ namespace ZEmpireAutoAccessories.Models
         public bool HasProof { get; set; }
 
         /// <summary>
-        /// Whether this payment arrived from somewhere other than the counter,
-        /// so a receipt is what shows the money came in.
+        /// Whether this payment left a record worth attaching - a transfer
+        /// screenshot, a wallet receipt, a card terminal's slip. Only cash
+        /// has nothing behind it.
         /// </summary>
         public bool NeedsProof => PaymentModes.NeedsProof(PaymentModeName);
 

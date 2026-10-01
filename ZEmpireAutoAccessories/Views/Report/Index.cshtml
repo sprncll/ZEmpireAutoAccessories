@@ -1,9 +1,9 @@
 ﻿@using ZEmpireAutoAccessories.Models
 @{
     ViewData["Title"] = "Reports";
-    var dailySales = (decimal)ViewData["DailySales"]!;
-    var weeklySales = (decimal)ViewData["WeeklySales"]!;
-    var monthlySales = (decimal)ViewData["MonthlySales"]!;
+    var dailySales = (CollectedTotal)ViewData["DailySales"]!;
+    var weeklySales = (CollectedTotal)ViewData["WeeklySales"]!;
+    var monthlySales = (CollectedTotal)ViewData["MonthlySales"]!;
     var lowStock = (List<VwStockOnHand>)ViewData["LowStock"]!;
     var recentSales = (List<Sale>)ViewData["RecentSales"]!;
 }
@@ -55,6 +55,13 @@
             letter-spacing: .3px;
             color: #7b8290;
             margin-bottom: 6px;
+        }
+
+        .stat-card .split {
+            margin-top: 6px;
+            color: #7b8290;
+            font-size: 12.5px;
+            font-variant-numeric: tabular-nums;
         }
 
         .stat-card .value {
@@ -122,24 +129,28 @@
 </div>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="label">Today's Sales</div>
-            <div class="value">@("₱" + dailySales.ToString("N2"))</div>
+    @* Product sales and paid service invoices, split underneath so a figure
+       that moved can be traced to the half it came from. See
+       Models/CollectedTotal.cs. *@
+    @foreach (var (label, collected) in new[]
+    {
+        ("Collected Today", dailySales),
+        ("This Week", weeklySales),
+        ("This Month", monthlySales)
+    })
+    {
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="label">@label</div>
+                <div class="value">@("₱" + collected.Total.ToString("N2"))</div>
+                <div class="split">
+                    @("₱" + collected.Sales.ToString("N2")) sales
+                    &middot;
+                    @("₱" + collected.ServiceInvoices.ToString("N2")) service
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="label">This Week</div>
-            <div class="value">@("₱" + weeklySales.ToString("N2"))</div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="stat-card">
-            <div class="label">This Month</div>
-            <div class="value">@("₱" + monthlySales.ToString("N2"))</div>
-        </div>
-    </div>
+    }
 </div>
 
 <div class="zx-card">

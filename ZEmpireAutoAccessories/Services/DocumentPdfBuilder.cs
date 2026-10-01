@@ -226,8 +226,6 @@ namespace ZEmpireAutoAccessories.Services
                                     ? $"{jobOrder.AssignedEmployee.FirstName} {jobOrder.AssignedEmployee.LastName}" : "Unassigned");
                                 if (jobOrder.InstallationDate.HasValue)
                                     KeyValue(col, "Installation Date", jobOrder.InstallationDate.Value.ToString("MMM d, yyyy"));
-                                if (jobOrder.Odometer.HasValue)
-                                    KeyValue(col, "Odometer", $"{jobOrder.Odometer} km");
                             });
                         });
 

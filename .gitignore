@@ -366,9 +366,10 @@ FodyWeavers.xsd
 # They belong on the shop's machine, not in the repository.
 **/App_Data/payment-proofs/
 
-# Cut sizes set in Inventory - how much film each panel takes per vehicle
-# class. Local shop data, not source.
-**/App_Data/cut-sizes.json
+# Cut sizes are deliberately NOT ignored. They are shop configuration the
+# app depends on - a panel with no cut size stops the job order that uses it -
+# so everyone working on the same database needs the same file. See
+# ZEmpireAutoAccessories/Database/README.md.
 
 # What each completed document took off the shelf. Local shop state.
 **/App_Data/stock-postings.json

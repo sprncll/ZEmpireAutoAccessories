@@ -168,12 +168,34 @@ namespace ZEmpireAutoAccessories.Controllers
             var existing = _cutSizes.All()
                 .ToDictionary(s => (s.VehicleClassificationID, s.PanelID), s => s.Centimeters);
 
+            // Which pairings a film product is actually priced for. The
+            // add-line forms build their panel list from cat.Pricing, so a
+            // pairing with no price there can never reach a document and its
+            // cut size would never be read - asking for one is busywork, and
+            // counting it as missing hides the ones that will really stop a
+            // job. Only roll goods matter: a coating priced against Whole
+            // Vehicle is a liquid and takes nothing off a roll.
+            var sold = await _context.Pricings
+                .Where(p => p.Product.Category != null)
+                .Select(p => new
+                {
+                    p.VehicleClassificationID,
+                    p.PanelID,
+                    CategoryName = p.Product.Category.CategoryName
+                })
+                .Distinct()
+                .ToListAsync();
+
             return new CutSizeGrid
             {
                 Classifications = classifications,
                 Panels = panels,
                 Centimeters = existing,
-                Unit = Unit(unit)
+                Unit = Unit(unit),
+                Sold = sold
+                    .Where(p => UnitOfMeasure.IsSoldByLength(p.CategoryName))
+                    .Select(p => (p.VehicleClassificationID, p.PanelID))
+                    .ToHashSet()
             };
         }
     }

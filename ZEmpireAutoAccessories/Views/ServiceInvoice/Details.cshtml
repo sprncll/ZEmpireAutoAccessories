@@ -18,6 +18,10 @@
 
     // The 12% inside the total, worked out once for the whole page.
     var vat = Vat.Breakdown(Model.TotalAmount);
+
+    // Everything except cash is charged the exact total, so there is nothing
+    // to type and no change to work out.
+    var settlesExactly = PaymentModes.SettlesExactly(Model.PaymentMode?.PaymentModeName);
 }
 
 <style>
@@ -97,7 +101,7 @@
         <dd class="col-sm-9">@(Model.JobOrder?.JobOrderNumber ?? "—")</dd>
 
         <dt class="col-sm-3">Payment Mode</dt>
-        <dd class="col-sm-9">@Model.PaymentMode.PaymentModeName</dd>
+        <dd class="col-sm-9">@(Model.PaymentMode?.PaymentModeName ?? "—")</dd>
 
         <dt class="col-sm-3">Invoice Date</dt>
         <dd class="col-sm-9">@Model.InvoiceDate.ToString("MMM d, yyyy")</dd>
@@ -221,11 +225,21 @@
                 <label class="form-label" for="amountTendered">Amount tendered</label>
                 <input type="number" step="0.01" min="0" id="amountTendered" name="amountTendered"
                        class="form-control"
-                       value="@Model.TotalAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)" required />
+                       value="@Model.TotalAmount.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)"
+                       readonly="@(settlesExactly ? "readonly" : null)"
+                       tabindex="@(settlesExactly ? "-1" : null)" required />
+                @if (settlesExactly)
+                {
+                    <div class="form-text">@(Model.PaymentMode?.PaymentModeName) settles at the exact amount.</div>
+                }
             </div>
             <div class="pay-field">
                 <span class="form-label d-block">Change</span>
                 <div class="pay-change" id="payChange">₱0.00</div>
+                @if (settlesExactly)
+                {
+                    <div class="form-text">Nothing to give back.</div>
+                }
             </div>
             <button type="submit" class="btn btn-zx" id="payButton">Record payment</button>
         </form>

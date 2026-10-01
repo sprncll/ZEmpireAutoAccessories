@@ -173,7 +173,7 @@ namespace ZEmpireAutoAccessories.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(
-            [Bind("CustomerID,VehicleID,JobTypeID,AssignedEmployeeID,InstallationDate,ExistingFilmShade,ReasonForChanging,SpecialInstruction,Complaint,Odometer")]
+            [Bind("CustomerID,VehicleID,JobTypeID,AssignedEmployeeID,InstallationDate,ExistingFilmShade,ReasonForChanging,SpecialInstruction,Complaint")]
             JobOrder jobOrder)
         {
             ModelState.Remove(nameof(JobOrder.JobOrderNumber));
@@ -222,7 +222,7 @@ namespace ZEmpireAutoAccessories.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(
             int id,
-            [Bind("JobOrderID,CustomerID,VehicleID,JobTypeID,AssignedEmployeeID,InstallationDate,ExistingFilmShade,ReasonForChanging,SpecialInstruction,Complaint,Odometer")]
+            [Bind("JobOrderID,CustomerID,VehicleID,JobTypeID,AssignedEmployeeID,InstallationDate,ExistingFilmShade,ReasonForChanging,SpecialInstruction,Complaint")]
             JobOrder jobOrder)
         {
             if (id != jobOrder.JobOrderID)
@@ -253,7 +253,6 @@ namespace ZEmpireAutoAccessories.Controllers
             existing.ReasonForChanging = jobOrder.ReasonForChanging;
             existing.SpecialInstruction = jobOrder.SpecialInstruction;
             existing.Complaint = jobOrder.Complaint;
-            existing.Odometer = jobOrder.Odometer;
 
             await _context.SaveChangesAsync();
 

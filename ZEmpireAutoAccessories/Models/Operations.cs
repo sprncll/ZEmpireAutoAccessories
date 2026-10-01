@@ -40,9 +40,11 @@ namespace ZEmpireAutoAccessories.Models
         [MaxLength(400)]
         public string? Complaint { get; set; }
 
-        // CK_JobOrder_Odometer rejects negatives at the database level; the
-        // Range keeps that from surfacing as a raw SQL error on save.
-        [Range(0, int.MaxValue, ErrorMessage = "Odometer can't be negative.")]
+        // Nothing asks for this any more - it is off the job order forms, the
+        // details screen and the printed job order. The property stays because
+        // the column does: ops.JobOrder.Odometer is NOT NULL-able but present,
+        // and dropping it is a schema change. Existing readings are left
+        // exactly as they were.
         public int? Odometer { get; set; }
 
         public string? ClientSignature { get; set; }

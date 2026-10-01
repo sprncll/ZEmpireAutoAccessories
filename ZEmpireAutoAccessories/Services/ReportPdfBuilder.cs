@@ -273,8 +273,12 @@ namespace ZEmpireAutoAccessories.Services
                         }
                         else if (model.CanSeeTotals)
                         {
-                            ComposeEmptyOrTotal(column, model.Transactions.Count,
-                                "Nothing was collected in this range.", model.GrandTotal);
+                            // "Collected", not "Total": the rows above include
+                            // the pending and cancelled ones, and this figure
+                            // deliberately does not. The screen says the same.
+                            column.Item().PaddingTop(4).LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+                            column.Item().AlignRight()
+                                .Text($"Collected: ₱{model.GrandTotal:N2}").Bold().FontSize(11);
                         }
                         else
                         {

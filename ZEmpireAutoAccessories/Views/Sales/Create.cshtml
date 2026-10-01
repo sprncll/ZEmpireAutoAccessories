@@ -11,6 +11,10 @@
     // Film and PPF lines are written in metres; data-stock is published in
     // metres to match, so the per-row stock warning compares like with like.
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
+
+    // Modes charged the exact total, for the script below - it fills the
+    // tendered amount in and locks it for those.
+    var exactModeIds = ViewData["ExactPaymentModeIds"] as List<int> ?? new List<int>();
 }
 
 <style>
@@ -69,7 +73,7 @@
 
         <div class="mb-3 col-md-4">
             <label class="form-label">Payment Mode</label>
-            <select name="paymentModeId" class="form-select" asp-items="ViewBag.PaymentModeID" required>
+            <select id="paymentModeId" name="paymentModeId" class="form-select" asp-items="ViewBag.PaymentModeID" required>
                 <option value="">-- Select Payment Mode --</option>
             </select>
         </div>
@@ -178,11 +182,13 @@
                     <label class="form-label" for="amountTendered">Amount tendered</label>
                     <div class="input-group">
                         <input type="number" step="0.01" min="0" id="amountTendered" name="amountTendered"
-                               class="form-control" placeholder="0.00" />
+                               class="form-control" placeholder="0.00"
+                               data-exact-modes="@string.Join(",", exactModeIds)" />
                         @* Card and exact cash are the common case; this saves
                            retyping a figure that is already on the screen. *@
                         <button type="button" class="btn btn-outline-secondary" id="payExact">Exact</button>
                     </div>
+                    <div class="form-text" id="payExactNote" style="display:none;"></div>
                 </div>
                 <div class="pay-field">
                     <span class="form-label d-block">Change</span>
@@ -433,7 +439,39 @@
                 return (cents - vatable) / 100;
             }
 
+            // Everything except cash is charged the exact total - a transfer
+            // and a wallet send what they were asked for, a card terminal is
+            // charged it. So the box is filled in and locked rather than
+            // asking for a figure that can only have one value. The server
+            // settles it again either way; this is so nobody is asked a
+            // question with one answer.
+            var exactModes = ($('#amountTendered').data('exact-modes') + '')
+                .split(',').filter(function (id) { return id !== ''; });
+
+            function settlesExactly() {
+                return exactModes.indexOf($('#paymentModeId').val() + '') !== -1;
+            }
+
+            function applyPaymentMode() {
+                var exact = settlesExactly();
+                var $tendered = $('#amountTendered');
+
+                $tendered.prop('readonly', exact);
+                $('#payExact').prop('disabled', exact);
+                $('#payExactNote')
+                    .text(exact ? $('#paymentModeId option:selected').text() + ' settles at the exact amount \u2014 no change.' : '')
+                    .toggle(exact);
+
+                if (exact) { $tendered.val(saleTotal > 0 ? saleTotal.toFixed(2) : ''); }
+                updateChange();
+            }
+
             function updateChange() {
+                // Keep the locked figure on the total as lines are added.
+                if (settlesExactly()) {
+                    $('#amountTendered').val(saleTotal > 0 ? saleTotal.toFixed(2) : '');
+                }
+
                 var tendered = parseFloat($('#amountTendered').val());
                 var typed = !isNaN(tendered);
                 if (!typed) { tendered = 0; }
@@ -483,6 +521,8 @@
                 $('#amountTendered').val(saleTotal.toFixed(2));
                 updateChange();
             });
+
+            $(document).on('change', '#paymentModeId', applyPaymentMode);
 
             $(document).on('change', '.product-select', function () {
                 evaluateProductRow($(this).closest('tr'));
@@ -541,6 +581,7 @@
             // Settle the total, the change and the button before anything is
             // touched - an empty cart cannot be completed.
             recalcTotal();
+            applyPaymentMode();
         });
     </script>
 }

@@ -66,8 +66,15 @@ namespace ZEmpireAutoAccessories.Models
         [Range(1, int.MaxValue, ErrorMessage = "Please select a classification.")]
         public int VehicleClassificationID { get; set; }
 
-        [MaxLength(20, ErrorMessage = "Plate number can't be longer than 20 characters.")]
-        [RegularExpression(@"^[A-Za-z]{3}[- ]?\d{3,4}$", ErrorMessage = "Enter a valid Philippine plate number (e.g. ABC 1234 or the older ABC 123 format).")]
+        // At most three letters and at most four numbers, in either order.
+        //
+        // Letters first is the car plate - ABC 1234, and the older ABC 123.
+        // Numbers first is the motorcycle plate - 295 XBB. The old rule
+        // demanded exactly three letters and put them first, which refused
+        // every motorcycle in the yard, including one already on file.
+        [MaxLength(8, ErrorMessage = "A plate number is at most three letters and four numbers.")]
+        [RegularExpression(@"^([A-Za-z]{1,3}[- ]?\d{1,4}|\d{1,4}[- ]?[A-Za-z]{1,3})$",
+            ErrorMessage = "Enter a valid Philippine plate number - up to three letters and four numbers, like ABC 1234, ABC 123 or 295 XBB.")]
         [Display(Name = "Plate number")]
         public string? PlateNumber { get; set; }
 

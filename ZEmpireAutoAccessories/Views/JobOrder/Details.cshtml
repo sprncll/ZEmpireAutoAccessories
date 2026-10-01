@@ -106,9 +106,6 @@
         <dt class="col-sm-3">Installation Date</dt>
         <dd class="col-sm-9">@(Model.InstallationDate?.ToString("MMM d, yyyy") ?? "—")</dd>
 
-        <dt class="col-sm-3">Odometer</dt>
-        <dd class="col-sm-9">@(Model.Odometer?.ToString() ?? "—")</dd>
-
         <dt class="col-sm-3">Status</dt>
         <dd class="col-sm-9"><span class="badge badge-@Model.Status.ToLower().Replace(" ", "")">@Model.Status</span></dd>
 

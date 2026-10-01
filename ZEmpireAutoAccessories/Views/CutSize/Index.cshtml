@@ -29,6 +29,14 @@
     .cut-input:focus { outline:none; border-color:var(--zx-red); box-shadow:0 0 0 3px rgba(193,18,31,.1); }
     .cut-input.is-set { border-color:#bbf7d0; background:#f6fefa; }
 
+    /* A pairing no film is priced for cannot reach a document, so its box is
+       stood down rather than sitting there asking to be filled. */
+    .cut-cell.not-sold { opacity:.38; }
+    .cut-cell.not-sold .cut-input { background:#f7f8fa; border-style:dashed; }
+
+    /* Sold, and with nothing in it - the ones that will stop a job. */
+    .cut-input.is-missing { border-color:#fecaca; background:#fff7f7; }
+
     .cut-legend { color:#7b8290; font-size:12.5px; margin-top:12px; }
     .cut-count { font-weight:600; color:#0b0b0c; }
 
@@ -97,10 +105,10 @@ else
         <form method="post" asp-action="FillSuggested" class="mb-3">
             <input type="hidden" name="unit" value="@Model.Unit" />
             <button type="submit" class="btn btn-outline-secondary btn-sm">
-                Fill @Model.Fillable blank glass box@(Model.Fillable == 1 ? "" : "es") with starting sizes
+                Fill @Model.Fillable blank box@(Model.Fillable == 1 ? "" : "es") with starting sizes
             </button>
             <span class="cut-legend" style="margin-left:6px;">
-                Estimates for glass only, scaled by vehicle class. Check them against a real job.
+                Estimates, scaled by vehicle class, for the pairings film is priced for. Check them against a real job.
             </span>
         </form>
     }
@@ -128,14 +136,16 @@ else
                                 {
                                     var size = Model.For(classification.VehicleClassificationID, panel.PanelID);
                                     var suggested = Model.Suggested(classification, panel);
+                                    var sold = Model.IsSold(classification.VehicleClassificationID, panel.PanelID);
                                     <td>
                                         @* Every box posts its own pair of ids, so the server never has
                                            to work out which cell a number belonged to. *@
                                         <input type="hidden" name="vehicleClassificationId" value="@classification.VehicleClassificationID" />
                                         <input type="hidden" name="panelId" value="@panel.PanelID" />
-                                        <div class="cut-cell">
+                                        <div class="cut-cell @(sold ? "" : "not-sold")">
                                             <input type="number" name="size" step="@(Model.Unit == UnitOfMeasure.Centimeter ? "0.1" : "0.01")" min="0"
-                                                   class="cut-input @(size.HasValue ? "is-set" : "")"
+                                                   class="cut-input @(size.HasValue ? "is-set" : sold ? "is-missing" : "")"
+                                                   title="@(sold ? null : "No film is priced for this panel on this class of vehicle, so it cannot reach a job.")"
                                                    value="@(size.HasValue ? Model.Format(size.Value) : "")"
                                                    placeholder="@(suggested.HasValue ? Model.Format(suggested.Value) : "—")"
                                                    title="@(suggested.HasValue ? $"Suggested: {Model.Format(suggested.Value)} {Model.Unit}" : null)"
@@ -151,7 +161,10 @@ else
             </div>
 
             <div class="cut-legend">
-                <span class="cut-count">@Model.Filled of @Model.Total</span> pairings have a cut size.
+                @* Counted against what can actually be sold. Most squares in
+                   this grid cross a panel with a class that never has it. *@
+                <span class="cut-count">@Model.Filled of @Model.Total</span> pairings that film is priced for have a cut size@(Model.Missing > 0 ? $", and {Model.Missing} do not - those are the ones that will stop a job" : "").
+                Faded boxes are panels no film is priced for on that class of vehicle; they never reach a document.
                 All figures on this screen are in @UnitName(Model.Unit) (@Model.Unit); they are kept in
                 centimetres underneath, which is what stock is counted in.
                 A greyed figure in an empty box is a suggestion, not a saved value.
