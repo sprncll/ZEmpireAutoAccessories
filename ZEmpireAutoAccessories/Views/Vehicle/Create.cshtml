@@ -84,10 +84,11 @@
                 <label asp-for="PlateNumber" class="form-label"></label>
                 <input asp-for="PlateNumber" class="form-control" placeholder="e.g. ABC 1234"
                        style="text-transform:uppercase" maxlength="8"
+                       required
                        pattern="[A-Za-z]{3}[- ]?\d{3,4}"
                        title="Philippine car plate - three letters then three or four numbers, e.g. ABC 1234 or ABC 123." />
                 <span asp-validation-for="PlateNumber" class="text-danger"></span>
-                <div class="form-text">Car plate: three letters then three or four numbers (e.g. ABC 1234, or the older ABC 123). Leave blank if unknown.</div>
+                <div class="form-text">Car plate: three letters then three or four numbers (e.g. ABC 1234, or the older ABC 123).</div>
             </div>
             <div class="col-md-4 mb-3">
                 <label asp-for="Brand" class="form-label"></label>

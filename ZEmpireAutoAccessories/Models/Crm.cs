@@ -70,10 +70,19 @@ namespace ZEmpireAutoAccessories.Models
         // ABC 123. Cars only: the shop does not take motorcycle work, so a
         // motorcycle plate such as 295 XBB is refused rather than admitted.
         //
-        // A motorcycle plate predating this rule is already on file. Nothing
-        // rewrites it - validation runs on save, so the row sits there
-        // untouched - but editing that vehicle will now ask for the plate to
-        // be corrected or cleared before it can be saved.
+        // Required. A vehicle used to be allowed on file without one, for a
+        // walk-in whose plate nobody had taken down, but a plateless vehicle
+        // cannot be found again by the one thing anybody searches by, and the
+        // duplicate check skips it - so the same car could be registered twice
+        // and carry two separate histories.
+        //
+        // The property stays nullable even so. crm.Vehicle.PlateNumber allows
+        // NULL and rows already hold it; declaring this non-nullable would
+        // throw on reading those, which is the materialisation crash that took
+        // out every customer list once already. Required is enforced on save,
+        // where it belongs, and an old row is asked for a plate the next time
+        // somebody edits it.
+        [Required(ErrorMessage = "A plate number is required.")]
         [MaxLength(8, ErrorMessage = "A plate number is three letters and three or four numbers.")]
         [RegularExpression(@"^[A-Za-z]{3}[- ]?\d{3,4}$",
             ErrorMessage = "Enter a valid Philippine car plate - three letters then three or four numbers, like ABC 1234 or ABC 123.")]
