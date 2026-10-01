@@ -100,15 +100,16 @@ else
     @if (Model.Fillable > 0)
     {
         @* Typing a hundred boxes from nothing is why this table sits empty in
-           most shops. These are estimates and say so, and they only ever land
-           in boxes that are blank. *@
+           most shops. These are the shop's own measurements, worked out for
+           the roll being bought, and they only ever land in boxes that are
+           blank. *@
         <form method="post" asp-action="FillSuggested" class="mb-3">
             <input type="hidden" name="unit" value="@Model.Unit" />
             <button type="submit" class="btn btn-outline-secondary btn-sm">
-                Fill @Model.Fillable blank box@(Model.Fillable == 1 ? "" : "es") with starting sizes
+                Fill @Model.Fillable blank box@(Model.Fillable == 1 ? "" : "es") with the shop's measured sizes
             </button>
             <span class="cut-legend" style="margin-left:6px;">
-                Estimates, scaled by vehicle class, for the pairings film is priced for. Check them against a real job.
+                From the shop's glass sheet, for the pairings film is priced for.
             </span>
         </form>
     }
@@ -167,7 +168,15 @@ else
                 Faded boxes are panels no film is priced for on that class of vehicle; they never reach a document.
                 All figures on this screen are in @UnitName(Model.Unit) (@Model.Unit); they are kept in
                 centimetres underneath, which is what stock is counted in.
-                A greyed figure in an empty box is a suggestion, not a saved value.
+                A greyed figure in an empty box is what the shop's sheet works out to, not a saved value.
+                @* The sheet is the size of the glass; the roll decides how much
+                   of it comes off. Someone who switches to wider film and does
+                   not know this would keep deducting the old figures. *@
+                Those figures assume film
+                <strong>@ZEmpireAutoAccessories.Models.SuggestedCutSizes.ConfiguredRollWidthCm.ToString("0.##") cm</strong>
+                (@((ZEmpireAutoAccessories.Models.SuggestedCutSizes.ConfiguredRollWidthCm / 2.54m).ToString("0.#"))&Prime;) wide,
+                because a pane wider than the roll has to be made of strips. Change the roll you buy and
+                they change too &mdash; the width is <code>Inventory:RollWidthCm</code> in appsettings.json.
             </div>
         </div>
 

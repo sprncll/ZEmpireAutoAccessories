@@ -123,7 +123,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             if (filled.Count == 0)
             {
-                TempData["Success"] = "Nothing to fill - every panel this table covers already has a size.";
+                TempData["Success"] = "Nothing to fill - every panel the glass sheet covers already has a size.";
                 return RedirectToAction(nameof(Index), new { unit = Unit(unit) });
             }
 
@@ -141,8 +141,8 @@ namespace ZEmpireAutoAccessories.Controllers
             await _cutSizes.Save(all);
 
             TempData["Success"] =
-                $"Filled {filled.Count} blank box{(filled.Count == 1 ? "" : "es")} with starting sizes. " +
-                "These are estimates - check them against a real job and correct them.";
+                $"Filled {filled.Count} blank box{(filled.Count == 1 ? "" : "es")} from the shop's glass sheet, " +
+                $"worked out for {SuggestedCutSizes.ConfiguredRollWidthCm:0.##} cm film.";
 
             return RedirectToAction(nameof(Index), new { unit = Unit(unit) });
         }

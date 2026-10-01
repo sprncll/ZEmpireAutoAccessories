@@ -67,6 +67,12 @@ builder.Services.AddScoped<IInventoryService, InventoryService>();
 ZEmpireAutoAccessories.Models.UnitOfMeasure.ConfigureLengthCategories(
     builder.Configuration.GetSection("Inventory:LengthCategories").Get<string[]>());
 
+// How wide the film on the roll is. The shop's cut sizes are the size of the
+// GLASS, so how much comes off the roll depends on this: a 152 cm windshield
+// is two strips of 30 inch film and one of 60 inch, for half the length.
+ZEmpireAutoAccessories.Models.SuggestedCutSizes.ConfigureRollWidth(
+    builder.Configuration.GetValue<decimal?>("Inventory:RollWidthCm"));
+
 // Categories that are two names for the same shelf. The screens group and
 // label by the canonical name so one shelf shows as one heading.
 ZEmpireAutoAccessories.Models.ProductCategories.ConfigureAliases(

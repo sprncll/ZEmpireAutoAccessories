@@ -2,47 +2,37 @@
   {
     "VehicleClassificationID": 1,
     "PanelID": 1,
-    "Centimeters": 505.00
+    "Centimeters": 695.96
   },
   {
     "VehicleClassificationID": 1,
     "PanelID": 2,
-    "Centimeters": 120.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 1,
     "PanelID": 3,
-    "Centimeters": 130.0
-  },
-  {
-    "VehicleClassificationID": 1,
-    "PanelID": 7,
-    "Centimeters": 90.0
+    "Centimeters": 119.38
   },
   {
     "VehicleClassificationID": 1,
     "PanelID": 8,
-    "Centimeters": 120.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 1,
     "PanelID": 9,
-    "Centimeters": 100
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 1,
     "PanelID": 10,
-    "Centimeters": 90.0
-  },
-  {
-    "VehicleClassificationID": 1,
-    "PanelID": 11,
-    "Centimeters": 40.0
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 1,
     "PanelID": 12,
-    "Centimeters": 130.0
+    "Centimeters": 119.38
   },
   {
     "VehicleClassificationID": 1,
@@ -52,47 +42,47 @@
   {
     "VehicleClassificationID": 2,
     "PanelID": 1,
-    "Centimeters": 590.0
+    "Centimeters": 678.18
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 2,
-    "Centimeters": 140.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 3,
-    "Centimeters": 150.0
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 7,
-    "Centimeters": 95.00
+    "Centimeters": 40.64
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 8,
-    "Centimeters": 140.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 9,
-    "Centimeters": 115.00
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 10,
-    "Centimeters": 105.00
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 11,
-    "Centimeters": 50.0
+    "Centimeters": 76.02
   },
   {
     "VehicleClassificationID": 2,
     "PanelID": 12,
-    "Centimeters": 150.0
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 2,
@@ -102,42 +92,37 @@
   {
     "VehicleClassificationID": 3,
     "PanelID": 1,
-    "Centimeters": 425.00
+    "Centimeters": 637.54
   },
   {
     "VehicleClassificationID": 3,
     "PanelID": 2,
-    "Centimeters": 130.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 3,
     "PanelID": 3,
-    "Centimeters": 80.0
+    "Centimeters": 60.96
   },
   {
     "VehicleClassificationID": 3,
     "PanelID": 8,
-    "Centimeters": 130.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 3,
     "PanelID": 9,
-    "Centimeters": 110.0
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 3,
     "PanelID": 10,
-    "Centimeters": 55.00
-  },
-  {
-    "VehicleClassificationID": 3,
-    "PanelID": 11,
-    "Centimeters": 30.0
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 3,
     "PanelID": 12,
-    "Centimeters": 80.0
+    "Centimeters": 60.96
   },
   {
     "VehicleClassificationID": 3,
@@ -147,47 +132,37 @@
   {
     "VehicleClassificationID": 4,
     "PanelID": 1,
-    "Centimeters": 645.00
+    "Centimeters": 1056.64
   },
   {
     "VehicleClassificationID": 4,
     "PanelID": 2,
-    "Centimeters": 155.00
+    "Centimeters": 355.6
   },
   {
     "VehicleClassificationID": 4,
     "PanelID": 3,
-    "Centimeters": 170.0
-  },
-  {
-    "VehicleClassificationID": 4,
-    "PanelID": 7,
-    "Centimeters": 100
+    "Centimeters": 106.68
   },
   {
     "VehicleClassificationID": 4,
     "PanelID": 8,
-    "Centimeters": 155.00
+    "Centimeters": 355.6
   },
   {
     "VehicleClassificationID": 4,
     "PanelID": 9,
-    "Centimeters": 120.0
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 4,
     "PanelID": 10,
-    "Centimeters": 110.0
-  },
-  {
-    "VehicleClassificationID": 4,
-    "PanelID": 11,
-    "Centimeters": 60.0
+    "Centimeters": 406.4
   },
   {
     "VehicleClassificationID": 4,
     "PanelID": 12,
-    "Centimeters": 170.0
+    "Centimeters": 106.68
   },
   {
     "VehicleClassificationID": 4,
@@ -197,47 +172,37 @@
   {
     "VehicleClassificationID": 5,
     "PanelID": 1,
-    "Centimeters": 450.0
+    "Centimeters": 678.18
   },
   {
     "VehicleClassificationID": 5,
     "PanelID": 2,
-    "Centimeters": 110.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 5,
     "PanelID": 3,
-    "Centimeters": 115.00
-  },
-  {
-    "VehicleClassificationID": 5,
-    "PanelID": 7,
-    "Centimeters": 85.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 5,
     "PanelID": 8,
-    "Centimeters": 110.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 5,
     "PanelID": 9,
-    "Centimeters": 90.0
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 5,
     "PanelID": 10,
-    "Centimeters": 80.0
-  },
-  {
-    "VehicleClassificationID": 5,
-    "PanelID": 11,
-    "Centimeters": 35.00
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 5,
     "PanelID": 12,
-    "Centimeters": 115.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 5,
@@ -247,47 +212,37 @@
   {
     "VehicleClassificationID": 6,
     "PanelID": 1,
-    "Centimeters": 450.0
+    "Centimeters": 678.18
   },
   {
     "VehicleClassificationID": 6,
     "PanelID": 2,
-    "Centimeters": 110.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 6,
     "PanelID": 3,
-    "Centimeters": 115.00
-  },
-  {
-    "VehicleClassificationID": 6,
-    "PanelID": 7,
-    "Centimeters": 85.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 6,
     "PanelID": 8,
-    "Centimeters": 110.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 6,
     "PanelID": 9,
-    "Centimeters": 90.0
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 6,
     "PanelID": 10,
-    "Centimeters": 80.0
-  },
-  {
-    "VehicleClassificationID": 6,
-    "PanelID": 11,
-    "Centimeters": 35.00
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 6,
     "PanelID": 12,
-    "Centimeters": 115.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 6,
@@ -297,47 +252,47 @@
   {
     "VehicleClassificationID": 7,
     "PanelID": 1,
-    "Centimeters": 485.00
+    "Centimeters": 678.18
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 2,
-    "Centimeters": 115.00
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 3,
-    "Centimeters": 125.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 7,
-    "Centimeters": 90.0
+    "Centimeters": 137.16
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 8,
-    "Centimeters": 115.00
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 9,
-    "Centimeters": 95.00
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 10,
-    "Centimeters": 85.00
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 11,
-    "Centimeters": 40.0
+    "Centimeters": 66.04
   },
   {
     "VehicleClassificationID": 7,
     "PanelID": 12,
-    "Centimeters": 125.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 7,
@@ -347,47 +302,47 @@
   {
     "VehicleClassificationID": 8,
     "PanelID": 1,
-    "Centimeters": 560.0
+    "Centimeters": 678.18
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 2,
-    "Centimeters": 130.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 3,
-    "Centimeters": 145.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 7,
-    "Centimeters": 95.00
+    "Centimeters": 137.16
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 8,
-    "Centimeters": 130.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 9,
-    "Centimeters": 110.0
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 10,
-    "Centimeters": 100
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 11,
-    "Centimeters": 50.0
+    "Centimeters": 76.02
   },
   {
     "VehicleClassificationID": 8,
     "PanelID": 12,
-    "Centimeters": 145.00
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 8,
@@ -397,47 +352,47 @@
   {
     "VehicleClassificationID": 9,
     "PanelID": 1,
-    "Centimeters": 635.00
+    "Centimeters": 678.18
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 2,
-    "Centimeters": 150.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 3,
-    "Centimeters": 160.0
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 7,
-    "Centimeters": 100
+    "Centimeters": 40.64
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 8,
-    "Centimeters": 150.0
+    "Centimeters": 304.8
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 9,
-    "Centimeters": 125.00
+    "Centimeters": 187.96
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 10,
-    "Centimeters": 115.00
+    "Centimeters": 83.82
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 11,
-    "Centimeters": 55.00
+    "Centimeters": 76.02
   },
   {
     "VehicleClassificationID": 9,
     "PanelID": 12,
-    "Centimeters": 160.0
+    "Centimeters": 101.6
   },
   {
     "VehicleClassificationID": 9,
