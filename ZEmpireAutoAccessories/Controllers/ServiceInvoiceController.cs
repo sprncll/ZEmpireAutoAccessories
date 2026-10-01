@@ -373,6 +373,26 @@ namespace ZEmpireAutoAccessories.Controllers
                 return View(invoice);
             }
 
+            var newTotal = lineTotal - invoice.DiscountAmount + invoice.TaxAmount;
+
+            // Only cash is handed over and change given back. A transfer, a
+            // GCash payment or a card is taken for the amount due and nothing
+            // else, so the tendered amount is the total and the form does not
+            // offer to change it.
+            //
+            // RecordPayment has applied this since exact settlement was
+            // introduced, but Edit did not, so the rule could be walked around
+            // simply by editing the invoice afterwards: ₱50,000 typed against a
+            // ₱42,000 card invoice stored ₱8,000 of change, and the reprinted
+            // receipt showed it. The field posts regardless of being read-only
+            // on the form, so the value is replaced here rather than trusted.
+            var settlesExactly = await SettlesExactly(invoice.PaymentModeID);
+            if (settlesExactly)
+            {
+                invoice.AmountPaid = newTotal;
+                ModelState.Remove(nameof(ServiceInvoice.AmountPaid));
+            }
+
             // CK_ServiceInvoice_Change requires ChangeAmount >= 0 and
             // CK_ServiceInvoice_Math requires ChangeAmount = AmountPaid -
             // TotalAmount, so between them the table cannot hold a part
@@ -380,7 +400,6 @@ namespace ZEmpireAutoAccessories.Controllers
             // in, so refuse a short one here - RecalculateTotals used to
             // quietly raise it to the total instead, which meant the field
             // accepted a number and then saved a different one.
-            var newTotal = lineTotal - invoice.DiscountAmount + invoice.TaxAmount;
             if (invoice.AmountPaid < newTotal)
             {
                 ModelState.AddModelError(nameof(ServiceInvoice.AmountPaid),
@@ -707,6 +726,24 @@ namespace ZEmpireAutoAccessories.Controllers
         /// in: raising it there would save a number the user did not enter.
         /// Edit passes false and validates instead.
         /// </summary>
+        /// <summary>
+        /// Whether this payment mode is taken for the amount due and nothing
+        /// else - everything but cash. Looked up by id because Edit binds the
+        /// mode the user just chose, which may not be the one on the invoice.
+        /// </summary>
+        private async Task<bool> SettlesExactly(int? paymentModeId)
+        {
+            if (paymentModeId == null)
+                return false;
+
+            var name = await _context.PaymentModes
+                .Where(m => m.PaymentModeID == paymentModeId)
+                .Select(m => m.PaymentModeName)
+                .FirstOrDefaultAsync();
+
+            return PaymentModes.SettlesExactly(name);
+        }
+
         private static void RecalculateTotals(ServiceInvoice invoice, bool clampAmountPaid = true)
         {
             invoice.SubTotal = invoice.Details.Sum(d => d.SubTotal);
@@ -763,10 +800,20 @@ namespace ZEmpireAutoAccessories.Controllers
             // Only the modes the shop offers, in the order it offers them,
             // plus whatever this invoice is already on - see
             // Models/PaymentModes.cs.
+            var offered = PaymentModes.ForSelection(
+                await _context.PaymentModes.ToListAsync(), invoice?.PaymentModeID);
+
             ViewData["PaymentModeID"] = new SelectList(
-                PaymentModes.ForSelection(
-                    await _context.PaymentModes.ToListAsync(), invoice?.PaymentModeID),
-                "PaymentModeID", "PaymentModeName", invoice?.PaymentModeID);
+                offered, "PaymentModeID", "PaymentModeName", invoice?.PaymentModeID);
+
+            // Which of those are taken for the amount due and nothing else, so
+            // the form can fill the tendered amount in and lock it the moment
+            // one is chosen. Ids rather than names, so renaming a mode cannot
+            // put the screen out of step with the server.
+            ViewData["ExactPaymentModes"] = offered
+                .Where(m => PaymentModes.SettlesExactly(m.PaymentModeName))
+                .Select(m => m.PaymentModeID)
+                .ToList();
         }
 
         // Rendered as plain <option> tags in the view (not asp-items) so each

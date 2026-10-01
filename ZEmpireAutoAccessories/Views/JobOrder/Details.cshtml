@@ -208,10 +208,10 @@
                 <tr>
                     <td>
                         @(line.Product?.ProductName ?? line.Service?.ServiceName ?? "—")
-                        @if (line.TintVariant != null || line.Panel != null)
+                        @if (line.TintVariant != null || line.Shade != null || line.Panel != null)
                         {
                             <div class="text-muted small">
-                                @string.Join(" · ", new[] { line.TintVariant?.VariantName, line.Panel?.PanelName }.Where(s => !string.IsNullOrEmpty(s)))
+                                @string.Join(" · ", new[] { line.TintVariant?.VariantName, line.Shade?.ShadeName, line.Panel?.PanelName }.Where(s => !string.IsNullOrEmpty(s)))
                             </div>
                         }
                         @if (!string.IsNullOrEmpty(line.Description))
@@ -285,6 +285,12 @@
                 </select>
             </div>
             <div class="col-md-3">
+                <label class="form-label" title="Which shade of the chosen tint variant was fitted - e.g. Light, Medium, Superdark">Shade</label>
+                <select id="addLineShade" name="shadeId" class="form-select" disabled>
+                    <option value="">-- N/A --</option>
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label class="form-label" title="Which part of the vehicle this line covers - determines the matrix price for this vehicle's classification">Panel</label>
                 <select id="addLinePanel" name="panelId" class="form-select" disabled>
                     <option value="">-- N/A --</option>
@@ -322,7 +328,9 @@
         </form>
         <div class="form-text mt-2">
             Pick either a Product or a Service for the line item. For products priced by panel, pick a Tint Variant
-            (if applicable) and a Panel to pull the exact price for this vehicle's classification.
+            (if applicable) and a Panel to pull the exact price for this vehicle's classification. The Shade is
+            recorded on the job sheet, the receipt and any warranty claim &mdash; it does not change the price or
+            what comes off the roll, since stock is kept per product rather than per shade.
         </div>
 </div>
 
@@ -370,9 +378,16 @@
         // either one or the other.
         (function () {
             var pricingMatrix = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["PricingMatrix"]));
+
+            // The shades each tint variant comes in. Keyed by variant because
+            // a shade belongs to one - "Superdark" on BF Stone is a different
+            // row from "Superdark" on Profilm X Lite.
+            var shadesByVariant = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["ShadesByVariant"]));
+
             var $product = $('#addLineProduct');
             var $service = $('#addLineService');
             var $tintVariant = $('#addLineTintVariant');
+            var $shade = $('#addLineShade');
             var $panel = $('#addLinePanel');
             var $price = $('#addLinePrice');
             if (!$product.length || !$service.length || !$tintVariant.length || !$panel.length || !$price.length) { return; }
@@ -410,6 +425,36 @@
                 }
             }
 
+            function refreshShades() {
+                var tintVariantId = $tintVariant.prop('disabled') ? null : ($tintVariant.val() || null);
+
+                var shades = tintVariantId
+                    ? shadesByVariant.filter(function (sh) {
+                          return String(sh.tintVariantId) === String(tintVariantId);
+                      })
+                    : [];
+
+                if (shades.length === 0) {
+                    // No variant chosen, or that variant has no shades on file.
+                    resetSelect($shade, '-- N/A --');
+                    return;
+                }
+
+                $shade.empty()
+                      .append($('<option></option>').val('').text('-- Select Shade --'))
+                      .prop('disabled', false);
+
+                shades.forEach(function (sh) {
+                    $shade.append($('<option></option>').val(sh.shadeId).text(sh.shadeName));
+                });
+
+                // Only one shade on file for this variant - skip making the
+                // user pick it themselves, the same as the variant and panel.
+                if (shades.length === 1) {
+                    $shade.val(shades[0].shadeId);
+                }
+            }
+
             function refreshTintVariants() {
                 var productId = parseInt($product.val(), 10);
                 var rows = productId ? rowsForProduct(productId) : [];
@@ -435,6 +480,7 @@
                 }
 
                 refreshPanels();
+                refreshShades();
             }
 
             // Guarded on $(this).val() being truthy: clearing the other field
@@ -445,6 +491,7 @@
                 var productId = parseInt($(this).val(), 10) || 0;
                 if (!productId) {
                     resetSelect($tintVariant, '-- N/A --');
+                    resetSelect($shade, '-- N/A --');
                     resetSelect($panel, '-- N/A --');
                     return;
                 }
@@ -456,6 +503,7 @@
                     // No matrix pricing for this product - fall back to its
                     // own flat default price, and there's nothing to pick.
                     resetSelect($tintVariant, '-- N/A --');
+                    resetSelect($shade, '-- N/A --');
                     resetSelect($panel, '-- N/A --');
                     var flatPrice = $(this).find(':selected').data('price');
                     if (flatPrice !== undefined) { $price.val(parseFloat(flatPrice).toFixed(2)); }
@@ -464,7 +512,10 @@
                 }
             });
 
-            $tintVariant.on('change', refreshPanels);
+            $tintVariant.on('change', function () {
+                refreshPanels();
+                refreshShades();
+            });
 
             $panel.on('change', function () {
                 var price = $(this).find(':selected').data('price');
@@ -481,6 +532,7 @@
 
                 $product.val('').trigger('change');
                 resetSelect($tintVariant, '-- N/A --');
+                resetSelect($shade, '-- N/A --');
                 resetSelect($panel, '-- N/A --');
             });
         })();

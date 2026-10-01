@@ -8,7 +8,10 @@
 
     // Pricing is its own module, so only offer the way in to someone who
     // actually holds it.
-    var canPrice = User.HasClaim(AppClaims.ModuleAccess, "Pricing");
+    @* Reaching the Pricing module is not the same as being allowed to set a
+       price: staff may look prices up, administrators set them. *@
+    var canPrice = User.HasClaim(AppClaims.ModuleAccess, "Pricing")
+                   && (ViewData["CanEditPrice"] as bool? ?? false);
     var lengthProducts = ViewData["LengthProducts"] as HashSet<int> ?? new HashSet<int>();
     var categoryDisplay = ViewData["CategoryDisplay"] as Dictionary<int, string> ?? new Dictionary<int, string>();
     var saved = TempData["Success"] as string;

@@ -59,6 +59,18 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             ModelState.Remove(nameof(Service.ServiceCategory));
 
+            // The form renders this read-only for staff, but a read-only field
+            // still posts and a form can be replayed, so the value is dropped
+            // here rather than trusted.
+            // cat.Service.DefaultPrice is not nullable, so a service created by
+            // staff starts at zero for an administrator to set, rather than at
+            // whatever was typed.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                service.DefaultPrice = 0m;
+                ModelState.Remove(nameof(Service.DefaultPrice));
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdowns(service);
@@ -96,6 +108,18 @@ namespace ZEmpireAutoAccessories.Controllers
                 return NotFound();
 
             ModelState.Remove(nameof(Service.ServiceCategory));
+
+            // Keep whatever the catalogue already says, so a staff edit to the
+            // name or the description cannot move the price with it.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                service.DefaultPrice = await _context.Services
+                    .Where(s => s.ServiceID == id)
+                    .Select(s => s.DefaultPrice)
+                    .FirstOrDefaultAsync();
+
+                ModelState.Remove(nameof(Service.DefaultPrice));
+            }
 
             if (!ModelState.IsValid)
             {
@@ -184,6 +208,8 @@ namespace ZEmpireAutoAccessories.Controllers
 
         private async Task LoadDropdowns(Service? service = null)
         {
+            ViewData["CanEditPrice"] = AppRoles.CanEditCatalogPrices(User);
+
             ViewData["ServiceCategoryID"] = new SelectList(
                 await _context.ServiceCategories.OrderBy(c => c.CategoryName).ToListAsync(),
                 "ServiceCategoryID", "CategoryName", service?.ServiceCategoryID);

@@ -84,7 +84,8 @@
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label asp-for="DefaultPrice" class="form-label"></label>
-                <input asp-for="DefaultPrice" class="form-control" />
+                @{ ViewData["PriceValue"] = Model?.DefaultPrice?.ToString("0.##"); ViewData["PriceField"] = "DefaultPrice"; }
+                <partial name="_PriceField" />
                 <span asp-validation-for="DefaultPrice" class="text-danger"></span>
             </div>
             <div class="col-md-6 mb-3 d-flex align-items-end">

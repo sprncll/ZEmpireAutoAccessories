@@ -23,6 +23,8 @@ namespace ZEmpireAutoAccessories.Controllers
         // GET: Product
         public async Task<IActionResult> Index(string? q)
         {
+            ViewData["CanEditPrice"] = AppRoles.CanEditCatalogPrices(User);
+
             var all = await _context.Products
                 .Include(p => p.Category)
                 .ToListAsync();
@@ -109,6 +111,16 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             ModelState.Remove(nameof(Product.Category));
 
+            // The form renders this read-only for staff, but a read-only field
+            // still posts and a form can be replayed, so the value is dropped
+            // here rather than trusted. A new product simply starts with no
+            // default price, which an administrator can then set.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                product.DefaultPrice = null;
+                ModelState.Remove(nameof(Product.DefaultPrice));
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadDropdowns(product, soldByLength);
@@ -169,6 +181,18 @@ namespace ZEmpireAutoAccessories.Controllers
                 return NotFound();
 
             ModelState.Remove(nameof(Product.Category));
+
+            // Keep whatever the catalogue already says, so a staff edit to the
+            // name or the description cannot move the price with it.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                product.DefaultPrice = await _context.Products
+                    .Where(p => p.ProductID == id)
+                    .Select(p => p.DefaultPrice)
+                    .FirstOrDefaultAsync();
+
+                ModelState.Remove(nameof(Product.DefaultPrice));
+            }
 
             if (!ModelState.IsValid)
             {
@@ -287,6 +311,7 @@ namespace ZEmpireAutoAccessories.Controllers
         private async Task LoadDropdowns(Product? product = null, bool? soldByLength = null)
         {
             ViewData["ProductSoldByLength"] = soldByLength;
+            ViewData["CanEditPrice"] = AppRoles.CanEditCatalogPrices(User);
 
             var categories = await _context.ProductCategories
                 .OrderBy(c => c.CategoryName)

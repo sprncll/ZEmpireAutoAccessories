@@ -79,17 +79,15 @@
         <div class="row">
             <div class="col-md-4 mb-3">
                 @* The pattern below must stay in step with the regular expression
-                   on the model. When the server rule was widened to admit motorcycle
-                   plates this attribute was left behind, so the browser went on
-                   refusing "295 XBB" and the widened rule could not be reached
-                   through the form at all. *@
+                   on the model. The two have already drifted apart once, and the
+                   form silently refused what the server would have accepted. *@
                 <label asp-for="PlateNumber" class="form-label"></label>
                 <input asp-for="PlateNumber" class="form-control" placeholder="e.g. ABC 1234"
                        style="text-transform:uppercase" maxlength="8"
-                       pattern="([A-Za-z]{1,3}[- ]?\d{1,4}|\d{1,4}[- ]?[A-Za-z]{1,3})"
-                       title="Philippine plate - up to three letters and four numbers, in either order. For example ABC 1234, ABC 123 or 295 XBB." />
+                       pattern="[A-Za-z]{3}[- ]?\d{3,4}"
+                       title="Philippine car plate - three letters then three or four numbers, e.g. ABC 1234 or ABC 123." />
                 <span asp-validation-for="PlateNumber" class="text-danger"></span>
-                <div class="form-text">Up to three letters and four numbers, in either order (e.g. ABC 1234, the older ABC 123, or a motorcycle plate like 295 XBB). Leave blank if unknown.</div>
+                <div class="form-text">Car plate: three letters then three or four numbers (e.g. ABC 1234, or the older ABC 123). Leave blank if unknown.</div>
             </div>
             <div class="col-md-4 mb-3">
                 <label asp-for="Brand" class="form-label"></label>

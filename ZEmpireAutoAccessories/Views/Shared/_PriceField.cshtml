@@ -1,0 +1,31 @@
+@*
+    The default price on a product or a service form.
+
+    Administrators type in it. Staff see it, greyed and locked, with a line
+    saying why - a disabled field with no explanation reads as a fault in the
+    system, and someone then goes looking for a way around it.
+
+    Locking it here is a courtesy, not the control. A read-only input still
+    posts its value and a form can be replayed, so the controllers drop the
+    posted price for anyone who may not set it; see AdminOnlyPriceAttribute.
+*@
+@{
+    var canEdit = ViewData["CanEditPrice"] as bool? ?? false;
+    var value = ViewData["PriceValue"] as string;
+    var field = ViewData["PriceField"] as string ?? "DefaultPrice";
+}
+
+@if (canEdit)
+{
+    <input name="@field" value="@value" type="number" step="0.01" min="0" class="form-control" />
+}
+else
+{
+    <input value="@value" type="number" step="0.01" class="form-control" disabled
+           aria-describedby="priceLocked" />
+    <div class="form-text" id="priceLocked">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+        Prices are set by an administrator. You can still type a different
+        price on an individual line when you quote or invoice.
+    </div>
+}

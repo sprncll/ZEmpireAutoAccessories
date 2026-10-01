@@ -24,6 +24,8 @@ namespace ZEmpireAutoAccessories.Controllers
         // GET: Pricing?q=...
         public async Task<IActionResult> Index(string? q)
         {
+            ViewData["CanEditPrice"] = AppRoles.CanEditCatalogPrices(User);
+
             var pricing = await _pricingService.GetAllPricing(q);
             ViewData["Search"] = q;
             return View(pricing);
@@ -31,6 +33,8 @@ namespace ZEmpireAutoAccessories.Controllers
 
         public async Task<IActionResult> Details(int? id)
         {
+            ViewData["CanEditPrice"] = AppRoles.CanEditCatalogPrices(User);
+
             if (id == null)
                 return NotFound();
 
@@ -102,6 +106,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AdminOnlyPrice]
         public async Task<IActionResult> Create(
             [Bind("ProductID,TintVariantID,VehicleClassificationID,PanelID,Price")] Pricing pricing)
         {
@@ -160,6 +165,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // change to cat.PriceHistory).
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AdminOnlyPrice]
         public async Task<IActionResult> Edit(int id, decimal newPrice)
         {
             if (newPrice < 0)
@@ -214,6 +220,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
+        [AdminOnlyPrice]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var pricing = await _context.Pricings.FindAsync(id);

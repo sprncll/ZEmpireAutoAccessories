@@ -75,14 +75,20 @@
             </div>
             <div class="col-md-4 mb-3">
                 <label asp-for="AmountPaid" class="form-label"></label>
-                <input asp-for="AmountPaid" type="number" step="0.01" min="0" class="form-control" />
+                <input asp-for="AmountPaid" type="number" step="0.01" min="0" class="form-control" id="amountPaid" />
                 <span asp-validation-for="AmountPaid" class="text-danger"></span>
                 @* The invoice stores payment in full plus change, so a part
                    payment has nowhere to go - say so before the round trip. *@
-                <div class="form-text">
+                <div class="form-text" id="amountPaidHelpCash">
                     Must cover the total of @("₱" + Model.TotalAmount.ToString("N2")). Anything above it is recorded as change.
                     Taking payment and marking the invoice Paid is done from <strong>Take payment</strong> on the invoice itself;
                     this only corrects the figure on record.
+                </div>
+                <div class="form-text d-none" id="amountPaidHelpExact">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    Set to the total of <span id="amountPaidExactTotal"></span> automatically. Only cash is
+                    handed over and change given back &mdash; a transfer, GCash or a card is taken for
+                    the amount due and nothing else.
                 </div>
             </div>
         </div>
@@ -105,6 +111,70 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+
+    @* Only cash is handed over and change given back. For every other mode the
+       tendered amount IS the total, so fill it in and lock the field rather
+       than inviting a figure the server will overwrite anyway.
+
+       The server applies the same rule on save - this field posts whether or
+       not it is read-only, and a form can be replayed - so this is here to
+       make the rule visible, not to enforce it. Both read the same list of
+       mode ids, so they cannot disagree. *@
+    <script>
+        (function () {
+            var EXACT = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                             ViewData["ExactPaymentModes"] as List<int> ?? new List<int>()));
+
+            var mode = document.getElementById('PaymentModeID');
+            var paid = document.getElementById('amountPaid');
+            var helpCash = document.getElementById('amountPaidHelpCash');
+            var helpExact = document.getElementById('amountPaidHelpExact');
+            var exactTotal = document.getElementById('amountPaidExactTotal');
+            if (!mode || !paid) { return; }
+
+            // Lines are not editable on this form, but the discount is, so the
+            // total moves and a locked figure has to follow it.
+            var subTotal = @(Model.SubTotal.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+            function total() {
+                var discountField = document.getElementById('DiscountAmount');
+                var taxField = document.getElementById('TaxAmount');
+                var discount = discountField ? (parseFloat(discountField.value) || 0) : 0;
+                var tax = taxField ? (parseFloat(taxField.value) || 0) : 0;
+                return Math.max(0, subTotal - discount + tax);
+            }
+
+            function peso(v) {
+                return '\u20B1' + v.toLocaleString(undefined,
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function apply() {
+                var isExact = EXACT.indexOf(parseInt(mode.value, 10)) !== -1;
+
+                if (isExact) {
+                    var due = total();
+                    paid.value = due.toFixed(2);
+                    paid.readOnly = true;
+                    paid.classList.add('bg-light');
+                    if (exactTotal) { exactTotal.textContent = peso(due); }
+                } else {
+                    paid.readOnly = false;
+                    paid.classList.remove('bg-light');
+                }
+
+                if (helpCash) { helpCash.classList.toggle('d-none', isExact); }
+                if (helpExact) { helpExact.classList.toggle('d-none', !isExact); }
+            }
+
+            mode.addEventListener('change', apply);
+
+            var discount = document.getElementById('DiscountAmount');
+            if (discount) { discount.addEventListener('input', apply); }
+
+            apply();
+        })();
+    </script>
     <script>
         (function () {
             var $customer = $('#CustomerID');
