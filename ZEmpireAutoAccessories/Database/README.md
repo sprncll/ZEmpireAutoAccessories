@@ -166,6 +166,12 @@ going to be a regular thing, either:
 - keep the backup out of git and share it on a drive or chat, or
 - put it behind [Git LFS](https://git-lfs.com) before the next refresh.
 
+`SeedBfFilmPricing.sql` is the one seed script carrying figures nobody at the
+shop supplied: BF Stone copies the Black Series prices exactly, and BF Pro and
+BF Supreme are those plus 35% and 75%. They are a starting point so the product
+can be sold at all, not the shop's prices. Correct them in the Pricing screen,
+which journals every change to `cat.PriceHistory`.
+
 The seed scripts beside this file (`SeedPricelist2026.sql` and the rest) are
 the alternative: text, diffable, and they rebuild the catalogue from nothing.
 They do not carry transactions — sales, invoices, job orders — which is what
