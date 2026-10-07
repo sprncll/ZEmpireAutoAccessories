@@ -361,18 +361,27 @@ namespace ZEmpireAutoAccessories.Controllers
                         .FirstOrDefaultAsync();
                 }
 
-                // The shade belongs to the tint variant, so it is only kept
-                // where that variant was kept and the shade really is one of
-                // its own - a stale value left on the form after the variant
-                // changed would otherwise record a shade the film never came in.
-                int? keptShadeId = null;
-                if (pricingId != null && tintVariantId != null && shadeId != null)
+                // The variant and the shade say what was FITTED. They are not
+                // price drivers - the shade never was, and a variant only
+                // narrows which matrix row applies. Tying them to pricingId
+                // meant a film with no price row for this class of vehicle had
+                // both silently thrown away, so the job sheet could not say
+                // what went on the car. Keep them when they really belong to
+                // the product, and let the price fend for itself.
+                int? keptVariantId = null;
+                if (productId != null && tintVariantId != null
+                    && await _context.TintVariants.AnyAsync(v =>
+                           v.TintVariantID == tintVariantId && v.ProductID == productId))
                 {
-                    var belongsToVariant = await _context.Shades.AnyAsync(sh =>
-                        sh.ShadeID == shadeId && sh.TintVariantID == tintVariantId);
+                    keptVariantId = tintVariantId;
+                }
 
-                    if (belongsToVariant)
-                        keptShadeId = shadeId;
+                int? keptShadeId = null;
+                if (keptVariantId != null && shadeId != null
+                    && await _context.Shades.AnyAsync(sh =>
+                           sh.ShadeID == shadeId && sh.TintVariantID == keptVariantId))
+                {
+                    keptShadeId = shadeId;
                 }
 
                 _context.JobOrderDetails.Add(new JobOrderDetail
@@ -380,7 +389,7 @@ namespace ZEmpireAutoAccessories.Controllers
                     JobOrderID = jobOrderId,
                     ProductID = productId,
                     ServiceID = serviceId,
-                    TintVariantID = pricingId != null ? tintVariantId : null,
+                    TintVariantID = keptVariantId,
                     ShadeID = keptShadeId,
                     PanelID = pricingId != null ? panelId : null,
                     PricingID = pricingId,
@@ -558,6 +567,22 @@ namespace ZEmpireAutoAccessories.Controllers
             // System.Text.Json keeps anonymous-type property names exactly as
             // written, so "ShadeID" would reach the browser as "ShadeID" and a
             // script reading shadeId would find nothing on every row.
+            // Every tint variant a product has, so the picker can offer them whether
+            // or not the product is priced per panel for this vehicle. The variant
+            // and shade record what was fitted; the matrix below decides the panel
+            // and the price. Building the variant list from the matrix meant a film
+            // with no price row - BF Film, for one - offered no variant at all, and
+            // so no shade either.
+            ViewData["VariantsByProduct"] = await _context.TintVariants
+                .OrderBy(v => v.VariantName)
+                .Select(v => new
+                {
+                    productId = v.ProductID,
+                    tintVariantId = v.TintVariantID,
+                    tintVariantName = v.VariantName
+                })
+                .ToListAsync();
+
             ViewData["ShadesByVariant"] = await _context.Shades
                 .OrderBy(s => s.ShadeName)
                 .Select(s => new

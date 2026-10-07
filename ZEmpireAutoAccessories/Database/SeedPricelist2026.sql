@@ -646,6 +646,18 @@ IF NOT EXISTS (SELECT 1 FROM cat.Shade WHERE TintVariantID = (SELECT TintVariant
     INSERT INTO cat.Shade (TintVariantID, ShadeName) VALUES ((SELECT TintVariantID FROM cat.TintVariant WHERE ProductID = (SELECT TOP 1 ProductID FROM cat.Product WHERE ProductName IN (N'Profilm Nano Ceramic Tint') ORDER BY ProductID) AND VariantName = N'Profilm X Lite'), N'Superdark');
 GO
 
+-- ---- Railguards ----
+-- Every Topflip listing offers these as an add-on with a price, but they were
+-- only ever written into the covers' descriptions as text. That means a fitter
+-- can read that a railguard costs 1,800 and still has no way to put one on a
+-- job order or an invoice - so it goes on the document as a typed line, or not
+-- at all. They are products in their own right; here they are.
+IF NOT EXISTS (SELECT 1 FROM cat.Product WHERE ProductName IN (N'Railguard - Tailgate (1pc)'))
+    INSERT INTO cat.Product (CategoryID, ProductName, Description, DefaultPrice, IsActive) VALUES ((SELECT CategoryID FROM cat.ProductCategory WHERE CategoryName = N'Tonneau Cover'), N'Railguard - Tailgate (1pc)', N'Add-on for Topflip covers. Tailgate only.', 1800, 1);
+IF NOT EXISTS (SELECT 1 FROM cat.Product WHERE ProductName IN (N'Railguard - Sides & Tailgate (3pcs)'))
+    INSERT INTO cat.Product (CategoryID, ProductName, Description, DefaultPrice, IsActive) VALUES ((SELECT CategoryID FROM cat.ProductCategory WHERE CategoryName = N'Tonneau Cover'), N'Railguard - Sides & Tailgate (3pcs)', N'Add-on for Topflip covers. Both sides and the tailgate.', 4200, 1);
+GO
+
 -- ---- Review: anything that looks like the same product twice ----
 -- Near-duplicate names the guards above could not have caught, for you to
 -- merge or rename by hand. Nothing is changed by this query.
