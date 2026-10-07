@@ -98,6 +98,11 @@ builder.Services.AddScoped<IDocumentStockService, DocumentStockService>();
 // rather than when a screen first happens to inject it.
 builder.Services.AddSingleton<IMeasureStore, MeasureStore>();
 
+// What is left of each shade, worked out from the last stock count and the
+// document lines since it. Scoped: it reads the database every time, because
+// the answer moves with every job completed.
+builder.Services.AddScoped<IShadeStockService, ShadeStockService>();
+
 // What each completed document took off the shelf, so reversing it takes back
 // the same even after a cut size is corrected. A singleton for its cache, the
 // same as the cut sizes.
