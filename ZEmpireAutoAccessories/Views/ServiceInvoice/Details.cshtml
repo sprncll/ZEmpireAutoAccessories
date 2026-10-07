@@ -515,6 +515,12 @@
             var pricingMatrix = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["PricingMatrix"]));
             var $product = $('#addLineProduct');
             var $service = $('#addLineService');
+            // Every tint variant each product has, from cat.TintVariant rather
+            // than from the price matrix. A variant says what was fitted; it is
+            // not a price driver, so a film with no price row for this class of
+            // vehicle must still be able to record one.
+            var variantsByProduct = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["VariantsByProduct"]));
+
             // The shades each tint variant comes in. Keyed by variant because
             // a shade belongs to one - "Superdark" on BF Stone is a different
             // row from "Superdark" on Profilm X Lite.
@@ -593,25 +599,26 @@
 
             function refreshTintVariants() {
                 var productId = parseInt($product.val(), 10);
-                var rows = productId ? rowsForProduct(productId) : [];
-                var variants = {};
-                rows.forEach(function (r) {
-                    if (r.tintVariantId != null) { variants[r.tintVariantId] = r.tintVariantName; }
-                });
-                var variantIds = Object.keys(variants);
 
-                if (variantIds.length === 0) {
+                var variants = productId
+                    ? variantsByProduct.filter(function (v) {
+                          return v.productId === productId;
+                      })
+                    : [];
+
+                if (variants.length === 0) {
+                    // This product genuinely has no variants - most do not.
                     resetSelect($tintVariant, '-- N/A --');
                 } else {
                     $tintVariant.empty().append($('<option></option>').val('').text('-- Select Variant --')).prop('disabled', false);
-                    variantIds.forEach(function (id) {
-                        $tintVariant.append($('<option></option>').val(id).text(variants[id]));
+                    variants.forEach(function (v) {
+                        $tintVariant.append($('<option></option>').val(v.tintVariantId).text(v.tintVariantName));
                     });
 
                     // Only one tint variant on file for this product - skip
                     // making the user pick it themselves.
-                    if (variantIds.length === 1) {
-                        $tintVariant.val(variantIds[0]);
+                    if (variants.length === 1) {
+                        $tintVariant.val(variants[0].tintVariantId);
                     }
                 }
 
@@ -659,17 +666,19 @@
                 $service.val('').trigger('change');
                 autoFillDescription(nameOf($(this)));
 
+                // The variant and the shade come from the catalogue, so they
+                // are offered whether or not this product is priced per panel.
+                // Only the panel and the price depend on the matrix, and
+                // refreshTintVariants refreshes both of those after itself.
+                refreshTintVariants();
+
                 var rows = rowsForProduct(productId);
                 if (rows.length === 0) {
-                    // No matrix pricing for this product - fall back to its
-                    // own flat default price, and there's nothing to pick.
-                    resetSelect($tintVariant, '-- N/A --');
-                    resetSelect($shade, '-- N/A --');
-                    resetSelect($panel, '-- N/A --');
+                    // No matrix pricing for this product - fall back to its own
+                    // flat default price. There is still a variant and a shade
+                    // to record, which is the whole point of them.
                     var flatPrice = $(this).find(':selected').data('price');
                     if (flatPrice !== undefined) { $price.val(parseFloat(flatPrice).toFixed(2)); }
-                } else {
-                    refreshTintVariants();
                 }
             });
 
