@@ -12,14 +12,27 @@ namespace ZEmpireAutoAccessories.Controllers
     public class InventoryController : Controller
     {
         private readonly IInventoryService _inventoryService;
+        private readonly IShadeStockService _shadeStock;
         private readonly ApplicationDbContext _context;
 
         public InventoryController(
             IInventoryService inventoryService,
+            IShadeStockService shadeStock,
             ApplicationDbContext context)
         {
             _inventoryService = inventoryService;
+            _shadeStock = shadeStock;
             _context = context;
+        }
+
+        // GET: Inventory/Shades
+        //
+        // What is left of each shade. The stock ledger cannot say - it records
+        // a product and nothing finer - so this works it out from the last
+        // stock count and the document lines since. See ShadeStockService.
+        public async Task<IActionResult> Shades()
+        {
+            return View(await _shadeStock.Build());
         }
 
         public async Task<IActionResult> Index(string? status, string? q)
