@@ -7,11 +7,6 @@
 }
 
 <style>
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0 0 4px; color:#0b0b0c; }
-    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:0 0 18px; max-width:760px; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
 
     .cut-table { border-collapse:separate; border-spacing:0; width:100%; }
     .cut-table th, .cut-table td { padding:8px 10px; font-size:13.5px; border-bottom:1px solid #eef1f5; }
@@ -75,7 +70,7 @@
 
 @if (Model.Classifications.Count == 0 || Model.Panels.Count == 0)
 {
-    <div class="zx-card">
+    <div class="zx-card padded">
         <p class="mb-0 text-muted">
             @(Model.Classifications.Count == 0
                 ? "There are no vehicle classifications yet. Add one before setting cut sizes."
@@ -116,7 +111,7 @@ else
 
     <form method="post" asp-action="Index">
         <input type="hidden" name="unit" value="@Model.Unit" />
-        <div class="zx-card">
+        <div class="zx-card padded">
             <div class="table-responsive">
                 <table class="cut-table">
                     <thead>

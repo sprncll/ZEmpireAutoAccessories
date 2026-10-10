@@ -13,15 +13,8 @@
 }
 
 <style>
-    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
     dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
-    .zx-table thead { background:#0b0b0c; color:#fff; }
-    .zx-table thead th { border-bottom:none; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
     .badge-pending { background:rgba(148,163,184,.2); color:#64748b; font-weight:600; }
     .badge-inprogress { background:rgba(59,130,246,.15); color:#1d4ed8; font-weight:600; }
     .badge-completed { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
@@ -32,9 +25,6 @@
     .btn-zx, .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
     .btn-pdf { display:inline-flex; align-items:center; gap:7px; background:#0b0b0c; border-color:#0b0b0c; color:#fff; font-weight:600; }
     .btn-pdf:hover { background:#262626; border-color:#262626; color:#fff; }
-    .icon-btn { width:32px; height:32px; display:inline-grid; place-items:center; border-radius:8px; border:1px solid #e8ebf0;
-                background:#fff; color:#4b5563; transition:all .15s ease; }
-    .icon-btn.danger:hover { background:#dc2626; color:#fff; border-color:#dc2626; }
     #removeLineModal .modal-content { border-radius:14px; border:none; }
     #removeLineModal .modal-title { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:19px; }
 </style>
@@ -86,7 +76,7 @@
     <div class="alert alert-danger">@lineError</div>
 }
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-3">
         <dt class="col-sm-3">Customer</dt>
         <dd class="col-sm-9">@Model.Customer.FullName</dd>
@@ -188,7 +178,7 @@
     </div>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <h6 class="mb-3">Line Items</h6>
     <div class="table-responsive">
     <table class="table zx-table mb-3">

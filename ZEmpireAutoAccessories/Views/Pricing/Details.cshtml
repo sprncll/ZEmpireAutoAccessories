@@ -6,28 +6,6 @@
 }
 
 <style>
-    .zx-page-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 18px;
-    }
-
-        .zx-page-head h1 {
-            font-family: 'Oswald',system-ui,sans-serif;
-            font-weight: 700;
-            font-size: 22px;
-            margin: 0;
-            color: #0b0b0c;
-        }
-
-    .zx-card {
-        background: #fff;
-        border: 1px solid #e8ebf0;
-        border-radius: 14px;
-        padding: 22px;
-        margin-bottom: 18px;
-    }
 
     dt {
         color: #7b8290;
@@ -48,32 +26,6 @@
         align-items: center;
         gap: 7px;
     }
-
-    .btn-zx {
-        background: var(--zx-red);
-        border-color: var(--zx-red);
-        color: #fff;
-        font-weight: 600;
-    }
-
-        .btn-zx:hover {
-            background: var(--zx-red2);
-            border-color: var(--zx-red2);
-            color: #fff;
-        }
-
-    .zx-table thead {
-        background: #0b0b0c;
-        color: #fff;
-    }
-
-        .zx-table thead th {
-            border-bottom: none;
-            font-weight: 600;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: .3px;
-        }
 
     .up {
         color: #b91c1c;
@@ -103,7 +55,7 @@
     </div>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-0">
         <dt class="col-sm-3">Product</dt>
         <dd class="col-sm-9">@Model.Product.ProductName</dd>
@@ -122,7 +74,7 @@
     </dl>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <h6 class="mb-3 d-flex align-items-center gap-2">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></svg>
         Price Change History

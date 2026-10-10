@@ -5,12 +5,7 @@
 }
 
 <style>
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0 0 4px; color:#0b0b0c; }
-    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:0 0 18px; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:24px; max-width:480px; }
     .btn-zx, .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
 </style>
 
 <div class="zx-page-head">
@@ -18,7 +13,7 @@
 </div>
 <p class="zx-page-sub">Update @Model.ClassificationName.</p>
 
-<div class="zx-card">
+<div class="zx-card padded narrow">
     <form asp-action="Edit" method="post" class="zx-form">
         <input type="hidden" asp-for="VehicleClassificationID" />
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>

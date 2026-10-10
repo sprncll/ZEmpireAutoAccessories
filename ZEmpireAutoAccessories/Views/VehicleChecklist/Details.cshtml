@@ -6,9 +6,6 @@
 }
 
 <style>
-    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
     dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
 
@@ -31,7 +28,7 @@
     </a>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-0">
         <dt class="col-sm-3">Job Order</dt>
         <dd class="col-sm-9">@Model.JobOrder.JobOrderNumber</dd>
@@ -62,7 +59,7 @@
     </dl>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <h6 class="mb-3">Panel Conditions</h6>
     <div class="panel-grid">
         <div class="panel-row panel-header">

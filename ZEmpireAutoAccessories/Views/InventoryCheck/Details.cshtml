@@ -19,15 +19,6 @@
 }
 
 <style>
-    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
-    .zx-page-sub { color:#7b8290; font-size:13.5px; margin:-10px 0 18px; }
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
-    .zx-table thead { background:#0b0b0c; color:#fff; }
-    .zx-table thead th { border-bottom:none; font-weight:600; font-size:13px; text-transform:uppercase; letter-spacing:.3px; }
-    .zx-table td, .zx-table th { vertical-align:middle; }
     dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
     .num { font-variant-numeric:tabular-nums; }
@@ -62,7 +53,7 @@
     <div class="alert alert-danger py-2 px-3">@countError</div>
 }
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-0">
         <dt class="col-sm-3">Counted On</dt>
         <dd class="col-sm-9">@Model.CheckDate.ToString("dd MMM yyyy, h:mm tt")</dd>
@@ -95,7 +86,7 @@
     </dl>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <div class="table-responsive">
         <table class="table zx-table mb-0">
             <thead>
@@ -159,7 +150,7 @@
 
 @if (off.Count > 0)
 {
-    <div class="zx-card">
+    <div class="zx-card padded">
         <h6 class="mb-2">Correct the system to match this count</h6>
         <p class="zx-page-sub mb-3" style="margin-top:0;">
             This writes one stock movement per product out of step, so stock on hand ends up equal to
