@@ -2,53 +2,175 @@
 
 @{
     ViewData["Title"] = "Vehicle Checklists";
+
+    var search = ViewData["Search"] as string;
+    var successMessage = TempData["Success"] as string;
+
+    var findings = ViewData["Findings"] as Dictionary<int, ZEmpireAutoAccessories.Models.ChecklistFindings>
+        ?? new Dictionary<int, ZEmpireAutoAccessories.Models.ChecklistFindings>();
+
+    var all = Model.ToList();
+    var withIssues = all.Count(c => findings.TryGetValue(c.ChecklistID, out var f) && f.Issues > 0);
+    var notStarted = all.Count(c => findings.TryGetValue(c.ChecklistID, out var f) && !f.Started);
 }
 
+<style>
+    .search-actions { display:flex; gap:8px; margin-top:8px; }
+
+    .jo-cell { font-weight:600; color:#0b0b0c; }
+    .jo-sub { font-size:12px; color:#98a0ad; }
+
+    .plate { display:inline-block; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px;
+             font-weight:600; letter-spacing:.5px; background:#f1f3f7; color:#374151;
+             padding:3px 9px; border-radius:5px; }
+    .plate.none { color:#b0b7c3; font-weight:500; letter-spacing:0; }
+
+    /* How far through the walkaround this sheet got. The bar is the honest
+       part - a pill saying "Clear" on a sheet with one panel recorded would
+       read as a clean car. */
+    .progress-cell { min-width:118px; }
+    .progress-track { height:5px; border-radius:999px; background:#eef0f3; overflow:hidden; margin-top:5px; }
+    .progress-fill { height:100%; border-radius:999px; background:#0b0b0c; }
+    .progress-fill.partial { background:#d97706; }
+    .progress-text { font-size:12px; color:#7b8290; font-variant-numeric:tabular-nums; }
+
+    .issue-list { font-size:12px; color:#98a0ad; margin-top:3px; }
+</style>
 
 <div class="zx-page-head">
     <h1>Vehicle Checklists</h1>
-    <a class="btn btn-zx" asp-action="Create">+ New Checklist</a>
+    <a class="btn btn-zx" asp-action="Create">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+        New Checklist
+    </a>
 </div>
+<p class="zx-page-sub">
+    How each car arrived, panel by panel, agreed before work starts.
+    @if (all.Count > 0)
+    {
+        <text>@all.Count checklist@(all.Count == 1 ? "" : "s")</text>
+        @if (withIssues > 0)
+        {
+            <text> · @withIssues with damage on arrival</text>
+        }
+        @if (notStarted > 0)
+        {
+            <text> · @notStarted not walked yet</text>
+        }
+    }
+</p>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+<form asp-action="Index" method="get">
+    <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+        <input type="text" name="q" value="@search" class="form-control search-input" placeholder="Search job order, customer or plate" />
+    </div>
+    <div class="search-actions mb-3">
+        <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
+        @if (!string.IsNullOrEmpty(search))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm">Clear</a>
+        }
+    </div>
+</form>
 
 <div class="zx-card">
     <div class="table-responsive">
-    <table class="table zx-table mb-0">
-        <thead>
-            <tr>
-                <th>Job Order</th>
-                <th>Customer</th>
-                <th>Vehicle</th>
-                <th>Date</th>
-                <th>Recorded By</th>
-                <th class="text-end pe-3">Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model)
-            {
+        <table class="table zx-table mb-0">
+            <thead>
                 <tr>
-                    <td>@item.JobOrder.JobOrderNumber</td>
-                    <td>@item.JobOrder.Customer.FullName</td>
-                    <td>@(item.JobOrder.Vehicle.PlateNumber ?? "—")</td>
-                    <td>@item.ChecklistDate.ToString("MMM d, yyyy")</td>
-                    <td>@item.User.UserName</td>
-                    <td class="text-end pe-3">
-                        <a asp-action="Details" asp-route-id="@item.ChecklistID" class="icon-btn" title="View details">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
-                        </a>
-                        <a asp-action="Delete" asp-route-id="@item.ChecklistID" class="icon-btn danger" title="Delete">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                        </a>
-                    </td>
+                    <th>Job Order</th>
+                    <th>Vehicle</th>
+                    <th>Condition On Arrival</th>
+                    <th>Walkaround</th>
+                    <th>Recorded By</th>
+                    <th class="text-end pe-3">Actions</th>
                 </tr>
-            }
-            @if (!Model.Any())
-            {
-                <tr>
-                    <td colspan="6" class="text-center text-muted py-4">No checklists yet.</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var item in all)
+                {
+                    var f = findings.TryGetValue(item.ChecklistID, out var found)
+                        ? found
+                        : ZEmpireAutoAccessories.Models.ChecklistFindings.For(item.Details, 0);
+
+                    var plate = item.JobOrder.Vehicle.PlateNumber;
+
+                    <tr>
+                        <td>
+                            <div class="jo-cell">@item.JobOrder.JobOrderNumber</div>
+                            <div class="jo-sub">@item.JobOrder.Customer.FullName · @item.ChecklistDate.ToString("dd MMM yyyy")</div>
+                        </td>
+                        <td>
+                            @if (string.IsNullOrWhiteSpace(plate))
+                            {
+                                <span class="plate none">No plate</span>
+                            }
+                            else
+                            {
+                                <span class="plate">@plate</span>
+                            }
+                            <div class="jo-sub">@item.JobOrder.Vehicle.Brand @item.JobOrder.Vehicle.Model</div>
+                        </td>
+                        <td>
+                            <span class="status-pill @f.HeadlineTone">@f.Headline</span>
+                            @if (f.IssueConditions.Count > 0)
+                            {
+                                <div class="issue-list">@string.Join(", ", f.IssueConditions)</div>
+                            }
+                        </td>
+                        <td class="progress-cell">
+                            @if (f.Offered == 0)
+                            {
+                                <span class="progress-text">—</span>
+                            }
+                            else
+                            {
+                                var pct = (int)Math.Round(100m * Math.Min(f.Recorded, f.Offered) / f.Offered);
+                                <span class="progress-text">@f.Recorded of @f.Offered panels</span>
+                                <div class="progress-track">
+                                    <div class="progress-fill @(f.Complete ? "" : "partial")" style="width:@pct%"></div>
+                                </div>
+                            }
+                        </td>
+                        <td>@(item.User.FullName ?? item.User.UserName)</td>
+                        <td class="text-end pe-3">
+                            <a asp-action="Details" asp-route-id="@item.ChecklistID" class="icon-btn" title="Open checklist">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
+                            </a>
+                            <a asp-action="Pdf" asp-route-id="@item.ChecklistID" class="icon-btn" title="Download the customer's copy" target="_blank">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></svg>
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@item.ChecklistID" class="icon-btn danger" title="Delete">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                            </a>
+                        </td>
+                    </tr>
+                }
+                @if (all.Count == 0)
+                {
+                    <tr>
+                        <td colspan="6">
+                            <div class="zx-empty">
+                                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /><path d="m9 15 2 2 4-4" /></svg>
+                                @if (!string.IsNullOrEmpty(search))
+                                {
+                                    <div>No checklist matches &ldquo;@search&rdquo;.</div>
+                                }
+                                else
+                                {
+                                    <div>No checklists yet. Walk a car before work starts and the record is there if the customer asks later.</div>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
     </div>
 </div>

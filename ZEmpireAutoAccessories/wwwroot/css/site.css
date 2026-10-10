@@ -297,9 +297,14 @@ body {
    line. On a wide card that leaves a long empty strip to the right of
    every value, so pack two label/value pairs onto each row instead.
    Every dl.row in the app is a direct child of a .zx-card and has
-   matching dt/dd counts, so the four tracks always line up. */
+   matching dt/dd counts, so the four tracks always line up.
+
+   Not inside a narrow card. Two pairs need 110+180 twice plus the gaps,
+   which is 658px, and .narrow caps the card at 640 - so on the Delete
+   screens the last value was being cut off at the card edge. There they
+   stay one pair per line, which is what a 640px card has room for. */
 @media (min-width: 1200px) {
-  .zx-card > dl.row {
+  .zx-card:not(.narrow) > dl.row {
     display: grid;
     grid-template-columns: repeat(2, minmax(110px, max-content) minmax(180px, 1fr));
     column-gap: 26px;
@@ -307,8 +312,8 @@ body {
     margin-right: 0;
   }
 
-  .zx-card > dl.row > dt,
-  .zx-card > dl.row > dd {
+  .zx-card:not(.narrow) > dl.row > dt,
+  .zx-card:not(.narrow) > dl.row > dd {
     width: auto;
     max-width: none;
     flex: none;
@@ -320,7 +325,7 @@ body {
 /* Three pairs fit on a full-HD monitor, which turns a 13-field invoice
    from a 13-row list into a 5-row block. */
 @media (min-width: 1600px) {
-  .zx-card > dl.row {
+  .zx-card:not(.narrow) > dl.row {
     grid-template-columns: repeat(3, minmax(110px, max-content) minmax(180px, 1fr));
   }
 }
@@ -701,3 +706,40 @@ body {
 }
 
 .zx-empty svg { display: block; margin: 0 auto 10px; color: #cbd2dc; }
+
+/* ---- definition lists ---------------------------------------------- */
+/* Every details screen writes the same label/value pair, and each one had
+   its own copy of these four lines. Scoped to .zx-dl rather than bare
+   dt/dd so adopting it is a screen at a time, not all at once. */
+.zx-dl dt {
+  color: #7b8290;
+  font-weight: 600;
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+
+.zx-dl dd {
+  margin-bottom: 14px;
+  font-size: 15px;
+  color: #0b0b0c;
+}
+
+.zx-dl.tight dd { margin-bottom: 8px; }
+
+/* ---- the PDF button ------------------------------------------------ */
+/* Black, not red: a download is not the action the screen is for. The
+   views that already carry their own identical copy keep it - this is
+   here so new screens need not. */
+.btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #0b0b0c;
+  border-color: #0b0b0c;
+  color: #fff;
+  font-weight: 600;
+}
+
+.btn-pdf:hover,
+.btn-pdf:focus { background: #262626; border-color: #262626; color: #fff; }

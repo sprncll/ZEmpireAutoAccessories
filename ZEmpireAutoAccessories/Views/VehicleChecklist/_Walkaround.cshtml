@@ -1,0 +1,101 @@
+@using ZEmpireAutoAccessories.Models
+@model List<WalkaroundRow>
+
+@*
+    The walkaround sheet. One row per panel, every row posted together with
+    the form it sits in - so the whole sheet saves once, not once per panel.
+
+    Panels are in the order someone walks a car, and the condition is a
+    choice rather than a box, so "Good" and "ok lang" stop being two
+    different answers to the same question. Anything typed before the
+    choices existed is kept and offered back on its own row.
+*@
+
+<style>
+    /* The sheet travels with its markup rather than being copied into both
+       screens that render it, and rather than going into site.css, which is
+       for furniture every screen uses.
+
+       CSS grid rather than a table: that was forced back when each row was
+       its own form, and is kept because the rows have to reflow on a phone,
+       which is where a walkaround actually gets typed. */
+    .walkaround { display:flex; flex-direction:column; }
+
+    .wa-row { display:grid; grid-template-columns: 1.1fr 1.2fr 2fr; gap:12px; align-items:center;
+              padding:9px 0; border-bottom:1px solid #eef0f3; }
+    .wa-row:last-child { border-bottom:none; }
+
+    .wa-head { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.3px;
+               color:#7b8290; border-bottom:2px solid #e8ebf0; padding-bottom:7px; }
+
+    .wa-row.has-issue { background:rgba(220,38,38,.035); }
+
+    .wa-panel { display:flex; align-items:center; gap:9px; font-weight:600; color:#0b0b0c; font-size:14px; }
+
+    /* Colour where the eye already is, so a glance down the panel column
+       says which ones came in damaged without reading a word. */
+    .wa-dot { width:8px; height:8px; border-radius:50%; flex:none; background:#dde1e7; }
+    .wa-dot.is-good { background:#15803d; }
+    .wa-dot.is-bad { background:#dc2626; }
+    .wa-dot.is-info { background:#3b82f6; }
+    .wa-dot.is-muted { background:#9aa2ae; }
+
+    .wa-bundle { font-size:10.5px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+                 color:#92400e; background:rgba(217,119,6,.14); padding:2px 7px; border-radius:999px; cursor:help; }
+
+    @@media (max-width: 720px) {
+        .wa-head { display:none; }
+        .wa-row { grid-template-columns: 1fr; gap:6px; padding:12px 0; }
+    }
+</style>
+
+<div class="walkaround">
+    <div class="wa-row wa-head">
+        <div>Panel</div>
+        <div>Condition on arrival</div>
+        <div>Notes</div>
+    </div>
+
+    @foreach (var row in Model)
+    {
+        <div class="wa-row @(row.Tone == ConditionTone.Issue ? "has-issue" : "")">
+            <input type="hidden" name="panelId" value="@row.PanelID" />
+
+            <div class="wa-panel">
+                <span class="wa-dot @PanelConditions.DotClass(row.Tone)"></span>
+                <span>@row.PanelName</span>
+                @if (row.IsBundle)
+                {
+                    <span class="wa-bundle" title="A price for several panels at once, kept here because it already has a condition recorded.">bundle</span>
+                }
+            </div>
+
+            <div>
+                <select name="existingCondition" class="form-select form-select-sm" data-searchable="false">
+                    <option value="">&mdash; not inspected &mdash;</option>
+                    @foreach (var choice in PanelConditions.Choices)
+                    {
+                        <option value="@choice" selected="@(string.Equals(row.Condition, choice, StringComparison.OrdinalIgnoreCase))">@choice</option>
+                    }
+                    @if (row.HasFreeText)
+                    {
+                        <option value="@row.Condition" selected="selected">@row.Condition (as recorded)</option>
+                    }
+                </select>
+            </div>
+
+            <div>
+                <input type="text" name="notes" class="form-control form-control-sm"
+                       value="@row.Notes" maxlength="400" placeholder="Where on the panel, how bad" />
+            </div>
+        </div>
+    }
+
+    @if (Model.Count == 0)
+    {
+        <div class="zx-empty">
+            No panels are set up in the catalogue yet, so there is nothing to walk.
+            Add them under Panels first.
+        </div>
+    }
+</div>
