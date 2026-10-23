@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="660" viewBox="0 0 1200 660" font-family="Calibri, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="fwd" markerWidth="11" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L11,4 L0,8 z" fill="#70AD47"/>
+    </marker>
+    <marker id="back" markerWidth="11" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L11,4 L0,8 z" fill="#C0392B"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="660" fill="#ffffff"/>
+
+  <!-- forward cascade -->
+  <g stroke="#70AD47" stroke-width="2.4" fill="none">
+    <path d="M 395,86  L 425,86  L 425,135" marker-end="url(#fwd)"/>
+    <path d="M 513,170 L 543,170 L 543,219" marker-end="url(#fwd)"/>
+    <path d="M 631,254 L 661,254 L 661,303" marker-end="url(#fwd)"/>
+    <path d="M 749,338 L 779,338 L 779,387" marker-end="url(#fwd)"/>
+    <path d="M 867,422 L 897,422 L 897,471" marker-end="url(#fwd)"/>
+  </g>
+
+  <!-- phases -->
+  <g font-size="17.5" font-weight="bold" fill="#ffffff" text-anchor="middle">
+    <path d="M 95,55 L 367,55 L 395,86 L 367,117 L 95,117 Z"      fill="#6BA3D6"/>
+    <text x="231" y="92">Requirement Analysis</text>
+    <path d="M 213,139 L 485,139 L 513,170 L 485,201 L 213,201 Z"  fill="#4FC1C9"/>
+    <text x="349" y="176">System Design</text>
+    <path d="M 331,223 L 603,223 L 631,254 L 603,285 L 331,285 Z"  fill="#4FC58B"/>
+    <text x="467" y="260">Implementation</text>
+    <path d="M 449,307 L 721,307 L 749,338 L 721,369 L 449,369 Z"  fill="#6CC24A"/>
+    <text x="585" y="344">Testing</text>
+    <path d="M 567,391 L 839,391 L 867,422 L 839,453 L 567,453 Z"  fill="#2E75B6"/>
+    <text x="703" y="428">Deployment</text>
+    <path d="M 685,475 L 957,475 L 985,506 L 957,537 L 685,537 Z"  fill="#1F4E79"/>
+    <text x="821" y="512">Maintenance</text>
+  </g>
+
+  <!-- feedback between adjacent phases: this is what makes it iterative -->
+  <g stroke="#C0392B" stroke-width="2.2" stroke-dasharray="8 5" fill="none">
+    <path d="M 225,145 Q 150,131 108,113" marker-end="url(#back)"/>
+    <path d="M 343,229 Q 268,215 226,197" marker-end="url(#back)"/>
+    <path d="M 461,313 Q 386,299 344,281" marker-end="url(#back)"/>
+    <path d="M 579,397 Q 504,383 462,365" marker-end="url(#back)"/>
+    <path d="M 697,481 Q 622,467 580,449" marker-end="url(#back)"/>
+  </g>
+
+  <!-- the long one: testing back to design -->
+  <path d="M 449,330 L 60,330 L 60,180 L 209,180"
+        fill="none" stroke="#C0392B" stroke-width="2.2" stroke-dasharray="8 5" marker-end="url(#back)"/>
+  <text x="44" y="258" font-size="14.5" fill="#C0392B" font-weight="bold"
+        text-anchor="middle" transform="rotate(-90 44 258)">testing returns work to design</text>
+
+  <line x1="700" y1="92" x2="748" y2="92" stroke="#C0392B" stroke-width="2.4" stroke-dasharray="8 5" marker-end="url(#back)"/>
+  <text x="700" y="128" font-size="16" fill="#C0392B" font-weight="bold">feedback</text>
+  <text x="700" y="152" font-size="15" fill="#555555">a defect or a changed rule sends</text>
+  <text x="700" y="173" font-size="15" fill="#555555">work back to an earlier phase</text>
+
+  <rect x="95" y="570" width="890" height="56" rx="4" fill="#fbfbfc" stroke="#d4d4d4" stroke-width="1.2"/>
+  <text x="112" y="594" font-size="14.5" fill="#333333">The phases run in order, but a phase may be re-entered when testing or a review finds something wrong.</text>
+  <text x="112" y="615" font-size="14.5" fill="#333333">Seven such passes were made over the system between 20 August and 10 October 2026.</text>
+</svg>
