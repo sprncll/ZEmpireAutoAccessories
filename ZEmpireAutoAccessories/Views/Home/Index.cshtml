@@ -59,257 +59,302 @@
 }
 
 <style>
-    .dash-hero {
-        position: relative;
-        overflow: hidden;
-        color: #eef1f6;
-        border-radius: 18px;
-        padding: 28px 30px;
-        margin-bottom: 22px;
-        background: radial-gradient(560px 220px at 100% -30%, rgba(229,70,77,.35), transparent 60%), linear-gradient(135deg,#0b0b0c,#17171c);
-        box-shadow: 0 22px 44px -26px rgba(0,0,0,.7);
-        border: 1px solid #23232b;
+    /* ---------------------------------------------------------------
+       The old dashboard led with a dark banner saying how many modules
+       your role grants - a fact you cannot act on, in the best spot on
+       the page - and put the figures you can act on underneath in grey.
+       This leads with the day's state and the three things people open
+       fifty times a shift, and lets the module grid be what it is: a
+       directory you go to when you want something specific.
+       --------------------------------------------------------------- */
+
+    .dash-top {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 18px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
     }
 
-        .dash-hero h1 {
-            font-family: 'Oswald',system-ui,sans-serif;
-            font-weight: 700;
-            letter-spacing: .5px;
-            font-size: 27px;
-            margin: 0 0 8px;
-        }
+    .dash-greet h1 {
+        font-family: 'Oswald', system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 26px;
+        letter-spacing: .3px;
+        margin: 0 0 4px;
+        color: #0b0b0c;
+    }
 
-        .dash-hero p {
-            margin: 0;
-            color: #aab2c2;
-        }
+    .dash-greet p { margin: 0; color: #7b8290; font-size: 13.5px; }
 
     .role-chip {
         display: inline-block;
-        background: rgba(229,70,77,.18);
-        color: #ff9296;
-        border: 1px solid rgba(229,70,77,.45);
-        padding: 2px 11px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        margin-right: 6px;
-        text-transform: uppercase;
-        letter-spacing: .3px;
-    }
-
-    .cat-block {
-        margin-bottom: 26px;
-    }
-
-    .cat-head {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 0 0 12px;
-    }
-
-        .cat-head::before {
-            content: "";
-            width: 4px;
-            height: 18px;
-            border-radius: 3px;
-            background: linear-gradient(180deg,#e5464d,#c0202a);
-        }
-
-        .cat-head h2 {
-            font-family: 'Oswald',system-ui,sans-serif;
-            font-weight: 600;
-            letter-spacing: .4px;
-            text-transform: uppercase;
-            font-size: 15px;
-            color: #0b0b0c;
-            margin: 0;
-        }
-
-        .cat-head .cat-count {
-            font-size: 11.5px;
-            font-weight: 600;
-            color: #98a0ad;
-            background: #f1f3f7;
-            border: 1px solid #e8ebf0;
-            border-radius: 999px;
-            padding: 1px 9px;
-        }
-
-    .mod-card {
-        background: #fff;
-        border: 1px solid #e8ebf0;
-        border-radius: 14px;
-        padding: 18px;
-        height: 100%;
-        transition: transform .1s ease, box-shadow .15s ease;
-    }
-
-        .mod-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 30px -20px rgba(2,6,23,.3);
-            border-color: #f3c9cb;
-        }
-
-    .mod-ic {
-        width: 42px;
-        height: 42px;
-        border-radius: 11px;
-        display: grid;
-        place-items: center;
-        margin-bottom: 12px;
-        background: linear-gradient(135deg,#fde8e9,#fbd3d5);
-        color: #c0202a;
-    }
-
-    .mod-card h6 {
+        font-size: 11px;
         font-weight: 700;
-        margin: 0 0 2px;
-        color: #0b0b0c;
+        letter-spacing: .4px;
+        text-transform: uppercase;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: #f1f3f7;
+        color: #5d6472;
+        margin-right: 6px;
     }
 
-    .mod-card .soon {
-        font-size: 11.5px;
-        color: #98a0ad;
-    }
+    /* ---- the things people actually come here to start ---- */
+    .quick-row { display: flex; gap: 10px; flex-wrap: wrap; }
 
-    .mod-card .mod-blurb {
-        font-size: 11.5px;
-        color: #7b8290;
-        margin: 0;
-        line-height: 1.4;
-    }
-
-    a.mod-card, a.mod-card:hover {
-        color: inherit;
-        text-decoration: none;
-    }
-
-        a.mod-card:hover {
-            border-color: #e5464d;
-        }
-
-    .mod-card .open {
-        font-size: 12px;
-        font-weight: 600;
-        color: #c0202a;
+    .quick-btn {
         display: inline-flex;
         align-items: center;
-        gap: 5px;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 11px;
+        font-size: 13.5px;
+        font-weight: 600;
+        text-decoration: none;
+        border: 1px solid #e3e6ec;
+        background: #fff;
+        color: #0b0b0c;
+        transition: all .15s ease;
+        white-space: nowrap;
     }
 
-    .stat-row {
-        margin-bottom: 22px;
-    }
+    .quick-btn:hover { border-color: #0b0b0c; color: #0b0b0c; transform: translateY(-1px); }
+
+    .quick-btn.primary { background: var(--zx-red); border-color: var(--zx-red); color: #fff; }
+    .quick-btn.primary:hover { background: var(--zx-red2); border-color: var(--zx-red2); color: #fff; }
+
+    /* ---- figures, with a tone so a problem looks like one ---- */
+    .stat-row { margin-bottom: 26px; }
 
     .stat-card {
-        display: flex;
-        align-items: center;
-        gap: 12px;
+        display: block;
+        position: relative;
         background: #fff;
         border: 1px solid #e8ebf0;
         border-radius: 14px;
-        padding: 14px 16px;
-        height: 100%;
+        padding: 16px 18px;
         text-decoration: none;
-        color: inherit;
-        transition: transform .1s ease, box-shadow .15s ease, border-color .15s ease;
+        height: 100%;
+        transition: all .15s ease;
+        overflow: hidden;
     }
 
-        .stat-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 16px 30px -20px rgba(2,6,23,.3);
-            border-color: #f3c9cb;
-            color: inherit;
-        }
+    .stat-card:hover { border-color: #cfd5de; transform: translateY(-2px); box-shadow: 0 10px 22px -16px rgba(11,11,12,.45); }
 
-    .stat-ic {
-        flex: none;
-        width: 38px;
-        height: 38px;
-        border-radius: 10px;
-        display: grid;
-        place-items: center;
-        background: linear-gradient(135deg,#fde8e9,#fbd3d5);
-        color: #c0202a;
+    /* A coloured edge rather than a coloured card: it reads at a glance
+       across the row without three different backgrounds fighting. */
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        left: 0; top: 0; bottom: 0;
+        width: 3px;
+        background: #e3e6ec;
     }
+
+    .stat-card.tone-waiting::before { background: #d97706; }
+    .stat-card.tone-attention::before { background: var(--zx-red); }
+
+    .stat-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+
+    .stat-ic { color: #98a0ad; display: inline-flex; }
+    .stat-card.tone-waiting .stat-ic { color: #d97706; }
+    .stat-card.tone-attention .stat-ic { color: var(--zx-red); }
+
+    .stat-label { font-size: 12px; font-weight: 700; color: #7b8290; letter-spacing: .2px; }
 
     .stat-value {
-        font-family: 'Oswald',system-ui,sans-serif;
+        font-family: 'Oswald', system-ui, sans-serif;
         font-weight: 700;
-        font-size: 19px;
+        font-size: 28px;
+        line-height: 1.05;
         color: #0b0b0c;
-        line-height: 1.15;
+        font-variant-numeric: tabular-nums;
     }
 
-    .stat-label {
+    .stat-card.tone-attention .stat-value { color: var(--zx-red); }
+
+    .stat-note { font-size: 11.5px; color: #98a0ad; margin-top: 3px; }
+
+    /* ---- the module directory, tightened up ---- */
+    .mod-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+        padding-top: 4px;
+        border-top: 1px solid #eef0f4;
+    }
+
+    .mod-bar h2 {
+        font-family: 'Oswald', system-ui, sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        text-transform: uppercase;
+        letter-spacing: .6px;
+        color: #0b0b0c;
+        margin: 14px 0 0;
+    }
+
+    .mod-search-wrap { position: relative; width: 300px; max-width: 100%; margin-top: 12px; }
+
+    .mod-search-wrap svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #98a0ad; }
+
+    .mod-search-input { padding-left: 36px; border-radius: 10px; font-size: 13.5px; }
+
+    .mod-no-results { color: #7b8290; font-size: 13.5px; padding: 6px 2px 18px; }
+
+    .cat-block { margin-bottom: 22px; }
+
+    .cat-head { display: flex; align-items: baseline; gap: 9px; margin-bottom: 10px; }
+
+    .cat-head h3 {
         font-size: 12px;
-        color: #7b8290;
-        font-weight: 600;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+        color: #98a0ad;
+        margin: 0;
     }
 
-    .mod-search-wrap {
-        position: relative;
-        max-width: 380px;
-        margin-bottom: 22px;
+    .cat-rule { flex: 1; height: 1px; background: #eef0f4; }
+
+    /* Denser than before: sixteen modules at the old tile size was a wall
+       of identical cards you had to scroll past to reach anything. */
+    .mod-card {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        background: #fff;
+        border: 1px solid #e8ebf0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        text-decoration: none;
+        height: 100%;
+        transition: all .15s ease;
     }
 
-        .mod-search-wrap svg {
-            position: absolute;
-            left: 13px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #98a0ad;
-        }
+    a.mod-card:hover { border-color: #0b0b0c; transform: translateY(-2px); box-shadow: 0 10px 20px -16px rgba(11,11,12,.5); }
 
-    .mod-search-input {
-        padding-left: 38px;
-        border-radius: 10px;
+    .mod-ic {
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        display: grid;
+        place-items: center;
+        background: #f4f6f9;
+        color: #4b5563;
     }
 
-    .mod-no-results {
-        color: #7b8290;
-        font-size: 13.5px;
-        padding: 6px 2px 18px;
+    a.mod-card:hover .mod-ic { background: var(--zx-red); color: #fff; }
+
+    .mod-card h6 { margin: 0; font-size: 13.5px; font-weight: 600; color: #0b0b0c; line-height: 1.25; }
+
+    .mod-card.is-soon { opacity: .55; }
+    .mod-card .soon { display: block; font-size: 11px; color: #98a0ad; margin-top: 1px; }
+
+    @@media (max-width: 575.98px) {
+        .dash-top { align-items: flex-start; }
+        .quick-row { width: 100%; }
+        .quick-btn { flex: 1 1 auto; justify-content: center; }
+        .stat-value { font-size: 24px; }
     }
 </style>
 
-<section class="dash-hero">
-    <h1>Welcome back, @firstName </h1>
-    <p>
-        @foreach (var r in roles)
+@{
+    // The handful of things somebody opens this screen to start. Gated on the
+    // same module claims as the tiles, so nobody is offered a button that
+    // answers with a 403.
+    var canSell = moduleSet.Contains("Sales");
+    var canJob = moduleSet.Contains("Job Orders");
+    var canQuote = moduleSet.Contains("Quotation");
+    var canCash = moduleSet.Contains("Cashiering");
+}
+
+<div class="dash-top">
+    <div class="dash-greet">
+        <h1>Hello, @firstName</h1>
+        <p>
+            @foreach (var r in roles)
+            {
+                <span class="role-chip">@r</span>
+            }
+            @DateTime.Now.ToString("dddd, d MMMM yyyy")
+        </p>
+    </div>
+
+    <div class="quick-row">
+        @if (canSell)
         {
-            <span class="role-chip">@r</span>
+            <a class="quick-btn primary" asp-controller="Sales" asp-action="Create">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+                New Sale
+            </a>
         }
-        Your role grants access to <strong>@modules.Count</strong> module@(modules.Count == 1 ? "" : "s")
-        across <strong>@categories.Count</strong> categor@(categories.Count == 1 ? "y" : "ies").
-    </p>
-</section>
+        @if (canJob)
+        {
+            <a class="quick-btn" asp-controller="JobOrder" asp-action="Create">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /></svg>
+                New Job Order
+            </a>
+        }
+        @if (canQuote)
+        {
+            <a class="quick-btn" asp-controller="Quotation" asp-action="Create">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></svg>
+                New Quotation
+            </a>
+        }
+        @if (canCash)
+        {
+            <a class="quick-btn" asp-controller="Cashiering" asp-action="Index">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="12" x="2" y="6" rx="2" /><circle cx="12" cy="12" r="2" /></svg>
+                Cashiering
+            </a>
+        }
+    </div>
+</div>
 
 @if (stats.Count > 0)
 {
     <div class="row g-3 stat-row">
         @foreach (var stat in stats)
         {
+            var tone = stat.Tone switch
+            {
+                StatTone.Attention => "tone-attention",
+                StatTone.Waiting => "tone-waiting",
+                _ => null
+            };
             <div class="col-6 col-lg-3">
-                <a href="@stat.Link" class="stat-card">
-                    <div class="stat-ic">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(StatIcon(stat.Icon))</svg>
+                <a href="@stat.Link" class="stat-card @tone">
+                    <div class="stat-head">
+                        <span class="stat-ic">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(StatIcon(stat.Icon))</svg>
+                        </span>
+                        <span class="stat-label">@stat.Label</span>
                     </div>
-                    <div>
-                        <div class="stat-value">@stat.Value</div>
-                        <div class="stat-label">@stat.Label</div>
-                    </div>
+                    <div class="stat-value">@stat.Value</div>
+                    @if (!string.IsNullOrEmpty(stat.Note))
+                    {
+                        <div class="stat-note">@stat.Note</div>
+                    }
                 </a>
             </div>
         }
     </div>
 }
 
-<div class="mod-search-wrap">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-    <input type="text" id="modSearch" class="form-control mod-search-input" placeholder="Search modules..." autocomplete="off" />
+<div class="mod-bar">
+    <h2>Modules</h2>
+    <div class="mod-search-wrap">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+        <input type="text" id="modSearch" class="form-control mod-search-input" placeholder="Search modules  /" autocomplete="off" />
+    </div>
 </div>
 <div id="modNoResults" class="mod-no-results" hidden>No modules match your search.</div>
 
@@ -317,10 +362,10 @@
 {
     <div class="cat-block">
         <div class="cat-head">
-            <h2>@name</h2>
-            <span class="cat-count">@mods.Count</span>
+            <h3>@name</h3>
+            <span class="cat-rule"></span>
         </div>
-        <div class="row g-3">
+        <div class="row g-2">
             @foreach (var module in mods)
             {
                 // Live modules link straight to their screen; the rest are still placeholders.
@@ -347,31 +392,25 @@
 
                     _ => null
                 };
-                <div class="col-6 col-md-4 col-lg-3" data-mod-name="@module">
+                <div class="col-6 col-md-4 col-xl-3" data-mod-name="@module">
                     @if (route != null)
                     {
-                        <a href="@route" class="mod-card d-flex flex-column">
-                            <div class="mod-ic">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(ModuleIcon(module))</svg>
-                            </div>
+                        <a href="@route" class="mod-card">
+                            <span class="mod-ic">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(ModuleIcon(module))</svg>
+                            </span>
                             <h6>@module</h6>
-                            <div class="mt-auto pt-2">
-                                <span class="open">
-                                    Open
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
-                                </span>
-                            </div>
                         </a>
                     }
                     else
                     {
-                        <div class="mod-card d-flex flex-column">
-                            <div class="mod-ic">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(ModuleIcon(module))</svg>
-                            </div>
-                            <h6>@module</h6>
-                            <div class="mt-auto pt-2">
-                                <span class="soon">Screen coming soon</span>
+                        <div class="mod-card is-soon">
+                            <span class="mod-ic">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">@Html.Raw(ModuleIcon(module))</svg>
+                            </span>
+                            <div>
+                                <h6>@module</h6>
+                                <span class="soon">Coming soon</span>
                             </div>
                         </div>
                     }

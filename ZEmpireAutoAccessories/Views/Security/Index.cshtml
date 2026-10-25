@@ -6,11 +6,7 @@
 }
 
 <style>
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0 0 6px; color:#0b0b0c; }
     .zx-page-head p { color:#7b8290; font-size:13.5px; margin:0 0 18px; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:22px; }
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
     .matrix-table thead th { background:#0b0b0c; color:#fff; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; text-align:center; }
     .matrix-table thead th:first-child { text-align:left; }
     .matrix-table td { vertical-align:middle; text-align:center; }
@@ -29,7 +25,7 @@
     <div class="alert alert-info">@securityMessage</div>
 }
 
-<div class="zx-card">
+<div class="zx-card padded">
     <h6 class="mb-3">Module Access Matrix</h6>
 
     @if (Model.Modules.Count == 0)
@@ -82,7 +78,7 @@
     }
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <h6 class="mb-3">Modules</h6>
     <table class="table mb-3">
         <thead>

@@ -1,85 +1,97 @@
-﻿@model ZEmpireAutoAccessories.Models.VehicleChecklist
+﻿@using ZEmpireAutoAccessories.Models
+@model VehicleChecklist
 
 @{
     ViewData["Title"] = "New Vehicle Checklist";
+
+    var rows = ViewData["Rows"] as List<WalkaroundRow> ?? new List<WalkaroundRow>();
+    var available = ViewData["JobOrdersAvailable"] as int? ?? 0;
+    var total = ViewData["JobOrdersTotal"] as int? ?? 0;
+    var existingId = ViewData["ExistingChecklistID"] as int?;
 }
-
-<style>
-    .zx-page-head h1 {
-        font-family: 'Oswald',system-ui,sans-serif;
-        font-weight: 700;
-        font-size: 22px;
-        margin: 0 0 4px;
-        color: #0b0b0c;
-    }
-
-    .zx-page-sub {
-        color: #7b8290;
-        font-size: 13.5px;
-        margin: 0 0 18px;
-    }
-
-    .zx-card {
-        background: #fff;
-        border: 1px solid #e8ebf0;
-        border-radius: 14px;
-        padding: 24px;
-        max-width: 640px;
-    }
-
-    .btn-zx {
-        background: var(--zx-red);
-        border-color: var(--zx-red);
-        color: #fff;
-        font-weight: 600;
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-    }
-
-        .btn-zx:hover {
-            background: var(--zx-red2);
-            border-color: var(--zx-red2);
-            color: #fff;
-        }
-</style>
 
 <div class="zx-page-head">
     <h1>New Vehicle Checklist</h1>
+    <a class="btn btn-outline-secondary" asp-action="Index">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+        Back to list
+    </a>
 </div>
-<p class="zx-page-sub">Create the checklist header, then record each panel's condition on the next screen.</p>
+<p class="zx-page-sub">
+    Walk the car before anyone touches it and record what is already there.
+    The whole sheet saves in one go.
+</p>
 
-<div class="zx-card">
-    <form asp-action="Create" method="post" class="zx-form">
-        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+@if (total == 0)
+{
+    <div class="alert alert-warning">
+        There are no job orders yet. A checklist records the condition of a car that came in for a job,
+        so make the job order first.
+    </div>
+}
+else if (available == 0)
+{
+    <div class="alert alert-warning">
+        Every job order already has a checklist. Open the one you want from the
+        <a asp-action="Index">list</a> to change it.
+    </div>
+}
 
-        <div class="mb-3">
-            <label asp-for="JobOrderID" class="form-label">Job Order</label>
-            <select asp-for="JobOrderID" class="form-select" asp-items="ViewBag.JobOrderID">
-                <option value="">-- Select Job Order --</option>
-            </select>
-            <span asp-validation-for="JobOrderID" class="text-danger"></span>
+<form asp-action="Create" method="post">
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+    <div class="zx-card padded">
+        <div class="row g-3">
+            <div class="col-md-7">
+                <label asp-for="JobOrderID" class="form-label">Job Order</label>
+                <select asp-for="JobOrderID" class="form-select" asp-items="ViewBag.JobOrderID">
+                    <option value="">&mdash; Select job order &mdash;</option>
+                </select>
+                <span asp-validation-for="JobOrderID" class="text-danger"></span>
+                @if (existingId != null)
+                {
+                    <div class="mt-1">
+                        <a asp-action="Details" asp-route-id="@existingId">Open the checklist that job order already has</a>
+                    </div>
+                }
+            </div>
+
+            <div class="col-md-5">
+                <label asp-for="ClientSignature" class="form-label">
+                    Client confirmation <span class="text-muted fw-normal">(typed name, optional)</span>
+                </label>
+                <input asp-for="ClientSignature" class="form-control" maxlength="200"
+                       placeholder="Who agreed to this on arrival" />
+            </div>
+
+            <div class="col-12">
+                <label asp-for="AdditionalNotes" class="form-label">Additional notes</label>
+                <textarea asp-for="AdditionalNotes" class="form-control" rows="2" maxlength="400"
+                          placeholder="Anything that is not about one panel — missing trim, personal items left inside"></textarea>
+                <span asp-validation-for="AdditionalNotes" class="text-danger"></span>
+            </div>
         </div>
+    </div>
 
-        <div class="mb-3">
-            <label asp-for="AdditionalNotes" class="form-label"></label>
-            <textarea asp-for="AdditionalNotes" class="form-control" rows="3"></textarea>
-        </div>
+    <div class="zx-card padded">
+        <h6 class="mb-1">Panel conditions</h6>
+        <p class="text-muted" style="font-size:13px;">
+            Leave a panel on <em>not inspected</em> if nobody looked at it, and pick
+            <em>Not applicable</em> where the car does not have that panel &mdash; a sedan
+            with no sunroof is not the same as a sunroof nobody checked.
+        </p>
 
-        <div class="mb-3">
-            <label asp-for="ClientSignature" class="form-label">Client Confirmation <span class="text-muted fw-normal">(typed name, optional)</span></label>
-            <input asp-for="ClientSignature" class="form-control" />
-        </div>
+        <partial name="_Walkaround" model="rows" />
+    </div>
 
-        <div class="form-actions">
-            <button type="submit" class="btn btn-zx">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
-                Save &amp; Add Panel Conditions
-            </button>
-            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
-        </div>
-    </form>
-</div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-zx" @(total == 0 || available == 0 ? "disabled" : "")>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
+            Save checklist
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

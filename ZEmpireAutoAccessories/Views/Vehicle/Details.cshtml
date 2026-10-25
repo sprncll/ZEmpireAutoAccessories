@@ -16,18 +16,9 @@
     .veh-hero .meta span { display:inline-flex; align-items:center; gap:6px; }
     .veh-hero .meta svg { color:#98a0ad; }
     .veh-hero .actions { margin-left:auto; display:flex; gap:8px; flex:none; }
-
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; display:inline-flex; align-items:center; gap:7px; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
     .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
-
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; }
     dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
-
-    .back-link { display:inline-flex; align-items:center; gap:6px; color:#4b5563; font-weight:600; font-size:13.5px;
-                 text-decoration:none; margin-top:16px; }
-    .back-link:hover { color:#0b0b0c; }
 
     .owner-link { color:inherit; text-decoration:none; }
     .owner-link:hover { color:var(--zx-red); text-decoration:underline; }
@@ -68,7 +59,7 @@
     </div>
 </div>
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-0">
         <dt class="col-sm-3">@Html.DisplayNameFor(m => m.PlateNumber)</dt>
         <dd class="col-sm-9">@(Model.PlateNumber ?? "—")</dd>

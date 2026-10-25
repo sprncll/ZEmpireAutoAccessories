@@ -287,6 +287,132 @@ namespace ZEmpireAutoAccessories.Services
             }).GeneratePdf();
         }
 
+        /// <summary>
+        /// The condition of a car as it arrived, to be signed before work
+        /// starts and kept afterwards. This is the one document in the set
+        /// that is not about money: no prices, no totals, nothing but what
+        /// the walkaround found and who agreed to it.
+        /// </summary>
+        /// <param name="walkaround">
+        /// The panels in the order they were walked. Panels with nothing
+        /// recorded against them are printed as "Not inspected" rather than
+        /// left out: a gap the customer can see is a gap the shop cannot
+        /// later fill in.
+        /// </param>
+        public static byte[] BuildVehicleChecklistPdf(VehicleChecklist checklist, IEnumerable<Panel> walkaround)
+        {
+            var panels = walkaround.ToList();
+            var issues = checklist.Details.Count(d =>
+                PanelConditions.ToneOf(d) == ConditionTone.Issue);
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    ConfigurePage(page);
+                    page.Header().Element(c => ComposeDocHeader(c, "VEHICLE CHECKLIST",
+                        checklist.JobOrder.JobOrderNumber, checklist.ChecklistDate,
+                        issues == 0 ? null : $"{issues} ISSUE{(issues == 1 ? "" : "S")} ON ARRIVAL"));
+
+                    page.Content().Column(column =>
+                    {
+                        column.Spacing(10);
+
+                        column.Item().Row(row =>
+                        {
+                            row.RelativeItem().Element(c => BillTo(c, checklist.JobOrder.Customer.FullName,
+                                checklist.JobOrder.Customer.ContactNumber,
+                                checklist.JobOrder.Vehicle.PlateNumber,
+                                checklist.JobOrder.Vehicle.Brand,
+                                checklist.JobOrder.Vehicle.Model,
+                                heading: "Vehicle Owner"));
+
+                            row.RelativeItem().Column(col =>
+                            {
+                                col.Item().Text("Inspection").FontSize(9).SemiBold().FontColor(Colors.Grey.Darken1);
+                                if (checklist.JobOrder.JobType != null)
+                                    KeyValue(col, "Job Type", checklist.JobOrder.JobType.JobTypeName);
+                                KeyValue(col, "Inspected", checklist.ChecklistDate.ToString("MMM d, yyyy h:mm tt"));
+                                KeyValue(col, "Recorded By", checklist.User.FullName ?? checklist.User.UserName);
+                            });
+                        });
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(2.2f);
+                                columns.RelativeColumn(2.2f);
+                                columns.RelativeColumn(4f);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCell).Text("Panel");
+                                header.Cell().Element(HeaderCell).Text("Condition On Arrival");
+                                header.Cell().Element(HeaderCell).Text("Notes");
+                            });
+
+                            foreach (var panel in panels)
+                            {
+                                var detail = checklist.Details.FirstOrDefault(d => d.PanelID == panel.PanelID);
+                                var tone = PanelConditions.ToneOf(detail);
+
+                                table.Cell().Element(BodyCell).Text(panel.PanelName).SemiBold();
+
+                                var cell = table.Cell().Element(BodyCell);
+
+                                if (tone == ConditionTone.NotRecorded)
+                                    cell.Text("Not inspected").FontColor(Colors.Grey.Medium).Italic();
+                                else if (tone == ConditionTone.Issue)
+                                    cell.Text(detail!.ExistingCondition).SemiBold().FontColor(BrandRed);
+                                else
+                                    cell.Text(detail!.ExistingCondition ?? "—");
+
+                                table.Cell().Element(BodyCell).Text(detail?.Notes ?? "");
+                            }
+
+                            if (panels.Count == 0)
+                            {
+                                table.Cell().ColumnSpan(3).Element(BodyCell)
+                                    .Text("No panels are set up in the catalogue.")
+                                    .FontColor(Colors.Grey.Medium).Italic();
+                            }
+                        });
+
+                        if (!string.IsNullOrWhiteSpace(checklist.AdditionalNotes))
+                            ComposeRemarks(column, checklist.AdditionalNotes);
+
+                        column.Item().PaddingTop(6).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(8)
+                            .Text("Anything not written above was not found on arrival. "
+                                + "Signing below confirms the condition recorded here is the condition the vehicle came in.")
+                            .FontSize(8.5f).FontColor(Colors.Grey.Darken1);
+
+                        column.Item().PaddingTop(24).Row(row =>
+                        {
+                            row.RelativeItem().Column(col =>
+                            {
+                                col.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+                                col.Item().PaddingTop(3).Text(string.IsNullOrWhiteSpace(checklist.ClientSignature)
+                                    ? "Customer Signature"
+                                    : $"Customer Signature — confirmed by {checklist.ClientSignature}")
+                                    .FontSize(8).FontColor(Colors.Grey.Medium);
+                            });
+                            row.ConstantItem(30);
+                            row.RelativeItem().Column(col =>
+                            {
+                                col.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten1);
+                                col.Item().PaddingTop(3).Text("Inspected By").FontSize(8).FontColor(Colors.Grey.Medium);
+                            });
+                        });
+                    });
+
+                    page.Footer().Element(c => ComposeFooter(c,
+                        "This checklist records the vehicle's condition before work began."));
+                });
+            }).GeneratePdf();
+        }
+
         private static void ConfigurePage(PageDescriptor page)
         {
             page.Size(PageSizes.A4);
@@ -320,12 +446,16 @@ namespace ZEmpireAutoAccessories.Services
             });
         }
 
+        /// <param name="heading">
+        /// "Bill To" on everything with money on it. The checklist has none,
+        /// so it says whose car this is instead.
+        /// </param>
         private static void BillTo(IContainer container, string customerName, string? contactNumber,
-            string? plateNumber, string? brand, string? model)
+            string? plateNumber, string? brand, string? model, string heading = "Bill To")
         {
             container.Column(col =>
             {
-                col.Item().Text("Bill To").FontSize(9).SemiBold().FontColor(Colors.Grey.Darken1);
+                col.Item().Text(heading).FontSize(9).SemiBold().FontColor(Colors.Grey.Darken1);
                 col.Item().Text(customerName).FontSize(11).Bold();
                 if (!string.IsNullOrEmpty(contactNumber))
                     col.Item().Text(contactNumber).FontSize(9).FontColor(Colors.Grey.Darken1);

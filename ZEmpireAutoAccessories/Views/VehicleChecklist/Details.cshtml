@@ -1,98 +1,155 @@
-﻿@model ZEmpireAutoAccessories.Models.VehicleChecklist
+﻿@using ZEmpireAutoAccessories.Models
+@model VehicleChecklist
 
 @{
     ViewData["Title"] = "Vehicle Checklist";
-    var panels = ViewData["Panels"] as List<ZEmpireAutoAccessories.Models.Panel> ?? new();
+
+    var rows = ViewData["Rows"] as List<WalkaroundRow> ?? new List<WalkaroundRow>();
+    var f = ViewData["Findings"] as ChecklistFindings ?? ChecklistFindings.For(Model.Details, rows.Count);
+
+    var successMessage = TempData["Success"] as string;
+    var saveError = TempData["SaveError"] as string;
 }
 
 <style>
-    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
-    dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
-    dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
-
-    /* Panel grid uses CSS grid rows instead of a <table>, since each row
-       needs to be its own form - form can't be a direct child of
-       <table>/<tbody> per HTML rules. */
-    .panel-grid { display:flex; flex-direction:column; }
-    .panel-row { display:grid; grid-template-columns: 1fr 1.3fr 1.3fr auto; gap:12px; align-items:center;
-                 padding:10px 0; border-bottom:1px solid #eef0f3; }
-    .panel-row.panel-header { font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:#7b8290; border-bottom:2px solid #e8ebf0; }
-    .panel-row .form-control { font-size:13.5px; padding:.35rem .6rem; }
-    .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
+    .finding-strip { display:flex; flex-wrap:wrap; gap:26px; }
+    .finding { min-width:86px; }
+    .finding-num { font-size:22px; font-weight:700; color:#0b0b0c; line-height:1.1; font-variant-numeric:tabular-nums; }
+    .finding-num.bad { color:#b91c1c; }
+    .finding-num.good { color:#15803d; }
+    .finding-num.muted { color:#98a0ad; }
+    .finding-label { font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:.3px; color:#7b8290; margin-top:2px; }
+    .finding-detail { margin-top:16px; padding-top:13px; border-top:1px solid #eef1f5; font-size:13.5px; color:#5d6472; }
 </style>
 
 <div class="zx-page-head">
     <h1>Vehicle Checklist</h1>
-    <a class="btn btn-outline-secondary" asp-action="Index">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-        Back to list
-    </a>
+    <div>
+        <a class="btn btn-pdf" asp-action="Pdf" asp-route-id="@Model.ChecklistID" target="_blank">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></svg>
+            Customer's copy
+        </a>
+        <a class="btn btn-outline-secondary" asp-action="Index">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+            Back to list
+        </a>
+    </div>
+</div>
+<p class="zx-page-sub">
+    @Model.JobOrder.JobOrderNumber &middot; @Model.JobOrder.Customer.FullName &middot;
+    @(string.IsNullOrWhiteSpace(Model.JobOrder.Vehicle.PlateNumber) ? "No plate" : Model.JobOrder.Vehicle.PlateNumber)
+</p>
+
+@if (!string.IsNullOrEmpty(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+@if (!string.IsNullOrEmpty(saveError))
+{
+    <div class="alert alert-danger">@saveError</div>
+}
+
+<div class="zx-card padded">
+    <div class="finding-strip">
+        <div class="finding">
+            <div class="finding-num @(f.Issues > 0 ? "bad" : f.Started ? "good" : "muted")">@f.Issues</div>
+            <div class="finding-label">Issues found</div>
+        </div>
+        <div class="finding">
+            <div class="finding-num @(f.Complete ? "good" : "muted")">@f.Recorded<span style="font-size:14px;color:#98a0ad;font-weight:600;"> / @f.Offered</span></div>
+            <div class="finding-label">Panels walked</div>
+        </div>
+        <div class="finding">
+            <div class="finding-num muted">@f.NotApplicable</div>
+            <div class="finding-label">Not on this car</div>
+        </div>
+    </div>
+
+    @if (f.IssueConditions.Count > 0)
+    {
+        <div class="finding-detail">Found on arrival: @string.Join(", ", f.IssueConditions)</div>
+    }
+    else if (f.Started && f.Issues == 0)
+    {
+        <div class="finding-detail">Nothing was found wrong with this car on arrival.</div>
+    }
+    else if (!f.Started)
+    {
+        <div class="finding-detail">Nobody has walked this car yet. Record the panels below.</div>
+    }
 </div>
 
-<div class="zx-card">
-    <dl class="row mb-0">
+<div class="zx-card padded">
+    <dl class="row mb-0 zx-dl tight">
         <dt class="col-sm-3">Job Order</dt>
-        <dd class="col-sm-9">@Model.JobOrder.JobOrderNumber</dd>
+        <dd class="col-sm-9">
+            <a asp-controller="JobOrder" asp-action="Details" asp-route-id="@Model.JobOrderID">@Model.JobOrder.JobOrderNumber</a>
+            @if (Model.JobOrder.JobType != null)
+            {
+                <span class="text-muted"> &middot; @Model.JobOrder.JobType.JobTypeName</span>
+            }
+        </dd>
 
         <dt class="col-sm-3">Customer</dt>
         <dd class="col-sm-9">@Model.JobOrder.Customer.FullName</dd>
 
         <dt class="col-sm-3">Vehicle</dt>
-        <dd class="col-sm-9">@(Model.JobOrder.Vehicle.PlateNumber ?? "—") — @Model.JobOrder.Vehicle.Brand @Model.JobOrder.Vehicle.Model</dd>
+        <dd class="col-sm-9">
+            @(string.IsNullOrWhiteSpace(Model.JobOrder.Vehicle.PlateNumber) ? "No plate" : Model.JobOrder.Vehicle.PlateNumber)
+            &mdash; @Model.JobOrder.Vehicle.Brand @Model.JobOrder.Vehicle.Model
+        </dd>
 
-        <dt class="col-sm-3">Date</dt>
-        <dd class="col-sm-9">@Model.ChecklistDate.ToString("MMM d, yyyy")</dd>
+        <dt class="col-sm-3">Inspected</dt>
+        <dd class="col-sm-9">@Model.ChecklistDate.ToString("dd MMM yyyy, h:mm tt")</dd>
 
         <dt class="col-sm-3">Recorded By</dt>
-        <dd class="col-sm-9">@Model.User.UserName</dd>
-
-        @if (!string.IsNullOrEmpty(Model.AdditionalNotes))
-        {
-            <dt class="col-sm-3">Additional Notes</dt>
-            <dd class="col-sm-9">@Model.AdditionalNotes</dd>
-        }
-
-        @if (!string.IsNullOrEmpty(Model.ClientSignature))
-        {
-            <dt class="col-sm-3">Client Confirmation</dt>
-            <dd class="col-sm-9">@Model.ClientSignature</dd>
-        }
+        <dd class="col-sm-9">@(Model.User.FullName ?? Model.User.UserName)</dd>
     </dl>
 </div>
 
-<div class="zx-card">
-    <h6 class="mb-3">Panel Conditions</h6>
-    <div class="panel-grid">
-        <div class="panel-row panel-header">
-            <div>Panel</div>
-            <div>Existing Condition</div>
-            <div>Notes</div>
-            <div></div>
-        </div>
-        @foreach (var panel in panels)
-        {
-            var detail = Model.Details.FirstOrDefault(d => d.PanelID == panel.PanelID);
-            <form asp-action="SaveDetail" method="post" class="panel-row">
-                <input type="hidden" name="checklistId" value="@Model.ChecklistID" />
-                <input type="hidden" name="panelId" value="@panel.PanelID" />
-                <div>@panel.PanelName</div>
-                <div>
-                    <input type="text" name="existingCondition" class="form-control"
-                           value="@(detail?.ExistingCondition)" placeholder="e.g. Good, Scratched, Dented" />
-                </div>
-                <div>
-                    <input type="text" name="notes" class="form-control" value="@(detail?.Notes)" />
-                </div>
-                <div>
-                    <button type="submit" class="btn btn-sm btn-outline-secondary">Save</button>
-                </div>
-            </form>
-        }
-        @if (!panels.Any())
-        {
-            <p class="text-muted mb-0 mt-2">No panels defined in the catalog yet.</p>
-        }
+@*
+    One form over the whole sheet and the two header fields that cannot be
+    known at intake. The client signs after seeing the walkaround, so the
+    confirmation has to be editable here - before this it could only be set
+    on the create form and never again.
+*@
+<form asp-action="SaveDetails" method="post">
+    <input type="hidden" name="id" value="@Model.ChecklistID" />
+
+    <div class="zx-card padded">
+        <h6 class="mb-1">Panel conditions</h6>
+        <p class="text-muted" style="font-size:13px;">
+            Clearing a panel back to <em>not inspected</em> removes what was recorded against it.
+        </p>
+
+        <partial name="_Walkaround" model="rows" />
     </div>
-</div>
+
+    <div class="zx-card padded">
+        <div class="row g-3">
+            <div class="col-md-7">
+                <label for="additionalNotes" class="form-label">Additional notes</label>
+                <textarea id="additionalNotes" name="additionalNotes" class="form-control" rows="2" maxlength="400"
+                          placeholder="Anything that is not about one panel">@Model.AdditionalNotes</textarea>
+            </div>
+            <div class="col-md-5">
+                <label for="clientSignature" class="form-label">
+                    Client confirmation <span class="text-muted fw-normal">(typed name)</span>
+                </label>
+                <input id="clientSignature" name="clientSignature" class="form-control" maxlength="200"
+                       value="@Model.ClientSignature" placeholder="Who agreed to this" />
+                <div class="text-muted" style="font-size:12px;margin-top:4px;">
+                    Printed on the customer's copy beside the signature line.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-zx">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
+            Save checklist
+        </button>
+        <a asp-action="Delete" asp-route-id="@Model.ChecklistID" class="btn btn-outline-danger">Delete</a>
+    </div>
+</form>

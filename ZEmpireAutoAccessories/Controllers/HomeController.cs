@@ -59,25 +59,43 @@ namespace ZEmpireAutoAccessories.Controllers
                     : "Today's Service Invoices";
 
                 stats.Add(new DashboardStat(label, "₱" + amount.ToString("N2"),
-                    Url.Action("Index", "Cashiering")!, "sales"));
+                    Url.Action("Index", "Cashiering")!, "sales", StatTone.Plain,
+                    DateTime.Today.ToString("MMM d")));
             }
 
             if (modules.Contains("Job Orders"))
             {
                 var pending = await _context.JobOrders.CountAsync(j => j.Status == "Pending");
-                stats.Add(new DashboardStat("Pending Job Orders", pending.ToString(), Url.Action("Index", "JobOrder", new { status = "Pending" })!, "jobs"));
+
+                // Nothing waiting is good news and should look like it, so the
+                // tone follows the number rather than the kind of number.
+                stats.Add(new DashboardStat(
+                    "Pending Job Orders", pending.ToString(),
+                    Url.Action("Index", "JobOrder", new { status = "Pending" })!, "jobs",
+                    pending > 0 ? StatTone.Waiting : StatTone.Plain,
+                    pending == 0 ? "Nothing waiting" : "Not started yet"));
             }
 
             if (modules.Contains("Inventory"))
             {
                 var lowStock = (await _reportService.GetLowStock()).Count;
-                stats.Add(new DashboardStat("Low Stock Items", lowStock.ToString(), Url.Action("Index", "Inventory", new { status = "LowStock" })!, "stock"));
+
+                // The one figure on this screen that means somebody has to act
+                // before a job is turned away. It gets the loud treatment.
+                stats.Add(new DashboardStat(
+                    "Low Stock Items", lowStock.ToString(),
+                    Url.Action("Index", "Inventory", new { status = "LowStock" })!, "stock",
+                    lowStock > 0 ? StatTone.Attention : StatTone.Plain,
+                    lowStock == 0 ? "All stocked" : "Running out"));
             }
 
             if (modules.Contains("Warranty"))
             {
                 var active = await _context.Warranties.CountAsync(w => w.WarrantyStatus == "Active");
-                stats.Add(new DashboardStat("Active Warranties", active.ToString(), Url.Action("Index", "Warranty", new { status = "Active" })!, "warranty"));
+                stats.Add(new DashboardStat(
+                    "Active Warranties", active.ToString(),
+                    Url.Action("Index", "Warranty", new { status = "Active" })!, "warranty",
+                    StatTone.Plain, "Currently covered"));
             }
 
             ViewData["Stats"] = stats;

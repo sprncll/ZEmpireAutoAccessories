@@ -19,12 +19,7 @@
     .wty-hero h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:21px; margin:0 0 4px; color:#0b0b0c; }
     .wty-hero .meta { color:#7b8290; font-size:13.5px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
     .wty-hero .actions { margin-left:auto; display:flex; gap:8px; flex:none; }
-
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; display:inline-flex; align-items:center; gap:7px; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
     .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
-
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; margin-bottom:18px; }
     .proof-sub { color:#7b8290; font-size:13px; margin:0 0 14px; }
     .proof-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .proof-file { max-width:360px; }
@@ -34,9 +29,6 @@
     .badge-expired { background:rgba(148,163,184,.2); color:#64748b; font-weight:600; }
     .badge-voided { background:rgba(239,68,68,.15); color:#b91c1c; font-weight:600; }
     .badge-claimed { background:rgba(245,158,11,.15); color:#b45309; font-weight:600; }
-
-    .back-link { display:inline-flex; align-items:center; gap:6px; color:#4b5563; font-weight:600; font-size:13.5px; text-decoration:none; }
-    .back-link:hover { color:#0b0b0c; }
 </style>
 
 <div class="wty-hero">
@@ -94,7 +86,7 @@
     <div class="alert alert-danger">@claimError</div>
 }
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-0">
         <dt class="col-sm-3">Warranty Start</dt>
         <dd class="col-sm-9">@(Model.WarrantyStartDate?.ToString("MMM d, yyyy") ?? "—")</dd>
@@ -127,7 +119,7 @@
    claimed; before that there is nothing to evidence. *@
 @if (claimed)
 {
-    <div class="zx-card">
+    <div class="zx-card padded">
         <h6 class="mb-1">Proof of claim</h6>
         <p class="proof-sub">
             What shows the claim was honoured. JPG, PNG, WEBP or PDF, up to 5 MB.

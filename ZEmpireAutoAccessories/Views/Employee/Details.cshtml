@@ -7,14 +7,9 @@
 }
 
 <style>
-    .zx-page-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-    .zx-page-head h1 { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:22px; margin:0; color:#0b0b0c; }
-    .zx-card { background:#fff; border:1px solid #e8ebf0; border-radius:14px; padding:22px; }
     dt { color:#7b8290; font-weight:600; font-size:12.5px; text-transform:uppercase; letter-spacing:.3px; }
     dd { margin-bottom:14px; font-size:15px; color:#0b0b0c; }
     .btn-zx, .btn-outline-secondary { display:inline-flex; align-items:center; gap:7px; }
-    .btn-zx { background:var(--zx-red); border-color:var(--zx-red); color:#fff; font-weight:600; }
-    .btn-zx:hover { background:var(--zx-red2); border-color:var(--zx-red2); color:#fff; }
     .badge-active { background:rgba(34,197,94,.15); color:#15803d; font-weight:600; }
     .badge-inactive { background:rgba(148,163,184,.2); color:#64748b; font-weight:600; }
     #resetPasswordModal .modal-content { border-radius:14px; border:none; }
@@ -57,7 +52,7 @@
     <div class="alert alert-danger">@resetPasswordError</div>
 }
 
-<div class="zx-card">
+<div class="zx-card padded">
     <dl class="row mb-0">
         <dt class="col-sm-3">@Html.DisplayNameFor(m => m.EmployeeNumber)</dt>
         <dd class="col-sm-9">@Model.EmployeeNumber</dd>

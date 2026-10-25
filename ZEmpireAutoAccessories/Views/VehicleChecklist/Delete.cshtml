@@ -1,85 +1,62 @@
-﻿@model ZEmpireAutoAccessories.Models.VehicleChecklist
+﻿@using ZEmpireAutoAccessories.Models
+@model VehicleChecklist
 
 @{
     ViewData["Title"] = "Delete Vehicle Checklist";
+
+    var recorded = Model.Details.Count(d => PanelConditions.ToneOf(d) != ConditionTone.NotRecorded);
+    var issues = Model.Details.Count(d => PanelConditions.ToneOf(d) == ConditionTone.Issue);
 }
-
-<style>
-    .zx-page-head h1 {
-        font-family: 'Oswald',system-ui,sans-serif;
-        font-weight: 700;
-        font-size: 22px;
-        margin: 0 0 18px;
-        color: #0b0b0c;
-    }
-
-    .zx-card {
-        background: #fff;
-        border: 1px solid #f3c9cb;
-        border-radius: 14px;
-        padding: 24px;
-        max-width: 560px;
-    }
-
-    dt {
-        color: #7b8290;
-        font-weight: 600;
-        font-size: 12.5px;
-        text-transform: uppercase;
-        letter-spacing: .3px;
-    }
-
-    dd {
-        margin-bottom: 14px;
-        font-size: 15px;
-        color: #0b0b0c;
-    }
-
-    .alert-danger {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
-        .alert-danger svg {
-            flex: none;
-            margin-top: 2px;
-        }
-
-    .btn-danger, .btn-outline-secondary {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-    }
-</style>
 
 <div class="zx-page-head">
     <h1>Delete Vehicle Checklist</h1>
 </div>
 
-<div class="alert alert-danger">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
-    <div>Are you sure you want to delete this checklist? All recorded panel conditions will be deleted too. This cannot be undone.</div>
+<div class="alert alert-danger d-flex align-items-start gap-2">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>
+    <div>
+        @if (recorded == 0)
+        {
+            <text>Nothing was recorded on this checklist, so nothing is lost by deleting it.</text>
+        }
+        else
+        {
+            <text>
+                This deletes the record of how the car arrived &mdash;
+                <strong>@recorded panel@(recorded == 1 ? "" : "s")</strong>@(issues > 0 ? $", {issues} of them damaged" : "").
+                If the customer later disputes a mark on the car, this is the evidence that it was already there.
+                This cannot be undone.
+            </text>
+        }
+    </div>
 </div>
 
-<div class="zx-card">
-    <dl class="row mb-0">
+<div class="zx-card padded narrow danger">
+    <dl class="row mb-0 zx-dl">
         <dt class="col-sm-4">Job Order</dt>
         <dd class="col-sm-8">@Model.JobOrder.JobOrderNumber</dd>
 
-        <dt class="col-sm-4">Vehicle</dt>
-        <dd class="col-sm-8">@(Model.JobOrder.Vehicle.PlateNumber ?? "—")</dd>
+        <dt class="col-sm-4">Customer</dt>
+        <dd class="col-sm-8">@Model.JobOrder.Customer.FullName</dd>
 
-        <dt class="col-sm-4">Date</dt>
-        <dd class="col-sm-8">@Model.ChecklistDate.ToString("MMM d, yyyy")</dd>
+        <dt class="col-sm-4">Vehicle</dt>
+        <dd class="col-sm-8">
+            @(string.IsNullOrWhiteSpace(Model.JobOrder.Vehicle.PlateNumber) ? "No plate" : Model.JobOrder.Vehicle.PlateNumber)
+            &mdash; @Model.JobOrder.Vehicle.Brand @Model.JobOrder.Vehicle.Model
+        </dd>
+
+        <dt class="col-sm-4">Inspected</dt>
+        <dd class="col-sm-8">@Model.ChecklistDate.ToString("dd MMM yyyy, h:mm tt")</dd>
     </dl>
 </div>
 
-<form asp-action="Delete" method="post" class="mt-3">
-    <input type="hidden" asp-for="ChecklistID" />
-    <button type="submit" class="btn btn-danger">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-        Delete
-    </button>
-    <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
-</form>
+<div class="form-actions">
+    <form asp-action="Delete" method="post" class="d-inline">
+        <input type="hidden" asp-for="ChecklistID" />
+        <button type="submit" class="btn btn-danger d-inline-flex align-items-center gap-2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+            Delete checklist
+        </button>
+    </form>
+    <a asp-action="Details" asp-route-id="@Model.ChecklistID" class="btn btn-outline-secondary">Cancel</a>
+</div>
