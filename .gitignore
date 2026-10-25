@@ -373,3 +373,11 @@ FodyWeavers.xsd
 
 # What each completed document took off the shelf. Local shop state.
 **/App_Data/stock-postings.json
+
+# Cryptographic keys that sign the auth cookie. Committing them would let
+# anyone with the repository forge a signed-in session.
+**/App_Data/keys/
+
+# The deployed connection string and seed password. Set on the server, never
+# committed - appsettings.json keeps the local development values.
+**/appsettings.Production.json

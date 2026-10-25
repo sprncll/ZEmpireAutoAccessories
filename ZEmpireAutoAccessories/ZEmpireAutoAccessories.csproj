@@ -4,7 +4,26 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Workstation GC, not Server GC. Server GC is the ASP.NET Core default
+         and reserves a heap per core, which assumes a machine with gigabytes
+         to spare. Shared hosting gives this app 256 MB, and generating a PDF
+         receipt - native rendering, fonts, images - is the spike that would
+         meet the ceiling. A shop with a few people on it at once never needs
+         what Server GC buys, so the trade is free here. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
   </PropertyGroup>
+
+  <!-- App_Data holds what the SHOP owns: the cut sizes it measured, the
+       per-product measures, the stock postings, the proof-of-payment files.
+       Publishing it would copy the repository's copy over the shop's own on
+       every redeploy, so a bug fix would silently revert their cut sizes.
+       It is uploaded once, by hand, and left alone thereafter. -->
+  <ItemGroup>
+    <Content Remove="App_Data\**" />
+    <None Include="App_Data\**" CopyToOutputDirectory="Never" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Database\" />

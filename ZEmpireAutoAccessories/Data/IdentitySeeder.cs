@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using ZEmpireAutoAccessories.Models;
 
 namespace ZEmpireAutoAccessories.Data
@@ -45,7 +45,25 @@ namespace ZEmpireAutoAccessories.Data
                 }
             }
 
-            var defaultPassword = config["Seed:DefaultPassword"] ?? "ChangeMe123!";
+            // A published site must not hand out a password that is printed in
+            // the source. In Development the built-in one keeps a fresh clone
+            // usable with nothing to configure; in Production an unset
+            // Seed:DefaultPassword means the seeding is SKIPPED and said
+            // loudly, rather than every passwordless account quietly becoming
+            // reachable with a password anyone can read on GitHub.
+            var environment = sp.GetRequiredService<IHostEnvironment>();
+            var configured = config["Seed:DefaultPassword"];
+
+            if (string.IsNullOrWhiteSpace(configured) && environment.IsProduction())
+            {
+                logger.LogError(
+                    "Seed:DefaultPassword is not set, so no passwords were seeded. " +
+                    "Any account without one cannot sign in. Set it in the hosting " +
+                    "control panel (or appsettings.Production.json) and restart.");
+                return;
+            }
+
+            var defaultPassword = configured ?? "ChangeMe123!";
             var seeded = new List<string>();
 
             foreach (var user in userManager.Users.ToList())
@@ -66,10 +84,18 @@ namespace ZEmpireAutoAccessories.Data
 
             if (seeded.Count > 0)
             {
-                logger.LogWarning(
-                    "Seeded default password \"{Password}\" for {Count} user(s) that had none: {Users}. " +
-                    "CHANGE THESE PASSWORDS before real use.",
-                    defaultPassword, seeded.Count, string.Join(", ", seeded));
+                // The development default is already public, so naming it helps.
+                // A configured one is a real secret and is never logged.
+                if (configured == null)
+                    logger.LogWarning(
+                        "Seeded default password \"{Password}\" for {Count} user(s) that had none: {Users}. " +
+                        "CHANGE THESE PASSWORDS before real use.",
+                        defaultPassword, seeded.Count, string.Join(", ", seeded));
+                else
+                    logger.LogWarning(
+                        "Seeded the configured default password for {Count} user(s) that had none: {Users}. " +
+                        "CHANGE THESE PASSWORDS before real use.",
+                        seeded.Count, string.Join(", ", seeded));
             }
         }
     }

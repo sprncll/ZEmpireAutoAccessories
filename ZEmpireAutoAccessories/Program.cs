@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
 using System.Globalization;
@@ -44,6 +45,25 @@ builder.Services
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddClaimsPrincipalFactory<AppUserClaimsPrincipalFactory>()
     .AddDefaultTokenProviders();
+
+// Where the keys that sign the auth cookie are kept.
+//
+// Without this they are held in memory and regenerated whenever the process
+// restarts, which on shared hosting is every time the application pool
+// recycles - after about twenty minutes idle, and on every redeploy. Every
+// signed-in user is silently logged out, mid-job, with no explanation. It
+// does not show up in testing because a developer's machine rarely sits idle
+// long enough.
+//
+// App_Data is outside the web root and is not published, so the keys survive
+// a redeploy and cannot be fetched over HTTP. They are secrets: .gitignore
+// keeps them out of the repository.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys")))
+    // Pinned, so the keys stay readable if the site ever moves to a path or
+    // host with a different name.
+    .SetApplicationName("ZEmpireAutoAccessories");
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
