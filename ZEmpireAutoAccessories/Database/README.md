@@ -48,10 +48,21 @@ at the wrong panels and the wrong products in another.
 ```sql
 BACKUP DATABASE ZEmpire
 TO DISK = N'C:\path\to\ZEmpireAutoAccessories\ZEmpireAutoAccessories\Database\ZEmpireUpdated.bak'
-WITH FORMAT, INIT, COMPRESSION, NAME = N'ZEmpire full backup';
+WITH FORMAT, INIT, NAME = N'ZEmpire full backup';
 ```
 
 `FORMAT, INIT` are the query equivalent of that Media Options checkbox.
+
+There is deliberately no `COMPRESSION`. It is an Enterprise and Standard
+feature, and on SQL Server **Express** - which this shop runs - it does not
+quietly do nothing, it fails the whole backup:
+
+> `Msg 1844: BACKUP DATABASE WITH COMPRESSION is not supported on Express
+> Edition (64-bit).`
+
+The same applies to the **Compress backup** option on the Media Options page
+of the GUI. Leave it on the default. The backup is simply larger; nothing else
+about it differs.
 
 `C:\path\to\...` above is a **placeholder** - replace it with your own clone's
 path before running anything. To find it: in File Explorer open your
@@ -79,7 +90,7 @@ Two errors come up, and they mean different things:
 >
 > BACKUP DATABASE ZEmpire
 > TO DISK = N'ZEmpireUpdated.bak'
-> WITH FORMAT, INIT, COMPRESSION, NAME = N'ZEmpire full backup';
+> WITH FORMAT, INIT, NAME = N'ZEmpire full backup';
 > ```
 >
 > A bare filename with no folder lands in exactly that folder. The committed
