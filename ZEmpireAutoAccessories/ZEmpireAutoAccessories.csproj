@@ -13,6 +13,18 @@
          what Server GC buys, so the trade is free here. -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+
+    <!-- Out-of-process, not the in-process default. On shared hosting the
+         sites share one IIS application pool, and the in-process model loads
+         the app INTO that pool's worker - which the host does not allow,
+         because one tenant's app would then sit inside a process shared with
+         everyone else's. SmarterASP.NET says so in its own publishing guide.
+
+         The cost is a local reverse-proxy hop per request, which is not
+         measurable next to the trip from the Philippines to the datacentre.
+         On a host that permits in-process - a VPS, Azure, IIS you own -
+         delete this line to get it back. -->
+    <AspNetCoreHostingModel>OutOfProcess</AspNetCoreHostingModel>
   </PropertyGroup>
 
   <!-- App_Data holds what the SHOP owns: the cut sizes it measured, the

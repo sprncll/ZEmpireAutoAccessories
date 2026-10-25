@@ -1,68 +1,88 @@
-# Publishing to MonsterASP.NET
+# Publishing to SmarterASP.NET
 
-The free plan fits this system: ASP.NET Core on .NET 8, one SQL Server
-database with 1 GB, 5 GB of web storage, and a persistent filesystem. The
-published application is about **42 MB** and the database is about **16 MB**,
-so neither limit is close.
+The free trial fits this system: ASP.NET Core, SQL Server, unlimited space, a
+persistent filesystem, and a US datacentre — roughly 170–220 ms from the
+Philippines, against 250–350 ms from an EU host. The published application is
+about **42 MB**.
 
-The plan gives the site **256 MB of RAM**, which is the one real constraint —
-see *Memory* below.
+**The trial runs 60 days and then stops.** If the defence is further out than
+that, plan to pay or to have a local copy ready to run.
 
 ---
 
 ## Before the first deploy
 
-Five changes were made for this, and they are already in the branch. They are
-listed because each one fixes something that is invisible until it bites.
+Six changes were made for shared hosting and are already in the branch. Each
+one fixes something that is invisible locally and only shows up once it is
+live.
 
-| What | Why it matters on shared hosting |
+| What | Why it matters |
 | --- | --- |
-| Workstation GC (`.csproj`) | Server GC is the ASP.NET Core default and reserves a heap per core, assuming gigabytes. With 256 MB, generating a PDF receipt would meet the ceiling. |
-| Data-protection keys persisted to `App_Data/keys` (`Program.cs`) | Without it the keys live in memory and are regenerated on every app-pool recycle — roughly twenty minutes idle, and every redeploy. **Everyone signed in is logged out, mid-job.** |
+| `OutOfProcess` hosting model (`.csproj`) | Sites share one IIS application pool here, so the in-process default — which loads the app into that shared worker — is not permitted. SmarterASP.NET says so in its own publishing guide. Without this the site does not start. |
+| Workstation GC (`.csproj`) | Server GC is the ASP.NET Core default and reserves a heap per core, assuming a machine with gigabytes to itself. On shared hosting that is wasted at best. |
+| Data-protection keys persisted to `App_Data/keys` (`Program.cs`) | Without it the keys live in memory and are regenerated on every app-pool recycle — about twenty minutes idle, and every redeploy. **Everyone signed in is logged out, mid-job.** |
 | `App_Data` excluded from publish (`.csproj`) | Otherwise a redeploy copies the repository's `cut-sizes.json` over the shop's own and silently reverts their measurements. |
-| No built-in password in Production (`IdentitySeeder.cs`) | `ChangeMe123!` is printed in public source. In Production an unset `Seed:DefaultPassword` now skips seeding and says so, instead of making every passwordless account reachable. |
-| `appsettings.Production.json` and `App_Data/keys/` git-ignored | The deployed connection string is a credential and the keys sign the auth cookie. Neither belongs in the repository. |
+| No built-in password in Production (`IdentitySeeder.cs`) | `ChangeMe123!` is printed in public source. In Production an unset `Seed:DefaultPassword` now skips seeding and says so. |
+| `appsettings.Production.json` and `App_Data/keys/` git-ignored | One is a database credential, the other signs the auth cookie. |
 
 ---
 
-## 1. Create the site and the database
+## 1. Create the database
 
-In the MonsterASP control panel, create the website and a **MSSQL** database.
-Note the database's **server, name, user and password** — the panel shows a
-ready-made connection string.
+Control panel → **Database Manager** → create an **empty MSSQL database**.
+Note its **server, name, user and password**.
 
-## 2. Put the database on the server
+## 2. Restore the backup into it
 
-The local database travels as a backup, as described in
-`ZEmpireAutoAccessories/Database/README.md`. MonsterASP's panel accepts a
-`.bak` restore; where it does not, generate a script in SSMS
-(*Tasks → Generate Scripts*, with **schema and data**) and run it against the
-hosted database from SSMS using the credentials from step 1.
+SmarterASP.NET restores a `.bak` directly, which is the easy path — no
+scripting, no editing, nothing to strip out.
 
-Then run, against the hosted database:
+1. Take the backup (see `ZEmpireAutoAccessories/Database/README.md`). On SQL
+   Server Express there is **no `COMPRESSION`** — it fails the whole backup.
+2. Upload the `.bak` over FTP into the account's **`db`** folder.
+3. In Database Manager, click **Restore Database** beside the empty database
+   and pick the uploaded file.
+
+Then run against the restored database, in this order:
 
 - `SeedTintShadesAndSunroof.sql`
 - `SeedSunroofPricing.sql` — after editing its four multipliers
 - `SeedBfFilmPricing.sql`, if BF Film prices are wanted
 
+A newer SQL Server restores a backup taken on an older one, so a local Express
+backup is fine. The reverse is not true: never restore a newer backup onto an
+older instance.
+
 ## 3. Publish the application
 
-In Visual Studio: right-click the project → **Publish** → **Web Deploy** or
-**FTP**, using the credentials from the control panel. Settings:
+Visual Studio → right-click the project → **Publish** → import the
+**Web Deploy** profile from the control panel (the endpoint is port 8172).
 
 - **Configuration:** Release
 - **Target framework:** net8.0
 - **Deployment mode:** Framework-dependent
 - **Target runtime:** win-x64
 
-If the host turns out not to carry .NET 8, switch **Deployment mode** to
+If the host does not carry .NET 8, switch **Deployment mode** to
 **Self-contained**. The runtime then ships inside the upload — about 90 MB
-instead of 42, still well inside 5 GB.
+instead of 42.
+
+> ### Leave "Remove additional files at destination" UNCHECKED
+>
+> Under **Show all settings**. If it is ticked, every publish deletes
+> everything on the server that is not in the upload:
+>
+> - `App_Data/cut-sizes.json` — the sunroof cut sizes go
+> - `App_Data/payment-proofs/` — customers' receipts go
+> - `App_Data/keys/` — **everyone is logged out**, and stays logged out
+>
+> This is the one checkbox that undoes the `App_Data` protection above.
 
 ## 4. Settings that live only on the server
 
-Create `appsettings.Production.json` **next to the deployed `.dll`**, not in
-the repository (it is git-ignored, so Visual Studio will not upload it):
+Create `appsettings.Production.json` in the project folder, next to
+`appsettings.json`. It is git-ignored, so it never reaches GitHub, and
+`appsettings.*.json` is published automatically.
 
 ```json
 {
@@ -75,17 +95,13 @@ the repository (it is git-ignored, so Visual Studio will not upload it):
 }
 ```
 
-`Trusted_Connection=True` is Windows authentication and will not work here;
-the hosted database needs SQL authentication.
+`Trusted_Connection=True` is Windows authentication and will not work here.
 
 ## 5. Upload `App_Data` once
 
-Over FTP, copy `ZEmpireAutoAccessories/App_Data/` to the deployed folder. It
-is deliberately **not** part of the publish, so this is a one-time step. After
-this, the shop's own cut sizes live on the server and a redeploy leaves them
-alone.
-
-The application creates `App_Data/keys/` itself on first start.
+Over FTP, copy `ZEmpireAutoAccessories/App_Data/` into the deployed folder. It
+is deliberately not part of the publish, so this is a one-time step. The
+application creates `App_Data/keys/` itself on first start.
 
 ---
 
@@ -97,8 +113,7 @@ The application creates `App_Data/keys/` itself on first start.
    to be restricted on shared hosting. If this works, the riskiest part is
    settled. If it fails, the site still runs — only the PDFs are affected.
 3. **Leave the site alone for half an hour, then reload it.** You should still
-   be signed in. If you are not, the data-protection keys are not persisting;
-   check that `App_Data/keys` exists and is writable.
+   be signed in. If not, check that `App_Data/keys` exists and is writable.
 4. **Complete a job order with a film line**, to confirm stock comes off the
    roll and the cut sizes came across.
 
@@ -106,37 +121,20 @@ The application creates `App_Data/keys/` itself on first start.
 
 ## Updating after it is live
 
-Redeploying is just **Publish** again — as often as you like.
+Redeploying is **Publish** again, as often as you like. Two rules:
 
-Two rules:
-
-- **Never upload `App_Data` again.** It holds what the shop has entered since:
-  cut sizes, product measures, stock postings, proof-of-payment files, and the
-  keys that keep everyone signed in.
+- **Never upload `App_Data` again**, and keep that checkbox unticked. It holds
+  what the shop has entered since.
 - **A code change is a publish; a catalogue change is a script.** New products,
-  prices, panels or shades are SQL run against the hosted database, not a
-  redeploy. The shades and the Sunroof panel seed themselves at startup, so
-  those two arrive with the publish on their own.
+  prices or panels are SQL run against the hosted database. The shades and the
+  Sunroof panel seed themselves at startup, so those arrive with the publish.
 
-If the database schema ever changes, it changes on the server first — the
-application is database-first and has no migrations.
+The application is database-first and has no migrations, so a schema change
+happens on the server first.
 
----
+## If the trial ends
 
-## Memory
-
-The site has 256 MB. The application is configured for it (workstation GC),
-and a shop with a few people on it at once is nowhere near the limit. The
-spike to watch is PDF generation, which loads fonts and renders images.
-
-If the site starts restarting under load, the first thing to try is generating
-fewer PDFs at once; the second is the paid tier, which raises the ceiling.
-
-## The free plan's own terms
-
-- Free subdomain only.
-- Hosted in the EU, so expect roughly 250–350 ms from the Philippines. Usable,
-  but every click is perceptibly slower than a local machine.
-- A free site that goes unused for **six months is archived**. Open it
-  occasionally.
-- No uptime guarantee. For a defence, have a local copy ready to run as well.
+The site and database are deleted when the 60 days are up unless the account
+is paid. Before then: take a `.bak` from the hosted database and download
+`App_Data` over FTP. Those two, plus the branch, rebuild the whole system
+anywhere.
