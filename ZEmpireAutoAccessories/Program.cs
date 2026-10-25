@@ -156,6 +156,13 @@ try
         app.Services,
         app.Services.GetRequiredService<ILogger<Program>>());
 
+    // The panels a tint job can be priced against. Insert-only, and it runs
+    // before the shades so a fresh database has the whole catalogue shape
+    // settled in one pass.
+    await PanelSeeder.SeedAsync(
+        app.Services,
+        app.Services.GetRequiredService<ILogger<Program>>());
+
     // The shades each tint variant comes in. Also insert-only.
     await ShadeSeeder.SeedAsync(
         app.Services,

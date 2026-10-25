@@ -166,7 +166,29 @@ going to be a regular thing, either:
 - keep the backup out of git and share it on a drive or chat, or
 - put it behind [Git LFS](https://git-lfs.com) before the next refresh.
 
-`SeedBfFilmPricing.sql` is the one seed script carrying figures nobody at the
+## Figures nobody at the shop supplied
+
+Two seed scripts carry values that were derived rather than given. Both are
+named here, in their own script headers, and in the development report, so no
+reader of any of the three can mistake them for the shop's own.
+
+`SeedTintShadesAndSunroof.sql` applies **Light / Medium / Superdark** to the
+eight tint variants that carried no shades: Stone, Ceramic Pro, Ceramic
+Supreme, Play, Freeze, Max, Pro (99%) and Lite (97%). That ladder is what every
+variant whose shades the shop DID supply already uses. Unlike the markups
+below, it carries no money: `cat.Pricing` has no `ShadeID`, so a shade records
+what was fitted and cannot move a price. A wrong name misdescribes a job sheet;
+it cannot mis-charge a customer. Correct any in the Pricing screen.
+
+The same script adds the **Sunroof** panel but deliberately does not price it,
+because nobody supplied a sunroof price. Set one under Pricing for each vehicle
+class that has a sunroof — the panel will not appear on the quotation, job
+order and invoice forms until it has one, because those forms build their panel
+list from `cat.Pricing`. The cut size is already known: `SuggestedCutSizes`
+carries sunroof glass for Subcompact/Crossover, SUV, MPV and Big SUV, so film
+comes off the roll correctly the moment the panel is priced.
+
+`SeedBfFilmPricing.sql` is the seed script carrying figures nobody at the
 shop supplied: BF Stone copies the Black Series prices exactly, and BF Pro and
 BF Supreme are those plus 35% and 75%. They are a starting point so the product
 can be sold at all, not the shop's prices. Correct them in the Pricing screen,

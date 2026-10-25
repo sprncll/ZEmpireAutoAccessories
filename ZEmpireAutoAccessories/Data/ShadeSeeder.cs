@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Models;
 
 namespace ZEmpireAutoAccessories.Data
@@ -33,7 +33,34 @@ namespace ZEmpireAutoAccessories.Data
 
             // Profilm
             ("Profilm X Pro/Advance", new[] { "Clear Blue", "Light", "Medium", "Dark", "Superdark" }),
-            ("Profilm X Lite",        new[] { "Light", "Medium", "Superdark" })
+            ("Profilm X Lite",        new[] { "Light", "Medium", "Superdark" }),
+
+            // Black Series and Clear Series. These eight variants carried no
+            // shades at all, so picking one on a job order showed "no shades
+            // on file" and the line could not say what went on the car.
+            //
+            // Light / Medium / Superdark is this shop's own ladder - it is
+            // what BF Stone, BF Pro, BF Supreme and Profilm X Lite already
+            // use, every variant whose shades the shop supplied. It is a
+            // default to confirm, not a figure from the shop, and it is named
+            // as one in the repository README.
+            //
+            // It carries no money with it. cat.Pricing is keyed on product,
+            // variant, classification and panel and has no ShadeID, and the
+            // shop confirmed the shades of one variant cost the same - so a
+            // shade records what was fitted and cannot move a price. That is
+            // why these are seeded rather than left for the shop to type,
+            // while the BF Film markups were not.
+            ("Stone",           new[] { "Light", "Medium", "Superdark" }),
+            ("Ceramic Pro",     new[] { "Light", "Medium", "Superdark" }),
+            ("Ceramic Supreme", new[] { "Light", "Medium", "Superdark" }),
+            ("Play",            new[] { "Light", "Medium", "Superdark" }),
+            ("Freeze",          new[] { "Light", "Medium", "Superdark" }),
+            ("Max",             new[] { "Light", "Medium", "Superdark" }),
+
+            // Profilm's other two tiers, same gap, same reasoning.
+            ("Pro (99%)",       new[] { "Light", "Medium", "Superdark" }),
+            ("Lite (97%)",      new[] { "Light", "Medium", "Superdark" })
         };
 
         public static async Task SeedAsync(IServiceProvider services, ILogger logger)
