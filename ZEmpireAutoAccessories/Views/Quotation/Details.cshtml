@@ -382,7 +382,23 @@
                 }) : [];
 
                 if (rows.length === 0) {
-                    resetSelect($panel, '-- N/A --');
+                    // Three different situations used to read as "-- N/A --":
+                    // nothing picked yet, a product that is simply not priced
+                    // by panel, and a film whose panel prices nobody has
+                    // entered for this vehicle's class. Only the last two are
+                    // gaps somebody can go and fill, and a blank box that does
+                    // not say which is why people ask whether it is broken.
+                    var pricedByPanel = productId
+                        ? rowsForProduct(productId).length > 0
+                        : false;
+                    var hasVariants = !$tintVariant.prop('disabled')
+                        && $tintVariant.find('option').length > 1;
+
+                    resetSelect($panel,
+                        !productId ? '-- N/A --'
+                            : pricedByPanel ? '-- No panel prices for this variant --'
+                            : hasVariants ? '-- No panel prices for this vehicle class --'
+                            : '-- N/A --');
                     return;
                 }
 
