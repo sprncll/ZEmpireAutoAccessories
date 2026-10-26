@@ -14,15 +14,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
 
         public EmployeeController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
-            RoleManager<ApplicationRole> roleManager)
+            RoleManager<ApplicationRole> roleManager,
+            SignInManager<ApplicationUser> signInManager)
         {
             _context = context;
             _userManager = userManager;
             _roleManager = roleManager;
+            _signInManager = signInManager;
         }
 
         // GET: Employee
@@ -213,6 +216,13 @@ namespace ZEmpireAutoAccessories.Controllers
                 return View(employee);
             }
 
+            // The header, the avatar initials and every "signed in as" line read
+            // AspNetUsers.FullName, which until now was only ever written when
+            // the account was created. Renaming an employee left the old name on
+            // screen for good, so recompute it here from the same two fields
+            // Create uses.
+            user.FullName = $"{employee.FirstName} {employee.LastName}".Trim();
+
             employee.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -227,6 +237,12 @@ namespace ZEmpireAutoAccessories.Controllers
 
                 throw;
             }
+
+            // Name and role live in the auth cookie, which is only rebuilt every
+            // half hour. Changing the username also rolls the security stamp,
+            // which would sign this person out mid-edit. Reissue the cookie now.
+            if (user.Id == _userManager.GetUserId(User))
+                await _signInManager.RefreshSignInAsync(user);
 
             return RedirectToAction(nameof(Index));
         }
