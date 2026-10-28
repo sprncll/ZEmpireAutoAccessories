@@ -100,7 +100,10 @@ namespace ZEmpireAutoAccessories.Controllers
             {
                 UserName = userName.Trim(),
                 FullName = $"{employee.FirstName} {employee.LastName}".Trim(),
-                IsActive = true,
+                // Mirrors the form's Active checkbox. Login reads this flag on
+                // the account, not the one on the Employee row, so creating an
+                // inactive employee used to hand them a working login anyway.
+                IsActive = employee.IsActive,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -223,6 +226,14 @@ namespace ZEmpireAutoAccessories.Controllers
             // Create uses.
             user.FullName = $"{employee.FirstName} {employee.LastName}".Trim();
 
+            // Setting an employee inactive has to reach the login account:
+            // AccountController.Login tests AspNetUsers.IsActive, while the
+            // screen's Active checkbox sets the flag on the Employee row. Until
+            // these were mirrored, deactivating someone changed a badge in the
+            // list and nothing else -- they could still sign in.
+            var wasDeactivated = user.IsActive && !employee.IsActive;
+            user.IsActive = employee.IsActive;
+
             employee.UpdatedAt = DateTime.UtcNow;
 
             try
@@ -238,10 +249,17 @@ namespace ZEmpireAutoAccessories.Controllers
                 throw;
             }
 
+            // Blocking the next login is not enough: a deactivated employee who
+            // is already signed in keeps a valid cookie for up to eight hours.
+            // Rolling the security stamp invalidates it, so the next time the
+            // cookie is revalidated they are signed out.
+            if (wasDeactivated)
+                await _userManager.UpdateSecurityStampAsync(user);
+
             // Name and role live in the auth cookie, which is only rebuilt every
             // half hour. Changing the username also rolls the security stamp,
             // which would sign this person out mid-edit. Reissue the cookie now.
-            if (user.Id == _userManager.GetUserId(User))
+            else if (user.Id == _userManager.GetUserId(User))
                 await _signInManager.RefreshSignInAsync(user);
 
             return RedirectToAction(nameof(Index));
