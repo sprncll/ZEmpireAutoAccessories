@@ -13,18 +13,5 @@ namespace ZEmpireAutoAccessories.Authorization
 
         /// <summary>The user's display name (asp.AspNetUsers.FullName).</summary>
         public const string FullName = "full_name";
-
-        /// <summary>
-        /// Modules only an Admin may hold, whatever sec.RolePermission says.
-        /// The claim is withheld from everyone else, so the module disappears
-        /// from the menu and ModuleAuthorize turns away a typed URL, without
-        /// either having to know the rule.
-        ///
-        /// Services is here because its screens set what the shop charges for
-        /// its own work. Staff still pick services on a job order, quotation or
-        /// invoice - that reads the table, it does not open the module.
-        /// </summary>
-        public static readonly IReadOnlySet<string> AdminOnlyModules =
-            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Services" };
     }
 }

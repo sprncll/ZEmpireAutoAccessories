@@ -34,15 +34,8 @@ namespace ZEmpireAutoAccessories.Authorization
             identity.AddClaim(new Claim(AppClaims.FullName,
                 string.IsNullOrWhiteSpace(user.FullName) ? (user.UserName ?? string.Empty) : user.FullName));
 
-            var isAdmin = await UserManager.IsInRoleAsync(user, AdminOnlyAttribute.AdminRole);
-
             foreach (var module in await _permissions.GetModulesForUserAsync(user.Id))
-            {
-                if (!isAdmin && AppClaims.AdminOnlyModules.Contains(module))
-                    continue;
-
                 identity.AddClaim(new Claim(AppClaims.ModuleAccess, module));
-            }
 
             return identity;
         }
