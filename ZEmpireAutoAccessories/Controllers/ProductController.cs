@@ -155,6 +155,7 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Product/Edit/5
+        [AdminOnly]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -174,6 +175,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // POST: Product/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AdminOnly]
         public async Task<IActionResult> Edit(
             int id,
             Product product,

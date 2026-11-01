@@ -50,6 +50,7 @@ namespace ZEmpireAutoAccessories.Controllers
             return View(categories);
         }
 
+        [AdminOnly]
         public IActionResult Create()
         {
             ViewData["SoldByLength"] = false;
@@ -58,6 +59,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AdminOnly]
         public async Task<IActionResult> Create(ProductCategory category, bool soldByLength)
         {
             ModelState.Remove(nameof(ProductCategory.Products));
@@ -80,6 +82,7 @@ namespace ZEmpireAutoAccessories.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [AdminOnly]
         public async Task<IActionResult> Edit(int? id)
         {
             if (id == null)
@@ -97,6 +100,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AdminOnly]
         public async Task<IActionResult> Edit(int id, ProductCategory category, bool soldByLength)
         {
             if (id != category.CategoryID)
