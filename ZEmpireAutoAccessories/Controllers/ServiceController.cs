@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
@@ -7,7 +7,11 @@ using ZEmpireAutoAccessories.Models;
 
 namespace ZEmpireAutoAccessories.Controllers
 {
+    // Admin's alone, in full: viewing the list as much as changing it. The
+    // claim is withheld from Staff as well (AppClaims.AdminOnlyModules), which
+    // is what takes Services off their menu; this is what answers a typed URL.
     [ModuleAuthorize("Services")]
+    [AdminOnly]
     public class ServiceController : Controller
     {
         private readonly ApplicationDbContext _context;
