@@ -15,8 +15,6 @@ namespace ZEmpireAutoAccessories.Authorization
     /// </summary>
     public sealed class AdminOnlyAttribute : AuthorizeAttribute
     {
-        public const string AdminRole = "Admin";
-
-        public AdminOnlyAttribute() => Roles = AdminRole;
+        public AdminOnlyAttribute() => Roles = AppRoles.Admin;
     }
 }

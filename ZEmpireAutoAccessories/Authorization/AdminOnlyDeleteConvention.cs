@@ -21,7 +21,7 @@ namespace ZEmpireAutoAccessories.Authorization
         private static readonly AuthorizeFilter AdminOnly = new(
             new AuthorizationPolicyBuilder()
                 .RequireAuthenticatedUser()
-                .RequireRole(AdminOnlyAttribute.AdminRole)
+                .RequireRole(AppRoles.Admin)
                 .Build());
 
         public void Apply(ActionModel action)
