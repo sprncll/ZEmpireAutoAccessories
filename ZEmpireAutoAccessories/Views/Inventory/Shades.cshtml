@@ -30,8 +30,19 @@
 
     .note { padding:11px 18px; font-size:12.5px; border-top:1px solid #eef0f4; background:#fcfcfd; color:#7b8290; }
     .note.warn { background:#fffbeb; color:#92400e; }
+    .count-field { display:flex; align-items:center; justify-content:flex-end; gap:6px; }
+    .count-field input { width:92px; text-align:right; font-variant-numeric:tabular-nums; }
+    .count-unit { font-size:12px; color:#9aa1ad; }
+    .count-actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+                     padding:11px 18px; border-top:1px solid #eef0f4; background:#fcfcfd; }
+    .count-actions .muted { font-size:12.5px; }
     .note strong { font-weight:600; }
 </style>
+
+@{
+    var success = TempData["Success"] as string;
+    var error = TempData["Error"] as string;
+}
 
 <div class="zx-page-head">
     <h1>Shade Stock</h1>
@@ -46,6 +57,15 @@
     worked out rather than counted &mdash; good enough to see what is running low,
     and only ever as accurate as the last count.
 </p>
+
+@if (!string.IsNullOrEmpty(success))
+{
+    <div class="alert alert-success py-2 px-3">@success</div>
+}
+@if (!string.IsNullOrEmpty(error))
+{
+    <div class="alert alert-danger py-2 px-3">@error</div>
+}
 
 @if (!Model.Any())
 {
@@ -74,15 +94,25 @@
             </div>
         </div>
 
-        @if (!product.HasBaseline)
-        {
-            <div class="note warn">
-                No stock count has recorded a shade for this film, so there is nothing to
-                work forward from. Take a count and each shade will be tracked from there.
-            </div>
-        }
-        else
-        {
+        @* Counting is how a shade figure is set. There is nowhere to write a
+           corrected "left" to: inv.InventoryTransaction records a product and
+           nothing finer, so a shade has no balance of its own to edit. What
+           CAN be stored per shade is what was on the rack, and that is what
+           this writes - a stock count, the same record the count sheet makes,
+           holding only the shades typed in here. Everything else on the row is
+           worked forward from it again. *@
+        <form asp-controller="InventoryCheck" asp-action="Create" method="post">
+            <input type="hidden" name="returnTo" value="Shades" />
+
+            @if (!product.HasBaseline)
+            {
+                <div class="note warn">
+                    No stock count has recorded a shade for this film, so there is nothing to
+                    work forward from. Type what is on the rack below and each shade will be
+                    tracked from there.
+                </div>
+            }
+
             <table class="shade-table">
                 <thead>
                     <tr>
@@ -90,11 +120,13 @@
                         <th class="num">Counted</th>
                         <th class="num">Used since</th>
                         <th class="num">Should be left</th>
+                        <th class="num" style="width:150px">Count now</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var shade in product.Shades)
+                    @for (var i = 0; i < product.Shades.Count; i++)
                     {
+                        var shade = product.Shades[i];
                         <tr>
                             <td>@shade.Label</td>
                             <td class="num">
@@ -122,12 +154,35 @@
                                     </span>
                                 }
                             </td>
+                            <td class="num">
+                                @* The sheet offers cm, in and m; this page reads in
+                                   metres throughout, so it takes metres and says so
+                                   rather than carrying a unit box onto every row. *@
+                                <input type="hidden" name="productId[@i]" value="@product.ProductID" />
+                                <input type="hidden" name="tintVariantId[@i]" value="@shade.TintVariantID" />
+                                <input type="hidden" name="shadeId[@i]" value="@shade.ShadeID" />
+                                <input type="hidden" name="unit[@i]" value="@UnitOfMeasure.Meter" />
+                                <div class="count-field">
+                                    <input type="number" step="0.01" min="0" name="physicalStock[@i]"
+                                           class="form-control form-control-sm" placeholder="—"
+                                           aria-label="Metres of @shade.Label on the rack" />
+                                    <span class="count-unit">m</span>
+                                </div>
+                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
 
-            @if (!product.Reconciles)
+            <div class="count-actions">
+                <button type="submit" class="btn btn-zx btn-sm">Save count</button>
+                <span class="muted">
+                    Measure what is on the rack and type it in metres. A shade left
+                    blank is not counted and keeps the figure it has.
+                </span>
+            </div>
+
+            @if (product.HasBaseline && !product.Reconciles)
             {
                 <div class="note">
                     @* The shade figures cannot be expected to add up to the ledger
@@ -145,6 +200,6 @@
                     The next count will bring them back together.
                 </div>
             }
-        }
+        </form>
     </div>
 }

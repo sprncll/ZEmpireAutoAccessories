@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
@@ -76,8 +76,14 @@ namespace ZEmpireAutoAccessories.Controllers
             List<decimal?> physicalStock,
             List<string> unit,
             List<int?> tintVariantId,
-            List<int?> shadeId)
+            List<int?> shadeId,
+            string? returnTo = null)
         {
+            // The Shade Stock page posts here too, a film at a time. It is the
+            // same record either way - a count holding only the lines that were
+            // typed - so it is the same action; only where it lands differs.
+            var fromShades = returnTo == "Shades";
+
             var counted = new List<InventoryCheckDetail>();
             var roll = await _inventoryService.SoldByLength(productId);
 
@@ -92,6 +98,12 @@ namespace ZEmpireAutoAccessories.Controllers
                     // ViewData, not TempData: this renders the sheet again in
                     // the same request rather than redirecting, and TempData
                     // would survive to show once more on the next page.
+                    if (fromShades)
+                    {
+                        TempData["Error"] = "A physical count can't be negative.";
+                        return RedirectToAction("Shades", "Inventory");
+                    }
+
                     ViewData["CountError"] = "A physical count can't be negative.";
                     return View(await BuildCountSheet());
                 }
@@ -121,6 +133,12 @@ namespace ZEmpireAutoAccessories.Controllers
 
             if (counted.Count == 0)
             {
+                if (fromShades)
+                {
+                    TempData["Error"] = "Type a count against at least one shade.";
+                    return RedirectToAction("Shades", "Inventory");
+                }
+
                 ViewData["CountError"] = "Enter a count for at least one product.";
                 return View(await BuildCountSheet());
             }
@@ -136,6 +154,14 @@ namespace ZEmpireAutoAccessories.Controllers
 
             _context.InventoryChecks.Add(check);
             await _context.SaveChangesAsync();
+
+            if (fromShades)
+            {
+                TempData["Success"] =
+                    $"Counted {counted.Count} shade{(counted.Count == 1 ? "" : "s")}. " +
+                    "What should be left is worked forward from here.";
+                return RedirectToAction("Shades", "Inventory");
+            }
 
             return RedirectToAction(nameof(Details), new { id = check.InventoryCheckID });
         }
