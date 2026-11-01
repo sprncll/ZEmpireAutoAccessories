@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
@@ -97,6 +97,7 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Product/Create
+        [AdminOnly]
         public async Task<IActionResult> Create()
         {
             await LoadDropdowns();
@@ -107,6 +108,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // POST: Product/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [AdminOnly]
         public async Task<IActionResult> Create(Product product, bool? soldByLength)
         {
             ModelState.Remove(nameof(Product.Category));

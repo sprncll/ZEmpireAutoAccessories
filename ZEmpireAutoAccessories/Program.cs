@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
@@ -19,7 +19,12 @@ CultureInfo.DefaultThreadCurrentUICulture = phCulture;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add MVC services
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    // Deleting is Admin's alone, everywhere, without each controller
+    // having to remember to say so.
+    options.Conventions.Add(new AdminOnlyDeleteConvention());
+});
 
 // Add Entity Framework Core + SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
