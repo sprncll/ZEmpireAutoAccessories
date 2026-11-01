@@ -14,6 +14,11 @@ namespace ZEmpireAutoAccessories.Services.Interfaces
         /// standing. Products whose variants carry no shades are left out -
         /// there is nothing to break down.
         /// </summary>
-        Task<List<ShadeStockProduct>> Build();
+        /// <param name="productId">
+        /// One product's shades rather than the whole catalogue's. The product
+        /// set seeded here scopes every query behind it, so this narrows the
+        /// work and not just the result.
+        /// </param>
+        Task<List<ShadeStockProduct>> Build(int? productId = null);
     }
 }

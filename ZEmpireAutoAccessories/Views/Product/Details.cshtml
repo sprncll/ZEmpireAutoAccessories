@@ -1,4 +1,4 @@
-﻿@model ZEmpireAutoAccessories.Models.Product
+@model ZEmpireAutoAccessories.Models.Product
 
 @{
     ViewData["Title"] = "Product Details";
@@ -158,6 +158,95 @@
         <dd class="col-sm-9">@Model.Pricings.Count</dd>
     </dl>
 </div>
+
+@{
+    var shadeStock = ViewData["ShadeStock"] as ShadeStockProduct;
+    var canSeeStock = User.HasClaim(AppClaims.ModuleAccess, "Inventory");
+}
+@if (shadeStock != null && shadeStock.Shades.Count > 0)
+{
+    <div class="zx-card padded">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <h2 class="h6 mb-0">Shade stock</h2>
+            @if (canSeeStock)
+            {
+                <a asp-controller="Inventory" asp-action="Shades" class="btn btn-sm btn-outline-secondary">
+                    All shade stock
+                </a>
+            }
+        </div>
+
+        @if (!shadeStock.HasBaseline)
+        {
+            @* No count has ever recorded a shade for this product, so there is
+               nothing to work forward from. Say that rather than show a column
+               of dashes and leave it to be guessed at. *@
+            <p class="text-muted small mb-0">
+                No stock count has recorded these shades yet, so how much is left
+                of each cannot be worked out.
+                @if (canSeeStock)
+                {
+                    <text>Record one under Inventory &rarr; Stock counts.</text>
+                }
+            </p>
+        }
+
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Shade</th>
+                    <th class="text-end">Counted</th>
+                    <th class="text-end">Used since</th>
+                    <th class="text-end pe-0">Should be left</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var shade in shadeStock.Shades)
+                {
+                    <tr>
+                        <td>@shade.Label</td>
+                        <td class="text-end">@(shade.Counted?.ToString("0.##") ?? "—")</td>
+                        <td class="text-end">@shade.Used.ToString("0.##")</td>
+                        <td class="text-end pe-0">
+                            @if (shade.Left == null)
+                            {
+                                <span class="text-muted">—</span>
+                            }
+                            else
+                            {
+                                <span class="@(shade.Exhausted ? "text-danger fw-semibold" : null)">
+                                    @shade.Left.Value.ToString("0.##") cm
+                                </span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="text-muted small mb-0 mt-2">
+            The ledger holds @shadeStock.SystemStock.ToString("0.##") cm for this
+            product as a whole, and that figure is the authoritative one. The
+            shades above are worked out from the last count and what has gone
+            since, so they are an estimate.
+            @if (shadeStock.UnattributedUsed > 0)
+            {
+                <text>
+                    @shadeStock.UnattributedUsed.ToString("0.##") cm went out on lines
+                    that record no shade and could not be charged to one.
+                </text>
+            }
+            @if (shadeStock.ReceivedSince > 0)
+            {
+                <text>
+                    @shadeStock.ReceivedSince.ToString("0.##") cm came in since the
+                    count; a delivery is recorded against the product, never a
+                    shade, so it is not added to any of them.
+                </text>
+            }
+        </p>
+    </div>
+}
 
 <a asp-action="Index" class="back-link">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>

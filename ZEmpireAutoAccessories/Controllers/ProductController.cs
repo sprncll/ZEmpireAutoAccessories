@@ -13,11 +13,16 @@ namespace ZEmpireAutoAccessories.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IMeasureStore _measures;
+        private readonly IShadeStockService _shadeStock;
 
-        public ProductController(ApplicationDbContext context, IMeasureStore measures)
+        public ProductController(
+            ApplicationDbContext context,
+            IMeasureStore measures,
+            IShadeStockService shadeStock)
         {
             _context = context;
             _measures = measures;
+            _shadeStock = shadeStock;
         }
 
         // GET: Product
@@ -92,6 +97,12 @@ namespace ZEmpireAutoAccessories.Controllers
                 product.ProductID, product.CategoryID, product.Category.CategoryName);
             ViewData["ProductSoldByLength"] = _measures.ForProduct(product.ProductID);
             ViewData["CategoryDisplay"] = ProductCategories.Canonical(product.Category.CategoryName);
+
+            // What is left of each shade, for a film that has any. Null for
+            // everything else, which is most of the catalogue - a bolt has no
+            // shades to break down.
+            ViewData["ShadeStock"] = (await _shadeStock.Build(product.ProductID))
+                .FirstOrDefault();
 
             return View(product);
         }

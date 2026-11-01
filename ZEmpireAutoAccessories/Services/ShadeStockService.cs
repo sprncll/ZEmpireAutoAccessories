@@ -36,11 +36,12 @@ namespace ZEmpireAutoAccessories.Services
             _inventory = inventory;
         }
 
-        public async Task<List<ShadeStockProduct>> Build()
+        public async Task<List<ShadeStockProduct>> Build(int? productId = null)
         {
             // ---- the shades there are, and which product each belongs to ----
             var shades = await _context.Shades
                 .Include(s => s.TintVariant)
+                .Where(s => productId == null || s.TintVariant.ProductID == productId)
                 .Select(s => new
                 {
                     s.TintVariant.ProductID,
