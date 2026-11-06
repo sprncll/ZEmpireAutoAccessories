@@ -156,3 +156,72 @@
         }
     </div>
 </form>
+
+@{
+    var photos = ViewData["Photos"] as IReadOnlyList<ChecklistPhoto> ?? new List<ChecklistPhoto>();
+    var maxPhotos = ViewData["MaxPhotos"] as int? ?? 5;
+    var maxPhotoMb = ViewData["MaxPhotoMb"] as decimal? ?? 15m;
+    var photoError = TempData["PhotoError"] as string;
+    var room = maxPhotos - photos.Count;
+}
+
+@* Its own form: the walkaround above is one large form, and a form cannot
+   hold another. This one carries a file, so it posts as multipart. *@
+<div class="zx-card padded">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-1">
+        <h6 class="mb-0">Photos on arrival</h6>
+        <span class="text-muted" style="font-size:13px;">@photos.Count of @maxPhotos used</span>
+    </div>
+    <p class="text-muted" style="font-size:13px;">
+        A noted scratch is a sentence; a photograph taken before any film is touched settles it.
+        JPG or PNG, up to @maxPhotoMb.ToString("N0") MB each.
+    </p>
+
+    @if (!string.IsNullOrEmpty(photoError))
+    {
+        <div class="alert alert-danger py-2 px-3">@photoError</div>
+    }
+
+    @if (photos.Count > 0)
+    {
+        <div class="zx-photos">
+            @foreach (var photo in photos)
+            {
+                <figure class="zx-photo">
+                    <a asp-action="Photo" asp-route-id="@Model.ChecklistID" asp-route-slot="@photo.Slot"
+                       target="_blank" rel="noopener">
+                        <img src="@Url.Action("Photo", new { id = Model.ChecklistID, slot = photo.Slot })"
+                             alt="Vehicle on arrival, photo @photo.Slot" loading="lazy" />
+                    </a>
+                    <figcaption>
+                        <span>@photo.Size</span>
+                        <form asp-action="RemovePhoto" asp-route-id="@Model.ChecklistID" method="post">
+                            <input type="hidden" name="slot" value="@photo.Slot" />
+                            <button type="submit" class="btn btn-link btn-sm text-danger p-0"
+                                    onclick="return confirm('Remove this photo?');">Remove</button>
+                        </form>
+                    </figcaption>
+                </figure>
+            }
+        </div>
+    }
+
+    @if (room > 0)
+    {
+        <form asp-action="AddPhoto" asp-route-id="@Model.ChecklistID" method="post"
+              enctype="multipart/form-data" class="d-flex align-items-start gap-2 flex-wrap mt-3">
+            <input type="file" name="photo" accept="image/jpeg,image/png" required
+                   class="form-control" style="max-width:420px;" />
+            <button type="submit" class="btn btn-outline-secondary">Attach photo</button>
+            <span class="text-muted align-self-center" style="font-size:12.5px;">
+                @room more can be added.
+            </span>
+        </form>
+    }
+    else
+    {
+        <p class="text-muted mb-0" style="font-size:13px;">
+            All @maxPhotos slots are used. Remove one to attach another.
+        </p>
+    }
+</div>

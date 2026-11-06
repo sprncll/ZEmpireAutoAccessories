@@ -1,10 +1,11 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services.Interfaces;
 using ZEmpireAutoAccessories.Services;
 
 namespace ZEmpireAutoAccessories.Controllers
@@ -19,10 +20,14 @@ namespace ZEmpireAutoAccessories.Controllers
     public class VehicleChecklistController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IChecklistPhotoStore _photos;
 
-        public VehicleChecklistController(ApplicationDbContext context)
+        public VehicleChecklistController(
+            ApplicationDbContext context,
+            IChecklistPhotoStore photos)
         {
             _context = context;
+            _photos = photos;
         }
 
         public async Task<IActionResult> Index(string? q)
@@ -73,7 +78,73 @@ namespace ZEmpireAutoAccessories.Controllers
 
             await LoadWalkaround(checklist);
 
+            ViewData["Photos"] = _photos.List(checklist.ChecklistID);
+            ViewData["MaxPhotos"] = _photos.MaxPerChecklist;
+            ViewData["MaxPhotoMb"] = _photos.MaxBytes / 1024m / 1024m;
+
             return View(checklist);
+        }
+
+        // POST: VehicleChecklist/AddPhoto/5
+        //
+        // A separate form from the walkaround, because a form cannot hold
+        // another one and the walkaround is one large form of its own.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(16 * 1024 * 1024)]
+        public async Task<IActionResult> AddPhoto(int id, IFormFile? photo)
+        {
+            if (!await _context.VehicleChecklists.AnyAsync(c => c.ChecklistID == id))
+                return NotFound();
+
+            if (photo == null)
+                TempData["PhotoError"] = "Choose a photo to attach.";
+            else
+                TempData["PhotoError"] = await _photos.Save(id, photo);
+
+            if (TempData["PhotoError"] == null)
+                TempData["Success"] = "Photo attached.";
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        // GET: VehicleChecklist/Photo/5?slot=2
+        //
+        // The photos are outside wwwroot, so they come back through here,
+        // behind the module permission this controller already carries.
+        public async Task<IActionResult> Photo(int id, int slot)
+        {
+            if (!await _context.VehicleChecklists.AnyAsync(c => c.ChecklistID == id))
+                return NotFound();
+
+            var stored = _photos.Open(id, slot);
+            if (stored == null)
+                return NotFound();
+
+            var (content, contentType, fileName) = stored.Value;
+
+            return File(content, contentType, fileName);
+        }
+
+        // POST: VehicleChecklist/RemovePhoto/5
+        //
+        // Named Remove rather than Delete on purpose. Deleting is the Admin's
+        // alone across the system, and an action beginning "Delete" is held
+        // to that automatically - but taking off a photo that came out blurred
+        // is part of recording the walkaround, the same as RemoveLine is part
+        // of writing a job order, and the person at the counter has to be able
+        // to do it.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RemovePhoto(int id, int slot)
+        {
+            if (!await _context.VehicleChecklists.AnyAsync(c => c.ChecklistID == id))
+                return NotFound();
+
+            if (_photos.Remove(id, slot))
+                TempData["Success"] = "Photo removed.";
+
+            return RedirectToAction(nameof(Details), new { id });
         }
 
         public async Task<IActionResult> Create(int? jobOrderId)
@@ -300,6 +371,11 @@ namespace ZEmpireAutoAccessories.Controllers
             {
                 _context.VehicleChecklists.Remove(checklist);
                 await _context.SaveChangesAsync();
+
+                // The photos are not rows, so nothing cascades to them. Left
+                // behind they would outlive the checklist for good, and a new
+                // checklist reusing the id would inherit them.
+                _photos.RemoveAll(id);
 
                 TempData["Success"] = "Checklist deleted.";
             }

@@ -74,6 +74,8 @@ instead of 42.
 >
 > - `App_Data/cut-sizes.json` — the sunroof cut sizes go
 > - `App_Data/payment-proofs/` — customers' receipts go
+> - `App_Data/checklist-photos/` — the photographs taken at intake go, and
+>   they are the evidence for a dispute about a scratch
 > - `App_Data/keys/` — **everyone is logged out**, and stays logged out
 >
 > This is the one checkbox that undoes the `App_Data` protection above.

@@ -111,6 +111,11 @@ builder.Services.AddScoped<ICashieringService, CashieringService>();
 // a warranty was claimed - and which payment modes need one.
 builder.Services.AddScoped<IProofStore, ProofStore>();
 
+// The intake photographs. Scoped like ProofStore and for the same
+// reason: it holds no cache, only a folder path, so there is nothing
+// for a singleton to keep.
+builder.Services.AddScoped<IChecklistPhotoStore, ChecklistPhotoStore>();
+
 // How much film each panel takes on each class of vehicle, and what that
 // makes a document's completion deduct. The cut sizes are a singleton
 // because the point of them is the cache; see CutSizeStore.

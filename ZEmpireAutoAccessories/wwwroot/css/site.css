@@ -743,3 +743,43 @@ body {
 
 .btn-pdf:hover,
 .btn-pdf:focus { background: #262626; border-color: #262626; color: #fff; }
+
+/* ---- Vehicle checklist: the photographs taken at intake ---- */
+.zx-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+}
+
+.zx-photo {
+    margin: 0;
+    border: 1px solid #e8ebf0;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
+}
+
+.zx-photo img {
+    display: block;
+    width: 100%;
+    /* A fixed frame so a portrait phone photo and a landscape one sit in the
+       same grid; the full image is one click away. */
+    height: 140px;
+    object-fit: cover;
+}
+
+.zx-photo figcaption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 10px;
+    font-size: 12.5px;
+    color: #7b8290;
+    border-top: 1px solid #f1f3f6;
+}
+
+.zx-photo figcaption form {
+    margin: 0;
+}
