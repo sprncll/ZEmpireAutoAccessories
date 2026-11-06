@@ -4,22 +4,19 @@ namespace ZEmpireAutoAccessories.Models
 {
     /// <summary>
     /// Pesos as the shop writes them: the groups of three separated by a
-    /// space rather than a comma - ₱123 456 789.00.
-    ///
-    /// The space is a non-breaking one. A plain space would let a browser
-    /// wrap a total between its groups in a narrow table cell, so a figure
-    /// could be read as two, and the one place it would happen is the column
-    /// of totals where it matters most. It looks identical and it copies out
-    /// as a space.
+    /// comma - ₱123,456,789.00.
     ///
     /// Only for displaying a figure. Nothing here parses one back: a posted
     /// amount is still read with the request's own culture, so this cannot
     /// change what a typed figure means.
+    ///
+    /// Every figure on the cashiering, sales, job order and service invoice
+    /// screens comes through here, so what a peso looks like is this one line
+    /// rather than forty-one of them.
     /// </summary>
     public static class Money
     {
-        /// <summary>U+00A0. Looks like a space; never breaks a line.</summary>
-        private const string GroupSeparator = " ";
+        private const string GroupSeparator = ",";
 
         private static readonly NumberFormatInfo Pesos = new()
         {
@@ -32,14 +29,16 @@ namespace ZEmpireAutoAccessories.Models
             NumberNegativePattern = 1
         };
 
-        /// <summary>"₱123 456 789.00", or "-₱500.00" for a negative.</summary>
+        /// <summary>"₱123,456,789.00", or "-₱500.00" for a negative.</summary>
         public static string Peso(decimal amount) =>
             amount < 0
                 ? "-₱" + (-amount).ToString("N2", Pesos)
                 : "₱" + amount.ToString("N2", Pesos);
 
         /// <summary>
-        /// The same, for an amount that may not have been recorded.
+        /// The same, for an amount that may not have been recorded. An em
+        /// dash rather than ₱0.00, because nothing paid and zero paid are
+        /// different facts.
         /// </summary>
         public static string Peso(decimal? amount, string whenNull = "—") =>
             amount.HasValue ? Peso(amount.Value) : whenNull;
