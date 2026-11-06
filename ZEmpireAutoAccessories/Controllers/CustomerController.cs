@@ -69,14 +69,20 @@ namespace ZEmpireAutoAccessories.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("FullName,ContactNumber")] Customer customer)
         {
-            if (string.IsNullOrWhiteSpace(customer.ContactNumber))
-                ModelState.AddModelError(nameof(Customer.ContactNumber), "Contact number is required.");
+            // Normalise before judging it: binding has already run the regex
+            // against the raw text, so clear that verdict and test the stored
+            // shape instead.
+            customer.ContactNumber = PhoneNumber.ToPhilippineMobile(customer.ContactNumber);
+            ModelState.Remove(nameof(Customer.ContactNumber));
+
+            if (customer.ContactNumber is null)
+                ModelState.AddModelError(nameof(Customer.ContactNumber),
+                    "Enter a Philippine mobile number: +63 then 10 digits starting with 9.");
 
             if (!ModelState.IsValid)
                 return View(customer);
 
             customer.FullName = customer.FullName.Trim();
-            customer.ContactNumber = customer.ContactNumber!.Trim();
             customer.CreatedAt = DateTime.UtcNow;
 
             _context.Customers.Add(customer);
@@ -108,8 +114,15 @@ namespace ZEmpireAutoAccessories.Controllers
             if (id != customer.CustomerID)
                 return NotFound();
 
-            if (string.IsNullOrWhiteSpace(customer.ContactNumber))
-                ModelState.AddModelError(nameof(Customer.ContactNumber), "Contact number is required.");
+            // Normalise before judging it: binding has already run the regex
+            // against the raw text, so clear that verdict and test the stored
+            // shape instead.
+            customer.ContactNumber = PhoneNumber.ToPhilippineMobile(customer.ContactNumber);
+            ModelState.Remove(nameof(Customer.ContactNumber));
+
+            if (customer.ContactNumber is null)
+                ModelState.AddModelError(nameof(Customer.ContactNumber),
+                    "Enter a Philippine mobile number: +63 then 10 digits starting with 9.");
 
             if (!ModelState.IsValid)
                 return View(customer);
@@ -121,7 +134,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 return NotFound();
 
             existing.FullName = customer.FullName.Trim();
-            existing.ContactNumber = customer.ContactNumber!.Trim();
+            existing.ContactNumber = customer.ContactNumber;
 
             await _context.SaveChangesAsync();
 

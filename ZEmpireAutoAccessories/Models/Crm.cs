@@ -23,16 +23,21 @@ namespace ZEmpireAutoAccessories.Models
         // never null and skip its DBNull check - which throws
         // SqlNullValueException the moment it reads one of those rows,
         // including through every list that Includes Customer.
-        // Philippine mobile number, exactly as it is dialled: 11 digits
-        // beginning 09, no spaces or dashes (e.g. 09121231231). Deliberately
-        // not [Phone], which accepts spaces, dashes and country codes and
-        // would let a number through in a shape this app does not want.
-        // The column is nvarchar(30), so older rows may hold a longer or
-        // differently formatted value; those only have to pass this on edit.
+        // Philippine mobile number in one stored shape: "+63" then ten
+        // digits beginning 9 (e.g. +639121231231). The form shows "+63" as a
+        // fixed prefix and takes the ten digits; PhoneNumber.ToPhilippineMobile
+        // turns whatever was typed into this before the model is judged, so a
+        // pasted "0912 123 1231" is accepted rather than refused.
+        // Deliberately not [Phone], which accepts spaces, dashes and any
+        // country code and would let a number through in a shape this app does
+        // not want.
+        // The column is nvarchar(30), so older rows may hold "09..." or a
+        // differently formatted value; those only have to pass this on edit,
+        // and the normaliser converts them when they do.
         [MaxLength(30, ErrorMessage = "Contact number can't be longer than 30 characters.")]
         [Display(Name = "Contact number")]
-        [RegularExpression(@"^09\d{9}$",
-            ErrorMessage = "Enter an 11-digit mobile number starting with 09 and no spaces, e.g. 09121231231.")]
+        [RegularExpression(@"^\+63\d{10}$",
+            ErrorMessage = "Enter a Philippine mobile number: +63 then 10 digits starting with 9.")]
         public string? ContactNumber { get; set; }
 
         public DateTime CreatedAt { get; set; }

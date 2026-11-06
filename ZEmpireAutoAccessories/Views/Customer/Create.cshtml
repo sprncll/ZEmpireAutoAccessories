@@ -29,9 +29,15 @@
         </div>
 
         <div class="mb-3">
-            <label asp-for="ContactNumber" class="form-label"></label>
-            <input asp-for="ContactNumber" class="form-control" placeholder="09121231231"
-                   inputmode="numeric" maxlength="11" autocomplete="tel" required />
+            <label for="ContactNumber" class="form-label">Contact number</label>
+            <div class="input-group">
+                <span class="input-group-text">+63</span>
+                <input type="text" id="ContactNumber" name="ContactNumber"
+                       class="form-control" placeholder="9121231231"
+                       value="@PhoneNumber.ToLocalDigits(Model.ContactNumber)"
+                       inputmode="numeric" maxlength="10" autocomplete="tel" required />
+            </div>
+            <div class="form-text">Ten digits beginning 9. A number typed as 0912&hellip; or +63&nbsp;912&hellip; is accepted.</div>
             <span asp-validation-for="ContactNumber" class="text-danger"></span>
         </div>
 
@@ -48,17 +54,26 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <script>
-        // The contact number is stored exactly as dialled - 11 digits from
-        // 09, nothing else - so drop anything else as it is typed or pasted.
-        // Saves a round trip for the common case of pasting "0912 123 1231".
+        // Stored as +63 then ten digits, so the box beside the +63 holds the
+        // ten and nothing else. A pasted "0912 123 1231" or "+63 912 123 1231"
+        // is reduced to those ten digits as it lands, rather than refused.
         (function () {
             var contact = document.getElementById('ContactNumber');
             if (!contact) { return; }
 
-            contact.addEventListener('input', function () {
-                var digits = contact.value.replace(/\D/g, '').slice(0, 11);
+            function tidy() {
+                var digits = contact.value.replace(/\D/g, '');
+
+                if (digits.length === 12 && digits.indexOf('63') === 0) { digits = digits.slice(2); }
+                else if (digits.length === 11 && digits.charAt(0) === '0') { digits = digits.slice(1); }
+
+                digits = digits.slice(0, 10);
                 if (digits !== contact.value) { contact.value = digits; }
-            });
+            }
+
+            contact.addEventListener('input', tidy);
+            // Paste fires before the box holds the new text, so read it after.
+            contact.addEventListener('paste', function () { setTimeout(tidy, 0); });
         })();
     </script>
 }
