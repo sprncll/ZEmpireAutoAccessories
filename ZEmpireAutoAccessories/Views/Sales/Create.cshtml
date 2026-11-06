@@ -1,4 +1,4 @@
-﻿@using ZEmpireAutoAccessories.Models
+@using ZEmpireAutoAccessories.Models
 @{
     ViewData["Title"] = "New Sale";
     var products = ViewData["Products"] as List<Product> ?? new();
@@ -47,10 +47,41 @@
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label">Customer</label>
+                <div class="d-flex justify-content-between align-items-baseline">
+                    <label class="form-label mb-1">Customer</label>
+                    @* Added here rather than in the Customers module: a walk-in
+                       is at the counter now, and leaving this page would lose
+                       whatever has already been typed into the sale. *@
+                    <button type="button" id="newCustomerToggle"
+                            class="btn btn-link btn-sm p-0 text-decoration-none">+ New customer</button>
+                </div>
                 <select id="customerId" name="customerId" class="form-select" asp-items="ViewBag.CustomerID" required>
                     <option value="">-- Select Customer --</option>
                 </select>
+
+                <div id="newCustomerPanel" class="border rounded p-2 mt-2" style="display:none;background:#fbfcfd;">
+                    <div class="mb-2">
+                        <label for="newCustomerName" class="form-label mb-1" style="font-size:13px;">Name</label>
+                        <input type="text" id="newCustomerName" class="form-control form-control-sm"
+                               maxlength="150" placeholder="Who is buying" />
+                    </div>
+                    <div class="mb-2">
+                        <label for="newCustomerNumber" class="form-label mb-1" style="font-size:13px;">Contact number</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">+63</span>
+                            <input type="text" id="newCustomerNumber" class="form-control"
+                                   inputmode="numeric" maxlength="10" placeholder="9121231231" />
+                        </div>
+                    </div>
+                    <div id="newCustomerError" class="text-danger mb-2" style="font-size:12.5px;display:none;"></div>
+                    <div class="d-flex gap-2">
+                        <button type="button" id="newCustomerSave" class="btn btn-sm btn-zx">Add customer</button>
+                        <button type="button" id="newCustomerCancel" class="btn btn-sm btn-outline-secondary">Cancel</button>
+                    </div>
+                    <div class="text-muted mt-2" style="font-size:12px;">
+                        A vehicle can be added later from the Customers module.
+                    </div>
+                </div>
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Vehicle <span class="text-muted fw-normal">(optional)</span></label>
@@ -571,6 +602,81 @@
             // touched - an empty cart cannot be completed.
             recalcTotal();
             applyPaymentMode();
+
+            // ---- adding a walk-in without leaving the sale ----------------
+            //
+            // Posted with fetch rather than by submitting, because this sits
+            // inside the sale's own form and a form cannot hold another: the
+            // button would submit the sale instead.
+            var $panel = $('#newCustomerPanel');
+            var $error = $('#newCustomerError');
+
+            function showError(message) {
+                $error.text(message).toggle(!!message);
+            }
+
+            $('#newCustomerToggle').on('click', function () {
+                var opening = $panel.is(':hidden');
+                $panel.toggle(opening);
+                showError('');
+                if (opening) { $('#newCustomerName').trigger('focus'); }
+            });
+
+            $('#newCustomerCancel').on('click', function () {
+                $panel.hide();
+                showError('');
+            });
+
+            // The number is stored as +63 and ten digits, so the box beside
+            // the +63 holds the ten: whatever is pasted is reduced to them.
+            $('#newCustomerNumber').on('input paste', function () {
+                var field = this;
+                setTimeout(function () {
+                    var digits = field.value.replace(/\D/g, '');
+                    if (digits.length === 12 && digits.indexOf('63') === 0) { digits = digits.slice(2); }
+                    else if (digits.length === 11 && digits.charAt(0) === '0') { digits = digits.slice(1); }
+                    digits = digits.slice(0, 10);
+                    if (digits !== field.value) { field.value = digits; }
+                }, 0);
+            });
+
+            $('#newCustomerSave').on('click', function () {
+                var $button = $(this);
+                showError('');
+                $button.prop('disabled', true);
+
+                $.ajax({
+                    url: '@Url.Action("QuickCustomer")',
+                    type: 'POST',
+                    data: {
+                        fullName: $('#newCustomerName').val(),
+                        contactNumber: $('#newCustomerNumber').val(),
+                        __RequestVerificationToken: $('#saleForm input[name="__RequestVerificationToken"]').val()
+                    }
+                }).done(function (result) {
+                    if (result.error) { showError(result.error); return; }
+
+                    var $customer = $('#customerId');
+
+                    // An existing customer is already in the list; adding the
+                    // option again would show the same person twice.
+                    if (!$customer.find('option[value="' + result.id + '"]').length) {
+                        $customer.append($('<option></option>').val(result.id).text(result.name));
+                    }
+
+                    // Selected with change(), so the vehicle list reloads for
+                    // them exactly as it would had they been picked by hand.
+                    $customer.val(String(result.id)).trigger('change');
+
+                    $panel.hide();
+                    $('#newCustomerName').val('');
+                    $('#newCustomerNumber').val('');
+                }).fail(function () {
+                    showError('The customer could not be added. Check the connection and try again.');
+                }).always(function () {
+                    $button.prop('disabled', false);
+                });
+            });
         });
     </script>
 }

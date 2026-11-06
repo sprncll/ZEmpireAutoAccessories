@@ -99,6 +99,58 @@ namespace ZEmpireAutoAccessories.Controllers
             return File(pdf, "application/pdf", $"{sale.InvoiceNumber}.pdf");
         }
 
+        // POST: Sale/QuickCustomer
+        //
+        // A walk-in buying a bottle of wax is still a customer, and sending
+        // the person at the counter off to the Customers module to make one
+        // loses the sale they had half-typed. This adds the two fields a sale
+        // actually needs and hands the id straight back to the form.
+        //
+        // It lives here rather than on CustomerController because that one is
+        // behind the Customers module, and somebody who may ring up a sale is
+        // not necessarily given it. Making a customer is part of making a
+        // sale, so the Sales module's own permission is the right one to ask
+        // for.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> QuickCustomer(string? fullName, string? contactNumber)
+        {
+            fullName = fullName?.Trim();
+
+            if (string.IsNullOrWhiteSpace(fullName))
+                return Json(new { error = "Enter the customer's name." });
+
+            var number = PhoneNumber.ToPhilippineMobile(contactNumber);
+            if (number == null)
+                return Json(new { error = "Enter a Philippine mobile number: +63 then 10 digits starting with 9." });
+
+            // A repeat walk-in gives the same number, and two rows for one
+            // person is worse than the keystroke saved. The existing customer
+            // is handed back instead, so the sale carries on against them.
+            var existing = await _context.Customers
+                .FirstOrDefaultAsync(c => c.ContactNumber == number);
+
+            if (existing != null)
+                return Json(new
+                {
+                    id = existing.CustomerID,
+                    name = existing.FullName,
+                    existed = true
+                });
+
+            var customer = new Customer
+            {
+                FullName = fullName,
+                ContactNumber = number,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Customers.Add(customer);
+            await _context.SaveChangesAsync();
+
+            return Json(new { id = customer.CustomerID, name = customer.FullName, existed = false });
+        }
+
         // GET: Sale/VehiclesForCustomer?customerId=5
         public async Task<IActionResult> VehiclesForCustomer(int customerId)
         {
