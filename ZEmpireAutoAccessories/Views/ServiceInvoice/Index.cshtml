@@ -137,7 +137,7 @@
                     <td>@item.Customer.FullName</td>
                     <td>@(item.Vehicle?.PlateNumber ?? "—")</td>
                     <td>@item.InvoiceDate.ToString("MMM d, yyyy")</td>
-                    <td>@("₱" + item.TotalAmount.ToString("N2"))</td>
+                    <td>@Money.Peso(item.TotalAmount)</td>
                     <td><span class="badge badge-@item.Status.ToLower()">@item.Status</span></td>
                     <td class="text-end pe-3">
                         @* Same order as the sales list: reprint first, then

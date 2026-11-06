@@ -1,4 +1,4 @@
-﻿@model ZEmpireAutoAccessories.Models.ServiceInvoice
+@model ZEmpireAutoAccessories.Models.ServiceInvoice
 
 @{
     ViewData["Title"] = "Service Invoice Details";
@@ -99,10 +99,10 @@
         <dd class="col-sm-9"><span class="badge badge-@Model.Status.ToLower()">@Model.Status</span></dd>
 
         <dt class="col-sm-3">Sub Total</dt>
-        <dd class="col-sm-9">@("₱" + Model.SubTotal.ToString("N2"))</dd>
+        <dd class="col-sm-9">@Money.Peso(Model.SubTotal)</dd>
 
         <dt class="col-sm-3">Discount</dt>
-        <dd class="col-sm-9">@("₱" + Model.DiscountAmount.ToString("N2"))</dd>
+        <dd class="col-sm-9">@Money.Peso(Model.DiscountAmount)</dd>
 
         @if (Model.TaxAmount > 0)
         {
@@ -110,21 +110,21 @@
                CK_ServiceInvoice_Math adds to the total. Shown so the total
                still adds up on screen. *@
             <dt class="col-sm-3">Tax entered separately</dt>
-            <dd class="col-sm-9">@("₱" + Model.TaxAmount.ToString("N2"))</dd>
+            <dd class="col-sm-9">@Money.Peso(Model.TaxAmount)</dd>
         }
 
         <dt class="col-sm-3">Total Amount</dt>
-        <dd class="col-sm-9"><strong>@("₱" + Model.TotalAmount.ToString("N2"))</strong></dd>
+        <dd class="col-sm-9"><strong>@Money.Peso(Model.TotalAmount)</strong></dd>
 
         @* Prices are quoted VAT-inclusive, so the 12% is worked out of the
            total rather than added to it - the same split a BIR sales invoice
            prints. Nothing here is stored; see Models/Vat.cs. *@
         <dt class="col-sm-3">VATable Sales</dt>
-        <dd class="col-sm-9">@("₱" + vat.VatableSales.ToString("N2"))</dd>
+        <dd class="col-sm-9">@Money.Peso(vat.VatableSales)</dd>
 
         <dt class="col-sm-3">VAT (@Vat.RateLabel)</dt>
         <dd class="col-sm-9">
-            @("₱" + vat.Amount.ToString("N2"))
+            @Money.Peso(vat.Amount)
             <span class="text-muted">- included in the total above</span>
         </dd>
 
@@ -136,7 +136,7 @@
         <dd class="col-sm-9">
             @if (settled)
             {
-                @("₱" + Model.AmountPaid.ToString("N2"))
+                @Money.Peso(Model.AmountPaid)
             }
             else
             {
@@ -147,8 +147,8 @@
         <dt class="col-sm-3">@(settled ? "Change" : "Balance Due")</dt>
         <dd class="col-sm-9">
             @(settled
-                ? "₱" + Model.ChangeAmount.ToString("N2")
-                : "₱" + Model.TotalAmount.ToString("N2"))
+                ? Money.Peso(Model.ChangeAmount)
+                : Money.Peso(Model.TotalAmount))
         </dd>
 
         @if (!string.IsNullOrEmpty(Model.Remarks))
@@ -206,9 +206,9 @@
                 <span class="pay-label">Total due</span>
                 <span class="pay-total" id="payTotal"
                       data-total="@Model.TotalAmount.ToString(System.Globalization.CultureInfo.InvariantCulture)">
-                    @("₱" + Model.TotalAmount.ToString("N2"))
+                    @Money.Peso(Model.TotalAmount)
                 </span>
-                <span class="pay-vat">Includes @("₱" + vat.Amount.ToString("N2")) VAT (@Vat.RateLabel)</span>
+                <span class="pay-vat">Includes @Money.Peso(vat.Amount) VAT (@Vat.RateLabel)</span>
             </div>
             <div class="pay-field">
                 <label class="form-label" for="amountTendered">Amount tendered</label>
@@ -280,9 +280,9 @@
                             Quantity = line.Quantity,
                             StoredUnit = line.Unit }" />
                     </td>
-                    <td>@("₱" + line.UnitPrice.ToString("N2"))</td>
-                    <td>@("₱" + line.DiscountAmount.ToString("N2"))</td>
-                    <td>@("₱" + line.SubTotal.ToString("N2"))</td>
+                    <td>@Money.Peso(line.UnitPrice)</td>
+                    <td>@Money.Peso(line.DiscountAmount)</td>
+                    <td>@Money.Peso(line.SubTotal)</td>
                     @if (canUseWarranty)
                     {
                         <td>
@@ -323,7 +323,7 @@
             }
             <tr class="totals-row">
                 <td colspan="5" class="text-end">Total</td>
-                <td colspan="@(canUseWarranty ? 3 : 2)">@("₱" + Model.TotalAmount.ToString("N2"))</td>
+                <td colspan="@(canUseWarranty ? 3 : 2)">@Money.Peso(Model.TotalAmount)</td>
             </tr>
         </tbody>
     </table>

@@ -1,4 +1,4 @@
-﻿@model ZEmpireAutoAccessories.Models.ServiceInvoice
+@model ZEmpireAutoAccessories.Models.ServiceInvoice
 
 @{
     ViewData["Title"] = "Delete Service Invoice";
@@ -79,7 +79,7 @@ else
         <dd class="col-sm-8">@Model.PaymentMode.PaymentModeName</dd>
 
         <dt class="col-sm-4">Total Amount</dt>
-        <dd class="col-sm-8">@("₱" + Model.TotalAmount.ToString("N2"))</dd>
+        <dd class="col-sm-8">@Money.Peso(Model.TotalAmount)</dd>
 
         <dt class="col-sm-4">Status</dt>
         <dd class="col-sm-8">@Model.Status</dd>

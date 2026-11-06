@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -217,8 +217,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 // and take the whole sale down with it.
                 if (amountTendered is { } tendered && tendered >= sale.TotalAmount)
                 {
-                    TempData["SaleTendered"] = tendered.ToString("N2");
-                    TempData["SaleChange"] = (tendered - sale.TotalAmount).ToString("N2");
+                    // Grouped the way every other figure on the screen is, so
+                    // the amount handed over reads like the total beside it.
+                    TempData["SaleTendered"] = Money.Plain(tendered);
+                    TempData["SaleChange"] = Money.Plain(tendered - sale.TotalAmount);
                 }
 
                 return RedirectToAction(nameof(Details), new { id = sale.SalesID });

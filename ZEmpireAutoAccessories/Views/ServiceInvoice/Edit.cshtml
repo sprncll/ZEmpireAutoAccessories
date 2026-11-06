@@ -63,7 +63,7 @@
                    what the document says is owed. *@
                 <input type="hidden" asp-for="TaxAmount" />
                 <input type="text" class="form-control" readonly tabindex="-1"
-                       value="@("₱" + Vat.Amount(Model.TotalAmount).ToString("N2"))" />
+                       value="@Money.Peso(Vat.Amount(Model.TotalAmount))" />
                 <div class="form-text">Computed automatically - it is inside the total, not added to it.</div>
             </div>
             <div class="col-md-4 mb-3">
@@ -73,7 +73,7 @@
                 @* The invoice stores payment in full plus change, so a part
                    payment has nowhere to go - say so before the round trip. *@
                 <div class="form-text" id="amountPaidHelpCash">
-                    Must cover the total of @("₱" + Model.TotalAmount.ToString("N2")). Anything above it is recorded as change.
+                    Must cover the total of @Money.Peso(Model.TotalAmount). Anything above it is recorded as change.
                     Taking payment and marking the invoice Paid is done from <strong>Take payment</strong> on the invoice itself;
                     this only corrects the figure on record.
                 </div>

@@ -1,4 +1,4 @@
-﻿@model ZEmpireAutoAccessories.Models.Sale
+@model ZEmpireAutoAccessories.Models.Sale
 
 @{
     ViewData["Title"] = "Delete Sale";
@@ -82,7 +82,7 @@ else
         <dd class="col-sm-8">@Model.PaymentMode.PaymentModeName</dd>
 
         <dt class="col-sm-4">Total</dt>
-        <dd class="col-sm-8">@("₱" + Model.TotalAmount.ToString("N2"))</dd>
+        <dd class="col-sm-8">@Money.Peso(Model.TotalAmount)</dd>
     </dl>
 </div>
 

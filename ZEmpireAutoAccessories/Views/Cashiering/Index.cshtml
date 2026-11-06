@@ -322,7 +322,7 @@
     <div class="tile-row">
         <div class="tile grand">
             <div class="label">Total Collected</div>
-            <div class="value">@("₱" + Model.GrandTotal.ToString("N2"))</div>
+            <div class="value">@Money.Peso(Model.GrandTotal)</div>
             <div class="sub">@Model.CollectedCount transaction@(Model.CollectedCount == 1 ? "" : "s")</div>
         </div>
         @* Output VAT for the period. Prices are quoted VAT-inclusive, so this
@@ -330,14 +330,14 @@
            see Models/Vat.cs. *@
         <div class="tile">
             <div class="label">VAT (@Vat.RateLabel)</div>
-            <div class="value">@("₱" + Vat.Amount(Model.GrandTotal).ToString("N2"))</div>
+            <div class="value">@Money.Peso(Vat.Amount(Model.GrandTotal))</div>
             <div class="sub">included in the collected total</div>
         </div>
         @if (canOpenSales)
         {
             <div class="tile">
                 <div class="label">Product Sales</div>
-                <div class="value">@("₱" + Model.SalesTotal.ToString("N2"))</div>
+                <div class="value">@Money.Peso(Model.SalesTotal)</div>
                 <div class="sub">from sales.Sales</div>
             </div>
         }
@@ -345,13 +345,13 @@
         {
             <div class="tile">
                 <div class="label">Service Invoices</div>
-                <div class="value">@("₱" + Model.ServiceInvoiceTotal.ToString("N2"))</div>
+                <div class="value">@Money.Peso(Model.ServiceInvoiceTotal)</div>
                 <div class="sub">paid invoices only</div>
             </div>
         }
         <div class="tile warn">
             <div class="label">Not Collected</div>
-            <div class="value">@("₱" + Model.UncollectedTotal.ToString("N2"))</div>
+            <div class="value">@Money.Peso(Model.UncollectedTotal)</div>
             <div class="sub">@Model.UncollectedCount pending / cancelled / refunded</div>
         </div>
     </div>
@@ -459,7 +459,7 @@
                                 <tr>
                                     <td>@mode.PaymentModeName</td>
                                     <td class="num">@mode.TransactionCount.ToString("N0")</td>
-                                    <td class="num amount pe-3">@("₱" + mode.Total.ToString("N2"))</td>
+                                    <td class="num amount pe-3">@Money.Peso(mode.Total)</td>
                                 </tr>
                             }
                         </tbody>
@@ -473,7 +473,7 @@
                             <tr>
                                 <td>All modes</td>
                                 <td class="num">@modeTransactions.ToString("N0")</td>
-                                <td class="num pe-3">@("₱" + modeTotal.ToString("N2"))</td>
+                                <td class="num pe-3">@Money.Peso(modeTotal)</td>
                             </tr>
                         </tfoot>
                         }
@@ -501,7 +501,7 @@
                                 <tr>
                                     <td>@(cashier.CashierName ?? "—")</td>
                                     <td class="num">@cashier.TransactionCount.ToString("N0")</td>
-                                    <td class="num amount pe-3">@("₱" + cashier.Total.ToString("N2"))</td>
+                                    <td class="num amount pe-3">@Money.Peso(cashier.Total)</td>
                                 </tr>
                             }
                         </tbody>
@@ -511,7 +511,7 @@
                             <tr>
                                 <td>Everyone</td>
                                 <td class="num">@cashierTransactions.ToString("N0")</td>
-                                <td class="num pe-3">@("₱" + cashierTotal.ToString("N2"))</td>
+                                <td class="num pe-3">@Money.Peso(cashierTotal)</td>
                             </tr>
                         </tfoot>
                         }
@@ -562,12 +562,12 @@
                         <td>@(txn.PlateNumber ?? "—")</td>
                         <td>@txn.PaymentModeName</td>
                         <td>@(txn.CashierName ?? "—")</td>
-                        <td class="text-end">@("₱" + txn.TotalAmount.ToString("N2"))</td>
+                        <td class="text-end">@Money.Peso(txn.TotalAmount)</td>
                         <td class="text-end">
-                            @(txn.AmountPaid.HasValue ? "₱" + txn.AmountPaid.Value.ToString("N2") : "—")
+                            @(txn.AmountPaid.HasValue ? Money.Peso(txn.AmountPaid.Value) : "—")
                         </td>
                         <td class="text-end">
-                            @(txn.ChangeAmount.HasValue ? "₱" + txn.ChangeAmount.Value.ToString("N2") : "—")
+                            @(txn.ChangeAmount.HasValue ? Money.Peso(txn.ChangeAmount.Value) : "—")
                         </td>
                         <td><span class="badge badge-@txn.Status.ToLower()">@txn.Status</span></td>
                         @* Cash is the only payment with nothing behind it -

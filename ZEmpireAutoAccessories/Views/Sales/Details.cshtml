@@ -93,8 +93,8 @@
                 <tr>
                     <td>@line.Product.ProductName</td>
                     <td>@line.Quantity</td>
-                    <td>@("₱" + line.UnitPrice.ToString("N2"))</td>
-                    <td>@("₱" + line.SubTotal.ToString("N2"))</td>
+                    <td>@Money.Peso(line.UnitPrice)</td>
+                    <td>@Money.Peso(line.SubTotal)</td>
                     @if (canUseWarranty)
                     {
                         <td>
@@ -121,7 +121,7 @@
             }
             <tr class="totals-row">
                 <td colspan="3" class="text-end">Total</td>
-                <td><strong>@("₱" + Model.TotalAmount.ToString("N2"))</strong></td>
+                <td><strong>@Money.Peso(Model.TotalAmount)</strong></td>
                 @if (canUseWarranty)
                 {
                     <td></td>
@@ -129,7 +129,7 @@
             </tr>
             <tr class="totals-row">
                 <td colspan="3" class="text-end text-muted">VATable Sales</td>
-                <td class="text-muted">@("₱" + vat.VatableSales.ToString("N2"))</td>
+                <td class="text-muted">@Money.Peso(vat.VatableSales)</td>
                 @if (canUseWarranty)
                 {
                     <td></td>
@@ -137,7 +137,7 @@
             </tr>
             <tr class="totals-row">
                 <td colspan="3" class="text-end text-muted">VAT (@Vat.RateLabel), included</td>
-                <td class="text-muted">@("₱" + vat.Amount.ToString("N2"))</td>
+                <td class="text-muted">@Money.Peso(vat.Amount)</td>
                 @if (canUseWarranty)
                 {
                     <td></td>
