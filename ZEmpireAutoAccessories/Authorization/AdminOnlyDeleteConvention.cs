@@ -26,7 +26,14 @@ namespace ZEmpireAutoAccessories.Authorization
 
         public void Apply(ActionModel action)
         {
-            if (!action.ActionName.StartsWith("Delete", StringComparison.OrdinalIgnoreCase))
+            // RemoveLine takes a line item off a quotation, job order or
+            // invoice. It does not begin with "Delete" but it deletes a row
+            // all the same, so it is held to the same rule. (Photos and proof
+            // files are deliberately not: swapping a wrong file is part of
+            // filling the form in.)
+            var isDelete = action.ActionName.StartsWith("Delete", StringComparison.OrdinalIgnoreCase)
+                || action.ActionName.Equals("RemoveLine", StringComparison.OrdinalIgnoreCase);
+            if (!isDelete)
                 return;
 
             action.Filters.Add(AdminOnly);
