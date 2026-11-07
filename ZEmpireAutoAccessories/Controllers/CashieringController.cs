@@ -204,10 +204,17 @@ namespace ZEmpireAutoAccessories.Controllers
 
         private async Task LoadFilterDropdowns(CashieringViewModel model)
         {
+            // The modes the shop offers, in the order the forms show them,
+            // rather than every row the table happens to hold. A mode is
+            // retired by being left off that list and never by deleting its
+            // row, so this filter was still offering ones no screen can take
+            // a payment on. keepId holds on to whatever the filter is
+            // currently set to, so a link saved against a retired mode still
+            // says what it is filtering by.
             ViewData["PaymentModeID"] = new SelectList(
-                await _context.PaymentModes
-                    .OrderBy(p => p.PaymentModeName)
-                    .ToListAsync(),
+                PaymentModes.ForSelection(
+                    await _context.PaymentModes.ToListAsync(),
+                    model.PaymentModeID),
                 "PaymentModeID", "PaymentModeName", model.PaymentModeID);
 
             // Only users who have actually recorded a sale or an invoice -
