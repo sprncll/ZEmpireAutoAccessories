@@ -1,0 +1,254 @@
+erDiagram
+    %% ---------- crm ----------
+    CUSTOMER {
+        int CustomerID PK
+        string FullName
+        string ContactNumber
+        datetime CreatedAt
+    }
+    VEHICLE_CLASSIFICATION {
+        int VehicleClassificationID PK
+        string ClassificationName
+    }
+    VEHICLE {
+        int VehicleID PK
+        string PlateNumber
+        string Brand
+        string Model
+        short ManufacturingYear
+    }
+    VEHICLE_MODEL_GUIDE {
+        int VehicleModelGuideID PK
+        string Brand
+        string ModelName
+    }
+
+    %% ---------- cat ----------
+    PRODUCT_CATEGORY {
+        int CategoryID PK
+        string CategoryName
+    }
+    PRODUCT {
+        int ProductID PK
+        string ProductName
+        decimal DefaultPrice
+        bool IsActive
+    }
+    TINT_VARIANT {
+        int TintVariantID PK
+        string VariantName
+    }
+    SHADE {
+        int ShadeID PK
+        string ShadeName
+    }
+    PANEL {
+        int PanelID PK
+        string PanelName
+    }
+    SERVICE_CATEGORY {
+        int ServiceCategoryID PK
+        string CategoryName
+    }
+    SERVICE {
+        int ServiceID PK
+        string ServiceName
+        decimal DefaultPrice
+        bool IsActive
+    }
+    JOB_TYPE {
+        int JobTypeID PK
+        string JobTypeName
+    }
+    PRICING {
+        int PricingID PK
+        decimal Price
+    }
+    PRICE_HISTORY {
+        int HistoryID PK
+        decimal OldPrice
+        decimal NewPrice
+        datetime DateChanged
+    }
+
+    %% ---------- inv ----------
+    INVENTORY_TRANSACTION {
+        int InventoryTransactionID PK
+        string TransactionType
+        decimal Quantity
+        datetime TransactionDate
+    }
+    INVENTORY_CHECK {
+        int InventoryCheckID PK
+        datetime CheckDate
+    }
+    INVENTORY_CHECK_DETAIL {
+        int InventoryCheckDetailID PK
+        decimal PhysicalStock
+        string StockLevel
+        string Unit
+    }
+
+    %% ---------- sales ----------
+    PAYMENT_MODE {
+        int PaymentModeID PK
+        string PaymentModeName
+    }
+    INVOICE_NO_SERIES {
+        int InvoiceNoSeriesID PK
+        int SeriesYear
+        string Prefix
+        int CurrentNumber
+        bool IsActive
+    }
+    QUOTATION {
+        int QuotationID PK
+        string QuotationNumber
+        decimal TotalAmount
+        string Status
+    }
+    QUOTATION_DETAIL {
+        int QuotationDetailID PK
+        int Quantity
+        decimal UnitPrice
+    }
+    SALES {
+        int SalesID PK
+        string InvoiceNumber
+        datetime SalesDate
+        decimal TotalAmount
+    }
+    SALES_DETAIL {
+        int SalesDetailID PK
+        int Quantity
+        decimal UnitPrice
+    }
+    SERVICE_INVOICE {
+        int ServiceInvoiceID PK
+        string InvoiceNumber
+        decimal TotalAmount
+        decimal AmountPaid
+        string Status
+    }
+    SERVICE_INVOICE_DETAIL {
+        int ServiceInvoiceDetailID PK
+        decimal Quantity
+        decimal UnitPrice
+    }
+    WARRANTY {
+        int WarrantyID PK
+        date WarrantyStartDate
+        date WarrantyEndDate
+        string WarrantyStatus
+    }
+
+    %% ---------- ops ----------
+    JOB_ORDER {
+        int JobOrderID PK
+        string JobOrderNumber
+        string Status
+        datetime InstallationDate
+    }
+    JOB_ORDER_DETAIL {
+        int JobOrderDetailID PK
+        int Quantity
+        decimal UnitPrice
+    }
+    VEHICLE_CHECKLIST {
+        int ChecklistID PK
+        datetime ChecklistDate
+    }
+    VEHICLE_CHECKLIST_DETAIL {
+        int VehicleChecklistDetailID PK
+        string ExistingCondition
+    }
+
+    %% ---------- sec / asp ----------
+    EMPLOYEE {
+        int EmployeeID PK
+        string EmployeeNumber
+        string FirstName
+        string LastName
+        bool IsActive
+    }
+    MODULE {
+        int ModuleID PK
+        string ModuleName
+    }
+    ROLE_PERMISSION {
+    }
+    ASPNETUSERS {
+        string Id PK
+        string UserName
+        string FullName
+    }
+    ASPNETROLES {
+        string Id PK
+        string Name
+    }
+    ASPNETUSERROLES {
+    }
+
+    %% ---------- relationships ----------
+    CUSTOMER ||--o{ VEHICLE : owns
+    VEHICLE_CLASSIFICATION ||--o{ VEHICLE : classifies
+    VEHICLE_CLASSIFICATION ||--o{ VEHICLE_MODEL_GUIDE : guides
+
+    PRODUCT_CATEGORY ||--o{ PRODUCT : groups
+    PRODUCT ||--o{ TINT_VARIANT : has
+    TINT_VARIANT ||--o{ SHADE : has
+    SERVICE_CATEGORY ||--o{ SERVICE : groups
+
+    PRODUCT ||--o{ PRICING : priced_by
+    TINT_VARIANT o|--o{ PRICING : variant_of
+    VEHICLE_CLASSIFICATION ||--o{ PRICING : for_class
+    PANEL ||--o{ PRICING : for_panel
+    PRICING ||--o{ PRICE_HISTORY : journals
+
+    PRODUCT ||--o{ INVENTORY_TRANSACTION : moves
+    INVENTORY_CHECK ||--|{ INVENTORY_CHECK_DETAIL : lists
+    PRODUCT ||--o{ INVENTORY_CHECK_DETAIL : counts
+
+    CUSTOMER ||--o{ QUOTATION : requests
+    VEHICLE ||--o{ QUOTATION : for
+    JOB_TYPE o|--o{ QUOTATION : typed
+    QUOTATION ||--|{ QUOTATION_DETAIL : lists
+    PRODUCT o|--o{ QUOTATION_DETAIL : line
+    SERVICE o|--o{ QUOTATION_DETAIL : line
+
+    QUOTATION o|--o| JOB_ORDER : becomes
+    CUSTOMER ||--o{ JOB_ORDER : places
+    VEHICLE ||--o{ JOB_ORDER : serviced
+    JOB_TYPE o|--o{ JOB_ORDER : typed
+    EMPLOYEE o|--o{ JOB_ORDER : assigned
+    JOB_ORDER ||--|{ JOB_ORDER_DETAIL : lists
+    PRODUCT o|--o{ JOB_ORDER_DETAIL : line
+    SERVICE o|--o{ JOB_ORDER_DETAIL : line
+    JOB_ORDER ||--o{ VEHICLE_CHECKLIST : inspected
+    VEHICLE_CHECKLIST ||--|{ VEHICLE_CHECKLIST_DETAIL : lists
+    PANEL ||--o{ VEHICLE_CHECKLIST_DETAIL : panel
+
+    CUSTOMER ||--o{ SALES : buys
+    VEHICLE o|--o{ SALES : for
+    PAYMENT_MODE ||--o{ SALES : paid_by
+    SALES ||--|{ SALES_DETAIL : lists
+    PRODUCT ||--o{ SALES_DETAIL : sold
+
+    JOB_ORDER o|--o{ SERVICE_INVOICE : billed
+    INVOICE_NO_SERIES ||--o{ SERVICE_INVOICE : numbers
+    CUSTOMER ||--o{ SERVICE_INVOICE : billed_to
+    VEHICLE o|--o{ SERVICE_INVOICE : for
+    PAYMENT_MODE ||--o{ SERVICE_INVOICE : paid_by
+    SERVICE_INVOICE ||--|{ SERVICE_INVOICE_DETAIL : lists
+    PRODUCT o|--o{ SERVICE_INVOICE_DETAIL : line
+    SERVICE o|--o{ SERVICE_INVOICE_DETAIL : line
+
+    SALES_DETAIL o|--o{ WARRANTY : covers
+    SERVICE_INVOICE_DETAIL o|--o{ WARRANTY : covers
+    JOB_ORDER o|--o{ WARRANTY : covers
+
+    ASPNETUSERS ||--o{ EMPLOYEE : is
+    ASPNETROLES ||--o{ ROLE_PERMISSION : granted
+    MODULE ||--o{ ROLE_PERMISSION : allows
+    ASPNETUSERS ||--o{ ASPNETUSERROLES : has
+    ASPNETROLES ||--o{ ASPNETUSERROLES : in
