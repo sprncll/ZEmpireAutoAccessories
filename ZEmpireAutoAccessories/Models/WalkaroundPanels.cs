@@ -88,20 +88,31 @@ namespace ZEmpireAutoAccessories.Models
         }
 
         /// <summary>
-        /// One row per piece of glass out of rows that name the same one.
+        /// Exactly one row per piece of glass, out of rows that name the same
+        /// one.
         ///
         /// cat.Panel is the pricing catalogue and nothing stops two rows
         /// meaning the same thing: "Front WS" is what the price scripts
         /// create, and a "Front Windshield" added later by hand sits beside
-        /// it. On a price list that is untidy; on a walkaround it is a
-        /// question asked twice about one windscreen, and two answers that
-        /// can disagree.
+        /// it. On a price list that is untidy; on a walkaround it is one
+        /// windscreen asked about twice, and two answers that can disagree -
+        /// which is exactly what a checklist exists to prevent.
         ///
-        /// A row carrying a recorded condition is never hidden - that is
-        /// somebody's observation of a car, and losing it is worse than
-        /// showing the duplicate. So the twins are collapsed only while they
-        /// are empty, which is the case that matters: the sheet somebody is
-        /// about to fill in.
+        /// Which row wins, in order:
+        ///
+        ///   1. the canonical one, if it carries a condition. That is the
+        ///      name the price scripts create, so the pricing matrix, the job
+        ///      order panel dropdown and the cut-size table are all keyed on
+        ///      it, and a condition recorded against it points at the same
+        ///      row the work is priced against;
+        ///   2. whichever row does carry one, if the canonical does not - an
+        ///      observation on screen beats an empty box;
+        ///   3. the canonical row, when neither has been answered.
+        ///
+        /// Nothing is deleted. A condition on the row that loses stays in
+        /// ops.VehicleChecklistDetail untouched - SaveDetails only writes
+        /// panels the form posted, so a hidden row is not cleared by saving
+        /// the sheet. Database/FindDuplicatePanels.sql merges them properly.
         /// </summary>
         private static IEnumerable<Panel> OnePerPanel(
             IEnumerable<Panel> group, IReadOnlySet<int> recorded)
@@ -111,19 +122,19 @@ namespace ZEmpireAutoAccessories.Models
             if (rows.Count == 1)
                 return rows;
 
-            var answered = rows.Where(p => recorded.Contains(p.PanelID)).ToList();
-            if (answered.Count > 0)
-                return answered;
-
-            // None answered, so pick the row the rest of the system is keyed
-            // on: the name the price scripts create, else the row that has
-            // been there longest, which is the seeded one before anything was
-            // added beside it by hand.
             var canonical = rows.FirstOrDefault(p =>
-                Order.Any(group => group.Length > 0
-                    && string.Equals(group[0], p.PanelName?.Trim(), StringComparison.OrdinalIgnoreCase)));
+                Order.Any(names => names.Length > 0
+                    && string.Equals(names[0], p.PanelName?.Trim(), StringComparison.OrdinalIgnoreCase)));
 
-            return new[] { canonical ?? rows.OrderBy(p => p.PanelID).First() };
+            if (canonical != null && recorded.Contains(canonical.PanelID))
+                return new[] { canonical };
+
+            var answered = rows
+                .Where(p => recorded.Contains(p.PanelID))
+                .OrderBy(p => p.PanelID)
+                .FirstOrDefault();
+
+            return new[] { answered ?? canonical ?? rows.OrderBy(p => p.PanelID).First() };
         }
 
         /// <summary>
