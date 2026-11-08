@@ -1,4 +1,4 @@
-﻿@model ZEmpireAutoAccessories.Models.Warranty
+@model ZEmpireAutoAccessories.Models.Warranty
 
 @{
     ViewData["Title"] = "New Warranty";
@@ -116,7 +116,7 @@ else
         </div>
 
         <div class="mb-3">
-            <label asp-for="Remarks" class="form-label">Remarks <span class="text-muted fw-normal">(optional)</span></label>
+            <label asp-for="Remarks" class="form-label">Remarks</label>
             <input asp-for="Remarks" class="form-control" />
             <span asp-validation-for="Remarks" class="text-danger"></span>
         </div>

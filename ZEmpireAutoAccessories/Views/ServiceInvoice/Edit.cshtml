@@ -24,7 +24,7 @@
                 <span asp-validation-for="CustomerID" class="text-danger"></span>
             </div>
             <div class="col-md-6 mb-3">
-                <label asp-for="VehicleID" class="form-label">Vehicle <span class="text-muted fw-normal">(optional)</span></label>
+                <label asp-for="VehicleID" class="form-label">Vehicle</label>
                 <select asp-for="VehicleID" class="form-select" asp-items="ViewBag.VehicleID">
                     <option value="">-- None --</option>
                 </select>
@@ -33,7 +33,7 @@
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label asp-for="JobOrderID" class="form-label">Job Order <span class="text-muted fw-normal">(optional)</span></label>
+                <label asp-for="JobOrderID" class="form-label">Job Order</label>
                 <select asp-for="JobOrderID" class="form-select" asp-items="ViewBag.JobOrderID">
                     <option value="">-- None --</option>
                 </select>
@@ -87,7 +87,7 @@
         </div>
 
         <div class="mb-3">
-            <label asp-for="Remarks" class="form-label">Remarks <span class="text-muted fw-normal">(optional)</span></label>
+            <label asp-for="Remarks" class="form-label">Remarks</label>
             <textarea asp-for="Remarks" class="form-control" rows="2"></textarea>
             <span asp-validation-for="Remarks" class="text-danger"></span>
         </div>

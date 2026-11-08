@@ -31,6 +31,8 @@ namespace ZEmpireAutoAccessories.Models
         public int? VehicleID { get; set; }
 
         public string UserId { get; set; } = null!;
+
+        [Display(Name = "Payment mode")]
         public int PaymentModeID { get; set; }
 
         public DateTime SalesDate { get; set; }
@@ -80,6 +82,8 @@ namespace ZEmpireAutoAccessories.Models
         public int? VehicleID { get; set; }
 
         public string UserId { get; set; } = null!;
+
+        [Display(Name = "Payment mode")]
         public int PaymentModeID { get; set; }
 
         public DateTime InvoiceDate { get; set; }
