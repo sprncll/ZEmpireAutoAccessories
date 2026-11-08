@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -166,7 +166,16 @@ namespace ZEmpireAutoAccessories.Controllers
         public async Task<IActionResult> Create()
         {
             await LoadHeaderDropdowns();
-            return View(new JobOrder { JobOrderDate = DateTime.Now });
+
+            // Installation is nearly always the day the job is raised, so the
+            // box opens on today rather than empty. It stays editable: a job
+            // booked for next Tuesday is typed over it, and clearing it is
+            // still allowed because the column is nullable.
+            return View(new JobOrder
+            {
+                JobOrderDate = DateTime.Now,
+                InstallationDate = DateTime.Today
+            });
         }
 
         // POST: JobOrder/Create

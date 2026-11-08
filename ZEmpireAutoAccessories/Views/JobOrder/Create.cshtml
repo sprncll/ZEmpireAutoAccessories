@@ -33,13 +33,13 @@
 
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label asp-for="JobTypeID" class="form-label">Job Type <span class="text-muted fw-normal">(optional)</span></label>
+                <label asp-for="JobTypeID" class="form-label">Job Type</label>
                 <select asp-for="JobTypeID" class="form-select" asp-items="ViewBag.JobTypeID">
                     <option value="">-- None --</option>
                 </select>
             </div>
             <div class="col-md-6 mb-3">
-                <label asp-for="AssignedEmployeeID" class="form-label">Assigned Employee <span class="text-muted fw-normal">(optional)</span></label>
+                <label asp-for="AssignedEmployeeID" class="form-label">Assigned Employee</label>
                 <select asp-for="AssignedEmployeeID" class="form-select" asp-items="ViewBag.AssignedEmployeeID">
                     <option value="">-- Unassigned --</option>
                 </select>

@@ -28,16 +28,22 @@ namespace ZEmpireAutoAccessories.Models
         public DateTime JobOrderDate { get; set; }
         public DateTime? InstallationDate { get; set; }
 
+        // Without a Display name a label renders the property itself, and
+        // these four were reaching the screen as "ExistingFilmShade".
         [MaxLength(100)]
+        [Display(Name = "Existing film / shade")]
         public string? ExistingFilmShade { get; set; }
 
         [MaxLength(400)]
+        [Display(Name = "Reason for changing")]
         public string? ReasonForChanging { get; set; }
 
         [MaxLength(400)]
+        [Display(Name = "Special instructions")]
         public string? SpecialInstruction { get; set; }
 
         [MaxLength(400)]
+        [Display(Name = "Complaint")]
         public string? Complaint { get; set; }
 
         // Nothing asks for this any more - it is off the job order forms, the
