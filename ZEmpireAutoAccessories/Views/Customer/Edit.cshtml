@@ -23,23 +23,51 @@
         <input type="hidden" asp-for="CustomerID" />
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-        <div class="mb-3">
-            <label asp-for="FullName" class="form-label"></label>
-            <input asp-for="FullName" class="form-control" autofocus />
-            <span asp-validation-for="FullName" class="text-danger"></span>
+        @{
+            var lastName = ViewData["LastName"] as string ?? string.Empty;
+            var firstName = ViewData["FirstName"] as string ?? string.Empty;
+        }
+
+        @* Last name first, because that is the order a customer gives it at a
+           counter. The column holds one name and PersonName puts these back
+           together, so nothing downstream changes. *@
+        <div class="row g-3 align-items-start">
+            <div class="col-lg-7">
+                <label class="form-label mb-1">Full name</label>
+                <div class="row g-2">
+                    <div class="col-sm-6">
+                        <input type="text" id="lastName" name="lastName" class="form-control"
+                               value="@lastName" maxlength="80" autofocus
+                               placeholder="Dela Cruz" autocomplete="family-name" required />
+                        <div class="form-text">Last name</div>
+                        @Html.ValidationMessage("lastName", null, new { @class = "text-danger" })
+                    </div>
+                    <div class="col-sm-6">
+                        <input type="text" id="firstName" name="firstName" class="form-control"
+                               value="@firstName" maxlength="60"
+                               placeholder="Juan" autocomplete="given-name" required />
+                        <div class="form-text">First name</div>
+                        @Html.ValidationMessage("firstName", null, new { @class = "text-danger" })
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5">
+                <label for="ContactNumber" class="form-label mb-1">Contact number</label>
+                <div class="input-group">
+                    <span class="input-group-text">+63</span>
+                    <input type="text" id="ContactNumber" name="ContactNumber"
+                           class="form-control" placeholder="9121231231"
+                           value="@PhoneNumber.ToLocalDigits(Model.ContactNumber)"
+                           inputmode="numeric" maxlength="10" autocomplete="tel" required />
+                </div>
+                <div class="form-text">Ten digits beginning 9. One number, one customer.</div>
+                <span asp-validation-for="ContactNumber" class="text-danger"></span>
+            </div>
         </div>
 
-        <div class="mb-3">
-            <label for="ContactNumber" class="form-label">Contact number</label>
-            <div class="input-group">
-                <span class="input-group-text">+63</span>
-                <input type="text" id="ContactNumber" name="ContactNumber"
-                       class="form-control" placeholder="9121231231"
-                       value="@PhoneNumber.ToLocalDigits(Model.ContactNumber)"
-                       inputmode="numeric" maxlength="10" autocomplete="tel" required />
-            </div>
-            <div class="form-text">Ten digits beginning 9. A number typed as 0912&hellip; or +63&nbsp;912&hellip; is accepted.</div>
-            <span asp-validation-for="ContactNumber" class="text-danger"></span>
+        <div class="mt-3">
+            <span asp-validation-for="FullName" class="text-danger"></span>
         </div>
 
         <div class="form-actions">

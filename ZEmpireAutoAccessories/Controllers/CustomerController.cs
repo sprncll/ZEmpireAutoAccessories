@@ -92,8 +92,21 @@ namespace ZEmpireAutoAccessories.Controllers
         // POST: Customer/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("FullName,ContactNumber")] Customer customer)
+        public async Task<IActionResult> Create(
+            [Bind("ContactNumber")] Customer customer, string? lastName, string? firstName)
         {
+            // The form asks for the name in two boxes; the column holds one.
+            // Combined before anything is judged, so the validation below is
+            // about the name that will actually be stored.
+            customer.FullName = PersonName.Combine(firstName, lastName);
+            ModelState.Remove(nameof(Customer.FullName));
+
+            if (string.IsNullOrWhiteSpace(firstName))
+                ModelState.AddModelError("firstName", "First name is required.");
+
+            if (string.IsNullOrWhiteSpace(lastName))
+                ModelState.AddModelError("lastName", "Last name is required.");
+
             // Normalise before judging it: binding has already run the regex
             // against the raw text, so clear that verdict and test the stored
             // shape instead.
@@ -118,9 +131,14 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             if (!ModelState.IsValid)
+            {
+                // Hand the two boxes back as they were typed, so a wrong
+                // number does not cost somebody their customer's name too.
+                ViewData["LastName"] = lastName;
+                ViewData["FirstName"] = firstName;
                 return View(customer);
+            }
 
-            customer.FullName = customer.FullName.Trim();
             customer.CreatedAt = DateTime.UtcNow;
 
             _context.Customers.Add(customer);
@@ -141,16 +159,31 @@ namespace ZEmpireAutoAccessories.Controllers
             if (customer == null)
                 return NotFound();
 
+            var (first, last) = PersonName.Split(customer.FullName);
+            ViewData["FirstName"] = first;
+            ViewData["LastName"] = last;
+
             return View(customer);
         }
 
         // POST: Customer/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("CustomerID,FullName,ContactNumber")] Customer customer)
+        public async Task<IActionResult> Edit(
+            int id, [Bind("CustomerID,ContactNumber")] Customer customer,
+            string? lastName, string? firstName)
         {
             if (id != customer.CustomerID)
                 return NotFound();
+
+            customer.FullName = PersonName.Combine(firstName, lastName);
+            ModelState.Remove(nameof(Customer.FullName));
+
+            if (string.IsNullOrWhiteSpace(firstName))
+                ModelState.AddModelError("firstName", "First name is required.");
+
+            if (string.IsNullOrWhiteSpace(lastName))
+                ModelState.AddModelError("lastName", "Last name is required.");
 
             // Normalise before judging it: binding has already run the regex
             // against the raw text, so clear that verdict and test the stored
@@ -175,7 +208,11 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             if (!ModelState.IsValid)
+            {
+                ViewData["LastName"] = lastName;
+                ViewData["FirstName"] = firstName;
                 return View(customer);
+            }
 
             // Load the tracked entity and update only the editable fields so
             // CreatedAt (and anything else) is preserved and over-posting is impossible.
@@ -183,7 +220,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (existing == null)
                 return NotFound();
 
-            existing.FullName = customer.FullName.Trim();
+            existing.FullName = customer.FullName;
             existing.ContactNumber = customer.ContactNumber;
 
             await _context.SaveChangesAsync();
