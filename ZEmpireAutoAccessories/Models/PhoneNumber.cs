@@ -34,6 +34,22 @@ namespace ZEmpireAutoAccessories.Models
         }
 
         /// <summary>
+        /// The same number written the old way, "09" and nine more digits, so
+        /// a search for one customer also finds the rows entered before the
+        /// shop moved to +63. Null if the number is not a valid one.
+        ///
+        /// Both forms have to be looked for: a row holding 09121231231 and a
+        /// row holding +639121231231 are the same person's number, and a
+        /// uniqueness check comparing only the stored shape would let the
+        /// second be entered beside the first.
+        /// </summary>
+        public static string? ToDialledForm(string? typed)
+        {
+            var normalised = ToPhilippineMobile(typed);
+            return normalised is null ? null : "0" + normalised[3..];
+        }
+
+        /// <summary>
         /// The ten digits a form shows beside a fixed "+63", from whatever is
         /// stored. Older rows hold "09..."; they display the same way.
         /// </summary>

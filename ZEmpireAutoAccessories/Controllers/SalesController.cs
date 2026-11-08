@@ -126,9 +126,16 @@ namespace ZEmpireAutoAccessories.Controllers
 
             // A repeat walk-in gives the same number, and two rows for one
             // person is worse than the keystroke saved. The existing customer
-            // is handed back instead, so the sale carries on against them.
+            // is handed back instead, so the sale carries on against them -
+            // which is also how this screen keeps a number unique, since it
+            // never creates a second row for one that is already on file.
+            //
+            // Both shapes are looked for: a row entered before the shop moved
+            // to +63 still holds 09121231231, which is the same number.
+            var dialled = PhoneNumber.ToDialledForm(number);
+
             var existing = await _context.Customers
-                .FirstOrDefaultAsync(c => c.ContactNumber == number);
+                .FirstOrDefaultAsync(c => c.ContactNumber == number || c.ContactNumber == dialled);
 
             if (existing != null)
                 return Json(new

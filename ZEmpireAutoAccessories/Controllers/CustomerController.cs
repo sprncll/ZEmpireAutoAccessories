@@ -64,6 +64,31 @@ namespace ZEmpireAutoAccessories.Controllers
             return View(new Customer());
         }
 
+        /// <summary>
+        /// The customer already holding this number, if there is one.
+        ///
+        /// A mobile number belongs to one person, so it is what tells two
+        /// customers of the same name apart - and if two rows carry the same
+        /// number, it stops telling anybody anything. There is no unique
+        /// index behind this: the column allows duplicates and the database
+        /// is not being changed, so the rule lives here and the screens are
+        /// the only way in.
+        ///
+        /// Both shapes are looked for. Rows entered before the shop moved to
+        /// +63 still hold 09121231231, which is the same number as
+        /// +639121231231 and must not be allowed to sit beside it.
+        /// </summary>
+        private async Task<Customer?> NumberAlreadyUsed(string number, int? exceptCustomerId = null)
+        {
+            var dialled = PhoneNumber.ToDialledForm(number);
+
+            return await _context.Customers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c =>
+                    (c.ContactNumber == number || c.ContactNumber == dialled)
+                    && (exceptCustomerId == null || c.CustomerID != exceptCustomerId));
+        }
+
         // POST: Customer/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -76,8 +101,21 @@ namespace ZEmpireAutoAccessories.Controllers
             ModelState.Remove(nameof(Customer.ContactNumber));
 
             if (customer.ContactNumber is null)
+            {
                 ModelState.AddModelError(nameof(Customer.ContactNumber),
                     "Enter a Philippine mobile number: +63 then 10 digits starting with 9.");
+            }
+            else
+            {
+                // Named, not just refused: nine times out of ten this is the
+                // same customer being entered twice, and whoever is typing
+                // needs to know whose record to open instead.
+                var holder = await NumberAlreadyUsed(customer.ContactNumber);
+                if (holder != null)
+                    ModelState.AddModelError(nameof(Customer.ContactNumber),
+                        $"That number is already on file for \"{holder.FullName}\". " +
+                        "A mobile number belongs to one customer, so open their record instead.");
+            }
 
             if (!ModelState.IsValid)
                 return View(customer);
@@ -121,8 +159,20 @@ namespace ZEmpireAutoAccessories.Controllers
             ModelState.Remove(nameof(Customer.ContactNumber));
 
             if (customer.ContactNumber is null)
+            {
                 ModelState.AddModelError(nameof(Customer.ContactNumber),
                     "Enter a Philippine mobile number: +63 then 10 digits starting with 9.");
+            }
+            else
+            {
+                // Everyone except this customer, so re-saving a record without
+                // touching the number is not refused by its own number.
+                var holder = await NumberAlreadyUsed(customer.ContactNumber, id);
+                if (holder != null)
+                    ModelState.AddModelError(nameof(Customer.ContactNumber),
+                        $"That number is already on file for \"{holder.FullName}\". " +
+                        "A mobile number belongs to one customer.");
+            }
 
             if (!ModelState.IsValid)
                 return View(customer);
