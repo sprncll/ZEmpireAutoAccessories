@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ZEmpireAutoAccessories.Models
@@ -26,6 +26,7 @@ namespace ZEmpireAutoAccessories.Models
         public int CategoryID { get; set; }
 
         [Required, MaxLength(150)]
+        [Display(Name = "Product name")]
         public string ProductName { get; set; } = string.Empty;
 
         [MaxLength(400)]
@@ -35,8 +36,10 @@ namespace ZEmpireAutoAccessories.Models
         // negative price comes back as a field error rather than a raw SQL
         // rejection on save.
         [Range(0, 9999999999.99, ErrorMessage = "Default price can't be negative.")]
+        [Display(Name = "Default price")]
         public decimal? DefaultPrice { get; set; }
 
+        [Display(Name = "Active")]
         public bool IsActive { get; set; }
 
         public ProductCategory Category { get; set; } = null!;
@@ -101,9 +104,11 @@ namespace ZEmpireAutoAccessories.Models
         [Key]
         public int ServiceID { get; set; }
 
+        [Display(Name = "Category")]
         public int ServiceCategoryID { get; set; }
 
         [Required, MaxLength(150)]
+        [Display(Name = "Service name")]
         public string ServiceName { get; set; } = string.Empty;
 
         [MaxLength(400)]
@@ -111,8 +116,10 @@ namespace ZEmpireAutoAccessories.Models
 
         // CK_Service_Price backs this with >= 0 at the database level.
         [Range(0, 9999999999.99, ErrorMessage = "Default price can't be negative.")]
+        [Display(Name = "Default price")]
         public decimal DefaultPrice { get; set; }
 
+        [Display(Name = "Active")]
         public bool IsActive { get; set; }
 
         public ServiceCategory ServiceCategory { get; set; } = null!;
@@ -125,6 +132,7 @@ namespace ZEmpireAutoAccessories.Models
         public int JobTypeID { get; set; }
 
         [Required, MaxLength(80)]
+        [Display(Name = "Job type")]
         public string JobTypeName { get; set; } = string.Empty;
     }
 
@@ -134,9 +142,11 @@ namespace ZEmpireAutoAccessories.Models
         [Key]
         public int PricingID { get; set; }
 
+        [Display(Name = "Product")]
         public int ProductID { get; set; }
         public int? TintVariantID { get; set; }
         public int VehicleClassificationID { get; set; }
+        [Display(Name = "Panel")]
         public int PanelID { get; set; }
 
         public decimal Price { get; set; }

@@ -282,13 +282,17 @@ namespace ZEmpireAutoAccessories.Models
         public int? ServiceInvoiceDetailID { get; set; }
         public int? JobOrderID { get; set; }
 
+        [Display(Name = "Warranty starts")]
         public DateOnly? WarrantyStartDate { get; set; }
+        [Display(Name = "Warranty ends")]
         public DateOnly? WarrantyEndDate { get; set; }
 
         [MaxLength(500)]
+        [Display(Name = "Terms")]
         public string? WarrantyTerms { get; set; }
 
         [MaxLength(100)]
+        [Display(Name = "Status")]
         public string? WarrantyStatus { get; set; }
 
         [MaxLength(150)]

@@ -52,6 +52,7 @@ namespace ZEmpireAutoAccessories.Models
         public int VehicleClassificationID { get; set; }
 
         [Required, MaxLength(80)]
+        [Display(Name = "Classification")]
         public string ClassificationName { get; set; } = string.Empty;
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();

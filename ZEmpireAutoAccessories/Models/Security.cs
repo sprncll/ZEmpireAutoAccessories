@@ -14,15 +14,19 @@ namespace ZEmpireAutoAccessories.Models
         public string UserId { get; set; } = null!;
 
         [Required, MaxLength(30)]
+        [Display(Name = "Employee number")]
         public string EmployeeNumber { get; set; } = string.Empty;
 
         [Required, MaxLength(100)]
+        [Display(Name = "First name")]
         public string FirstName { get; set; } = string.Empty;
 
         [MaxLength(100)]
+        [Display(Name = "Middle name")]
         public string? MiddleName { get; set; }
 
         [Required, MaxLength(100)]
+        [Display(Name = "Last name")]
         public string LastName { get; set; } = string.Empty;
 
         [MaxLength(20)]
@@ -32,11 +36,14 @@ namespace ZEmpireAutoAccessories.Models
         public string FullName { get; private set; } = string.Empty;
 
         [MaxLength(30)]
+        [Display(Name = "Contact number")]
         public string? ContactNumber { get; set; }
 
         [MaxLength(256)]
+        [Display(Name = "Email address")]
         public string? EmailAddress { get; set; }
 
+        [Display(Name = "Active")]
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
