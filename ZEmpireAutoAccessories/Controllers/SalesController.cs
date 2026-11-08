@@ -113,12 +113,19 @@ namespace ZEmpireAutoAccessories.Controllers
         // for.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> QuickCustomer(string? fullName, string? contactNumber)
+        public async Task<IActionResult> QuickCustomer(
+            string? lastName, string? firstName, string? contactNumber)
         {
-            fullName = fullName?.Trim();
+            // Two boxes, one column - the same split the Customers module
+            // uses, so a walk-in added here is not a different shape of
+            // record from one added there.
+            var fullName = PersonName.Combine(firstName, lastName);
 
-            if (string.IsNullOrWhiteSpace(fullName))
-                return Json(new { error = "Enter the customer's name." });
+            if (string.IsNullOrWhiteSpace(firstName))
+                return Json(new { error = "Enter the customer's first name." });
+
+            if (string.IsNullOrWhiteSpace(lastName))
+                return Json(new { error = "Enter the customer's last name." });
 
             var number = PhoneNumber.ToPhilippineMobile(contactNumber);
             if (number == null)

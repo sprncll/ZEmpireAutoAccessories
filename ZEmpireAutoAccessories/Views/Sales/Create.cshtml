@@ -60,10 +60,20 @@
                 </select>
 
                 <div id="newCustomerPanel" class="border rounded p-2 mt-2" style="display:none;background:#fbfcfd;">
-                    <div class="mb-2">
-                        <label for="newCustomerName" class="form-label mb-1" style="font-size:13px;">Name</label>
-                        <input type="text" id="newCustomerName" class="form-control form-control-sm"
-                               maxlength="150" placeholder="Who is buying" />
+                    <div class="row g-2 mb-2">
+                        @* Last name first, the same way the Customers module
+                           asks for it, so the two screens do not disagree
+                           about what goes where. *@
+                        <div class="col-6">
+                            <label for="newCustomerLast" class="form-label mb-1" style="font-size:13px;">Last name</label>
+                            <input type="text" id="newCustomerLast" class="form-control form-control-sm"
+                                   maxlength="80" placeholder="Dela Cruz" autocomplete="family-name" />
+                        </div>
+                        <div class="col-6">
+                            <label for="newCustomerFirst" class="form-label mb-1" style="font-size:13px;">First name</label>
+                            <input type="text" id="newCustomerFirst" class="form-control form-control-sm"
+                                   maxlength="60" placeholder="Juan" autocomplete="given-name" />
+                        </div>
                     </div>
                     <div class="mb-2">
                         <label for="newCustomerNumber" class="form-label mb-1" style="font-size:13px;">Contact number</label>
@@ -619,7 +629,7 @@
                 var opening = $panel.is(':hidden');
                 $panel.toggle(opening);
                 showError('');
-                if (opening) { $('#newCustomerName').trigger('focus'); }
+                if (opening) { $('#newCustomerLast').trigger('focus'); }
             });
 
             $('#newCustomerCancel').on('click', function () {
@@ -649,7 +659,8 @@
                     url: '@Url.Action("QuickCustomer")',
                     type: 'POST',
                     data: {
-                        fullName: $('#newCustomerName').val(),
+                        lastName: $('#newCustomerLast').val(),
+                        firstName: $('#newCustomerFirst').val(),
                         contactNumber: $('#newCustomerNumber').val(),
                         __RequestVerificationToken: $('#saleForm input[name="__RequestVerificationToken"]').val()
                     }
@@ -669,7 +680,8 @@
                     $customer.val(String(result.id)).trigger('change');
 
                     $panel.hide();
-                    $('#newCustomerName').val('');
+                    $('#newCustomerLast').val('');
+                    $('#newCustomerFirst').val('');
                     $('#newCustomerNumber').val('');
                 }).fail(function () {
                     showError('The customer could not be added. Check the connection and try again.');
