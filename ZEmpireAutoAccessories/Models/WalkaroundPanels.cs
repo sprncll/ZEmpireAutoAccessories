@@ -26,13 +26,22 @@ namespace ZEmpireAutoAccessories.Models
         /// then the roof. Alphabetical order put "2FWS" first and the
         /// windshield third, which matches nothing anyone does.
         /// </summary>
+        /// <summary>
+        /// The name FIRST in each group is the one the price scripts create,
+        /// and so the one the pricing matrix, the job order panel dropdown and
+        /// the cut-size table are all keyed on. Where two rows in cat.Panel
+        /// name the same glass, that is the one the walkaround keeps, so a
+        /// condition is recorded against the same panel the work is priced
+        /// against. The rest are names the same glass has been given
+        /// elsewhere.
+        /// </summary>
         private static readonly string[][] Order =
         {
-            new[] { "Front Windshield", "Front WS", "Windshield" },
+            new[] { "Front WS", "Front Windshield", "Windshield" },
             new[] { "2FWS", "2 FWS", "Front Windows", "2 Front Windows", "1st Row" },
             new[] { "2RWS", "2 RWS", "Rear Windows", "2 Rear Windows", "2nd Row" },
             new[] { "Qtr Window", "Quarter Window", "Qtr Glass", "Quarter Glass" },
-            new[] { "Rear Windshield", "Rear WS" },
+            new[] { "Rear WS", "Rear Windshield" },
             new[] { "Sunroof", "Moonroof" }
         };
 
@@ -64,9 +73,62 @@ namespace ZEmpireAutoAccessories.Models
         }
 
         /// <summary>
-        /// The sheet to walk: every panel that is a piece of glass, plus any
-        /// bundle that already carries a recorded condition, in walkaround
-        /// order.
+        /// Which alias group a panel belongs to, for collapsing two rows that
+        /// name the same piece of glass. A panel this list has never heard of
+        /// is its own group, so two genuinely different panels are never
+        /// merged on a guess.
+        /// </summary>
+        private static string GroupKey(string? panelName)
+        {
+            var rank = Rank(panelName);
+
+            return rank == int.MaxValue
+                ? "name:" + (panelName?.Trim().ToLowerInvariant() ?? string.Empty)
+                : "alias:" + rank;
+        }
+
+        /// <summary>
+        /// One row per piece of glass out of rows that name the same one.
+        ///
+        /// cat.Panel is the pricing catalogue and nothing stops two rows
+        /// meaning the same thing: "Front WS" is what the price scripts
+        /// create, and a "Front Windshield" added later by hand sits beside
+        /// it. On a price list that is untidy; on a walkaround it is a
+        /// question asked twice about one windscreen, and two answers that
+        /// can disagree.
+        ///
+        /// A row carrying a recorded condition is never hidden - that is
+        /// somebody's observation of a car, and losing it is worse than
+        /// showing the duplicate. So the twins are collapsed only while they
+        /// are empty, which is the case that matters: the sheet somebody is
+        /// about to fill in.
+        /// </summary>
+        private static IEnumerable<Panel> OnePerPanel(
+            IEnumerable<Panel> group, IReadOnlySet<int> recorded)
+        {
+            var rows = group.ToList();
+
+            if (rows.Count == 1)
+                return rows;
+
+            var answered = rows.Where(p => recorded.Contains(p.PanelID)).ToList();
+            if (answered.Count > 0)
+                return answered;
+
+            // None answered, so pick the row the rest of the system is keyed
+            // on: the name the price scripts create, else the row that has
+            // been there longest, which is the seeded one before anything was
+            // added beside it by hand.
+            var canonical = rows.FirstOrDefault(p =>
+                Order.Any(group => group.Length > 0
+                    && string.Equals(group[0], p.PanelName?.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+            return new[] { canonical ?? rows.OrderBy(p => p.PanelID).First() };
+        }
+
+        /// <summary>
+        /// The sheet to walk: one row per piece of glass, plus any bundle that
+        /// already carries a recorded condition, in walkaround order.
         /// </summary>
         public static List<Panel> Walkaround(IEnumerable<Panel> all, IEnumerable<int> alreadyRecorded)
         {
@@ -74,6 +136,8 @@ namespace ZEmpireAutoAccessories.Models
 
             return all
                 .Where(p => !IsBundle(p.PanelName) || recorded.Contains(p.PanelID))
+                .GroupBy(p => GroupKey(p.PanelName))
+                .SelectMany(group => OnePerPanel(group, recorded))
                 .OrderBy(p => Rank(p.PanelName))
                 .ThenBy(p => p.PanelName, StringComparer.OrdinalIgnoreCase)
                 .ToList();
