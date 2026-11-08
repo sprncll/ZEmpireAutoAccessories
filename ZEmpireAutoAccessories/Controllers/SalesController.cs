@@ -106,6 +106,10 @@ namespace ZEmpireAutoAccessories.Controllers
         // loses the sale they had half-typed. This adds the two fields a sale
         // actually needs and hands the id straight back to the form.
         //
+        // It only ever ADDS. A number already on file is refused rather than
+        // quietly resolved to whoever holds it: picking a customer the typist
+        // did not choose is how a sale ends up against the wrong person.
+        //
         // It lives here rather than on CustomerController because that one is
         // behind the Customers module, and somebody who may ring up a sale is
         // not necessarily given it. Making a customer is part of making a
@@ -131,25 +135,26 @@ namespace ZEmpireAutoAccessories.Controllers
             if (number == null)
                 return Json(new { error = "Enter a Philippine mobile number: +63 then 10 digits starting with 9." });
 
-            // A repeat walk-in gives the same number, and two rows for one
-            // person is worse than the keystroke saved. The existing customer
-            // is handed back instead, so the sale carries on against them -
-            // which is also how this screen keeps a number unique, since it
-            // never creates a second row for one that is already on file.
+            // This panel adds a customer; it does not find one. A number
+            // already on file is refused and the holder named, the same way
+            // the Customers module refuses it, so the two screens cannot
+            // disagree about whether a number may be reused. Naming them is
+            // the point: the customer is already in the dropdown behind this
+            // panel, and whoever is typing needs to know who to pick.
             //
             // Both shapes are looked for: a row entered before the shop moved
             // to +63 still holds 09121231231, which is the same number.
             var dialled = PhoneNumber.ToDialledForm(number);
 
-            var existing = await _context.Customers
+            var holder = await _context.Customers
+                .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.ContactNumber == number || c.ContactNumber == dialled);
 
-            if (existing != null)
+            if (holder != null)
                 return Json(new
                 {
-                    id = existing.CustomerID,
-                    name = existing.FullName,
-                    existed = true
+                    error = $"That number is already on file for \"{holder.FullName}\". "
+                            + "Close this and pick them from the Customer list."
                 });
 
             var customer = new Customer
@@ -162,7 +167,7 @@ namespace ZEmpireAutoAccessories.Controllers
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
 
-            return Json(new { id = customer.CustomerID, name = customer.FullName, existed = false });
+            return Json(new { id = customer.CustomerID, name = customer.FullName });
         }
 
         // GET: Sale/VehiclesForCustomer?customerId=5

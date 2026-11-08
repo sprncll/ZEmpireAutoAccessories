@@ -669,8 +669,11 @@
 
                     var $customer = $('#customerId');
 
-                    // An existing customer is already in the list; adding the
-                    // option again would show the same person twice.
+                    // Only ever a customer that did not exist a moment ago -
+                    // one already on file is refused above, not resolved - so
+                    // the option is always new. Guarded anyway: appending a
+                    // second option for one person would be worse than the
+                    // line it saves.
                     if (!$customer.find('option[value="' + result.id + '"]').length) {
                         $customer.append($('<option></option>').val(result.id).text(result.name));
                     }
