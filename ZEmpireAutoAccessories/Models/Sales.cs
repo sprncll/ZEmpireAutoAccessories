@@ -73,12 +73,35 @@ namespace ZEmpireAutoAccessories.Models
         /// </summary>
         public int? ShadeID { get; set; }
 
+        /// <summary>
+        /// The panel this line was priced for, where it was priced by panel
+        /// at all - a walk-in buying tint is buying "Full Wrap", not a length
+        /// of film.
+        ///
+        /// Null means sold off the roll by the metre, which is what every
+        /// sale before this column existed was, and what a bolt or a step
+        /// board always is.
+        /// </summary>
+        public int? PanelID { get; set; }
+
+        /// <summary>
+        /// The class of car that panel was priced for.
+        ///
+        /// Kept on the LINE rather than read off the sale, because a walk-in
+        /// has no vehicle on file - the class is something the counter says
+        /// about the car in front of it. With the panel it also gives the cut
+        /// size, which is what actually left the roll.
+        /// </summary>
+        public int? VehicleClassificationID { get; set; }
+
         // Persisted computed column (Quantity * UnitPrice)
         public decimal SubTotal { get; private set; }
 
         public Sale Sale { get; set; } = null!;
         public Product Product { get; set; } = null!;
         public Shade? Shade { get; set; }
+        public Panel? Panel { get; set; }
+        public VehicleClassification? VehicleClassification { get; set; }
     }
 
     [Table("ServiceInvoice", Schema = "sales")]

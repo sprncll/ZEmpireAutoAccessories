@@ -210,10 +210,15 @@ namespace ZEmpireAutoAccessories.Services
                 {
                     ProductID = d.ProductID,
                     ShadeID = d.ShadeID,
-                    PanelID = null,
+
+                    // A counter sale priced by panel takes the cut size, the
+                    // same as a job order does - Centimeters() below works
+                    // that out from these two. A sale off the roll carries
+                    // neither, and is the metres as written.
+                    PanelID = d.PanelID,
+                    ClassificationID = d.VehicleClassificationID,
                     Quantity = d.Quantity,
                     Unit = UnitOfMeasure.Meter,
-                    ClassificationID = null,
                     On = d.Sale.SalesDate
                 })
                 .ToListAsync());

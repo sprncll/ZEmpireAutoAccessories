@@ -13,10 +13,12 @@ namespace ZEmpireAutoAccessories.Services
     public class SalesService : ISalesService
     {
         private readonly ApplicationDbContext _context;
+        private readonly ICutSizeStore _cutSizes;
 
-        public SalesService(ApplicationDbContext context)
+        public SalesService(ApplicationDbContext context, ICutSizeStore cutSizes)
         {
             _context = context;
+            _cutSizes = cutSizes;
         }
 
         public async Task<Sale?> GetSale(int saleId)
@@ -38,6 +40,13 @@ namespace ZEmpireAutoAccessories.Services
                     // both the screen and the receipt quietly omit it.
                     .ThenInclude(sd => sd.Shade)
                         .ThenInclude(sh => sh!.TintVariant)
+                .Include(s => s.SaleDetails)
+                    // The panel the line was priced for, and the class of car
+                    // it was priced against - what a film line at the counter
+                    // actually says.
+                    .ThenInclude(sd => sd.Panel)
+                .Include(s => s.SaleDetails)
+                    .ThenInclude(sd => sd.VehicleClassification)
                 .FirstOrDefaultAsync(s => s.SalesID == saleId);
         }
 
@@ -153,10 +162,31 @@ namespace ZEmpireAutoAccessories.Services
 
                     var byLength = soldByLength.Contains(item.ProductID);
 
-                    // A line of "3" means 3 m of film, or 3 of anything else.
-                    var takenFromStock = byLength
-                        ? UnitOfMeasure.ToBase(item.Quantity, UnitOfMeasure.Meter)
-                        : item.Quantity;
+                    // A line of "3" means 3 m of film, or 3 of anything else
+                    // - unless the counter priced it by panel, in which case
+                    // it means three of that panel and what leaves the roll is
+                    // the cut size, exactly as a job order takes it.
+                    decimal takenFromStock;
+
+                    if (byLength && item.PanelID is { } panelId
+                        && item.VehicleClassificationID is { } classificationId)
+                    {
+                        var cut = _cutSizes.Centimeters(classificationId, panelId);
+
+                        if (cut == null)
+                            throw new InvalidOperationException(
+                                $"No cut size is set for that panel on this class of vehicle, so " +
+                                $"there is no way to know how much {product.ProductName} comes off " +
+                                "the roll. Set it under Inventory - Cut Sizes, then take the sale again.");
+
+                        takenFromStock = cut.Value * item.Quantity;
+                    }
+                    else
+                    {
+                        takenFromStock = byLength
+                            ? UnitOfMeasure.ToBase(item.Quantity, UnitOfMeasure.Meter)
+                            : item.Quantity;
+                    }
 
                     if (stockOnHand < takenFromStock)
                         throw new InvalidOperationException(
@@ -178,7 +208,12 @@ namespace ZEmpireAutoAccessories.Services
                         // records nothing finer - but the line now says which
                         // shade it was, so the breakdown on Inventory > Shades
                         // can subtract a counter sale like any other line.
-                        ShadeID = item.ShadeID
+                        ShadeID = item.ShadeID,
+
+                        // What the counter priced it as. Null on anything
+                        // sold by the metre or by the piece.
+                        PanelID = item.PanelID,
+                        VehicleClassificationID = item.VehicleClassificationID
                         // SubTotal is a computed column in the database
                     });
 

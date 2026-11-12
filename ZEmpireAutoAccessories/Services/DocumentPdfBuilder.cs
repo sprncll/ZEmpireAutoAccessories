@@ -121,11 +121,21 @@ namespace ZEmpireAutoAccessories.Services
                                 // another metre of the same shade has the
                                 // receipt that says which one it was.
                                 tintVariant: d.Shade?.TintVariant?.VariantName,
-                                shade: d.Shade?.ShadeName),
+                                shade: d.Shade?.ShadeName,
+                                panel: d.Panel == null ? null
+                                    : string.Join(" ", new[] { d.Panel.PanelName,
+                                        d.VehicleClassification == null
+                                            ? null
+                                            : "(" + d.VehicleClassification.ClassificationName + ")" }
+                                      .Where(x => !string.IsNullOrWhiteSpace(x)))),
                             Qty = d.Quantity,
-                            // A counter sale has no panel, so film is the
-                            // length that was written - in metres.
-                            Unit = SoldByLength(d.Product) ? UnitOfMeasure.Meter : UnitOfMeasure.DefaultCountUnit,
+                            // A counter sale priced by panel counts panels,
+                            // the same as every other document; one sold off
+                            // the roll is the length that was written, in
+                            // metres.
+                            Unit = d.PanelID != null
+                                ? UnitOfMeasure.PanelUnit + (d.Quantity == 1 ? "" : "s")
+                                : SoldByLength(d.Product) ? UnitOfMeasure.Meter : UnitOfMeasure.DefaultCountUnit,
                             UnitPrice = d.UnitPrice,
                             Discount = null,
                             SubTotal = d.SubTotal

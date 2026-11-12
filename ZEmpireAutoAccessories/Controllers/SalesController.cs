@@ -18,19 +18,22 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IQuotationService _quotationService; // GetNextInvoiceNumber lives here
         private readonly IInventoryService _inventoryService;
         private readonly IShadeStockService _shadeStock;
+        private readonly ICutSizeStore _cutSizes;
 
         public SalesController(
             ApplicationDbContext context,
             ISalesService salesService,
             IQuotationService quotationService,
             IInventoryService inventoryService,
-            IShadeStockService shadeStock)
+            IShadeStockService shadeStock,
+            ICutSizeStore cutSizes)
         {
             _context = context;
             _salesService = salesService;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
             _shadeStock = shadeStock;
+            _cutSizes = cutSizes;
         }
 
         // GET: Sale?q=...&productId=...&dateFrom=...&dateTo=...
@@ -189,6 +192,49 @@ namespace ZEmpireAutoAccessories.Controllers
             return Json(vehicles);
         }
 
+        // GET: Sale/PricingForClassification?classificationId=3
+        //
+        // The price list for one class of car, for a line that names its own
+        // class rather than taking it from a vehicle on the sale. A walk-in
+        // asking for tint has no vehicle on file, and the price list is keyed
+        // by the class of car, so the counter has to be able to say "sedan"
+        // and get the sedan prices.
+        //
+        // The cut size rides along with each row: it is what actually leaves
+        // the roll, so the counter can see it before the sale is taken and
+        // the quantity box does not have to lie about metres.
+        public IActionResult PricingForClassification(int classificationId) =>
+            Json(new
+            {
+                classificationId,
+                rows = PriceRows(classificationId)
+            });
+
+        private List<object> PriceRows(int classificationId) =>
+            _context.Pricings
+                .Where(p => p.VehicleClassificationID == classificationId)
+                .Select(p => new
+                {
+                    productId = p.ProductID,
+                    tintVariantId = p.TintVariantID,
+                    tintVariantName = p.TintVariant != null ? p.TintVariant.VariantName : null,
+                    panelId = p.PanelID,
+                    panelName = p.Panel.PanelName,
+                    price = p.Price
+                })
+                .AsEnumerable()
+                .Select(p => (object)new
+                {
+                    p.productId,
+                    p.tintVariantId,
+                    p.tintVariantName,
+                    p.panelId,
+                    p.panelName,
+                    p.price,
+                    cutCm = _cutSizes.Centimeters(classificationId, p.panelId)
+                })
+                .ToList();
+
         // GET: Sale/PricingForVehicle?vehicleId=5
         // Every Pricing row for this vehicle's classification, so the line-item
         // rows can look up the real matrix price (Product x Tint Variant x
@@ -199,20 +245,14 @@ namespace ZEmpireAutoAccessories.Controllers
             if (vehicle == null)
                 return Json(new List<object>());
 
-            var matrix = await _context.Pricings
-                .Where(p => p.VehicleClassificationID == vehicle.VehicleClassificationID)
-                .Select(p => new
-                {
-                    productId = p.ProductID,
-                    tintVariantId = p.TintVariantID,
-                    tintVariantName = p.TintVariant != null ? p.TintVariant.VariantName : null,
-                    panelId = p.PanelID,
-                    panelName = p.Panel.PanelName,
-                    price = p.Price
-                })
-                .ToListAsync();
-
-            return Json(matrix);
+            // The same shape PricingForClassification returns, and the
+            // class itself with it: picking the customer's car is also a way
+            // of saying which class every film line on this sale is for.
+            return Json(new
+            {
+                classificationId = vehicle.VehicleClassificationID,
+                rows = PriceRows(vehicle.VehicleClassificationID)
+            });
         }
 
         // GET: Sale/Create
@@ -241,7 +281,13 @@ namespace ZEmpireAutoAccessories.Controllers
             // to stay the same length as the three beside it: a blank in a
             // List<int?> is dropped by the binder, every shade after it slides
             // up a row, and the lines quietly belong to the wrong film.
-            List<string>? shadeId = null)
+            List<string>? shadeId = null,
+
+            // Posted as strings for the same reason the shade is: a blank in
+            // a List<int?> is dropped by the binder and every value after it
+            // slides up a row.
+            List<string>? panelId = null,
+            List<string>? classificationId = null)
         {
             productId ??= new List<int>();
             quantity ??= new List<int>();
@@ -288,12 +334,32 @@ namespace ZEmpireAutoAccessories.Controllers
                     .ToDictionaryAsync(x => x.ShadeID, x => x.ProductID)
                 : new Dictionary<int, int>();
 
+            var postedPanels = (panelId ?? new List<string>())
+                .Select(v => int.TryParse(v, out var parsed) ? parsed : (int?)null)
+                .ToList();
+
+            var postedClasses = (classificationId ?? new List<string>())
+                .Select(v => int.TryParse(v, out var parsed) ? parsed : (int?)null)
+                .ToList();
+
             var items = new List<SaleLineRequest>();
             for (int i = 0; i < productId.Count; i++)
             {
                 if (productId[i] > 0 && quantity[i] > 0)
                 {
                     var shade = i < postedShades.Count ? postedShades[i] : null;
+                    var panel = i < postedPanels.Count ? postedPanels[i] : null;
+                    var classification = i < postedClasses.Count ? postedClasses[i] : null;
+
+                    // A panel without the class it was priced for says
+                    // nothing: the price and the cut size are both keyed on
+                    // the pair. Half of it is not half an answer, so neither
+                    // is kept.
+                    if (panel == null || classification == null)
+                    {
+                        panel = null;
+                        classification = null;
+                    }
 
                     if (shade is { } picked
                         && (!shadeOwners.TryGetValue(picked, out var owner)
@@ -307,7 +373,9 @@ namespace ZEmpireAutoAccessories.Controllers
                         ProductID = productId[i],
                         Quantity = quantity[i],
                         UnitPrice = unitPrice[i],
-                        ShadeID = shade
+                        ShadeID = shade,
+                        PanelID = panel,
+                        VehicleClassificationID = classification
                     });
                 }
             }
@@ -327,12 +395,14 @@ namespace ZEmpireAutoAccessories.Controllers
             // Two shades of one film are two different things and stay two
             // lines, which is why the shade is part of what has to match.
             items = items
-                .GroupBy(i => new { i.ProductID, i.UnitPrice, i.ShadeID })
+                .GroupBy(i => new { i.ProductID, i.UnitPrice, i.ShadeID, i.PanelID, i.VehicleClassificationID })
                 .Select(g => new SaleLineRequest
                 {
                     ProductID = g.Key.ProductID,
                     UnitPrice = g.Key.UnitPrice,
                     ShadeID = g.Key.ShadeID,
+                    PanelID = g.Key.PanelID,
+                    VehicleClassificationID = g.Key.VehicleClassificationID,
                     Quantity = g.Sum(x => x.Quantity)
                 })
                 .ToList();
@@ -372,11 +442,16 @@ namespace ZEmpireAutoAccessories.Controllers
                     var inTheBook =
                         product?.DefaultPrice is { } flat && flat == line.UnitPrice;
 
-                    if (!inTheBook && vehicleClassificationId != null)
+                    // The class the LINE names comes first: a walk-in has
+                    // no vehicle, and the price the counter was shown came
+                    // from the class it picked.
+                    var lineClassification = line.VehicleClassificationID ?? vehicleClassificationId;
+
+                    if (!inTheBook && lineClassification != null)
                     {
                         inTheBook = await _context.Pricings.AnyAsync(pr =>
                             pr.ProductID == line.ProductID &&
-                            pr.VehicleClassificationID == vehicleClassificationId &&
+                            pr.VehicleClassificationID == lineClassification &&
                             pr.Price == line.UnitPrice);
                     }
 
@@ -390,11 +465,11 @@ namespace ZEmpireAutoAccessories.Controllers
                         var hasAnyPrice =
                             product?.DefaultPrice is { } any && any > 0;
 
-                        if (!hasAnyPrice && vehicleClassificationId != null)
+                        if (!hasAnyPrice && lineClassification != null)
                         {
                             hasAnyPrice = await _context.Pricings.AnyAsync(pr =>
                                 pr.ProductID == line.ProductID &&
-                                pr.VehicleClassificationID == vehicleClassificationId);
+                                pr.VehicleClassificationID == lineClassification);
                         }
 
                         inTheBook = !hasAnyPrice;
@@ -601,6 +676,13 @@ namespace ZEmpireAutoAccessories.Controllers
             // counter sale of film still comes off the product as a whole.
             // Telling the customer what is there is worth doing anyway, and is
             // the half that needs no table to change.
+            // The classes of car the price list is keyed by, so a film line
+            // can name one without a vehicle on the sale.
+            ViewData["Classifications"] = await _context.VehicleClassifications
+                .OrderBy(c => c.ClassificationName)
+                .Select(c => new { c.VehicleClassificationID, c.ClassificationName })
+                .ToListAsync();
+
             ViewData["ShadeStock"] = (await _shadeStock.Build())
                 .Select(p => new
                 {

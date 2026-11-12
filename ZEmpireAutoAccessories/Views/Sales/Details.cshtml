@@ -96,12 +96,18 @@
                         @* Which shade left the rack, where the line records
                            one - the same line the job order and the invoice
                            print under a film. *@
-                        @if (line.Shade != null)
+                        @{
+                            var lineNote = string.Join(" · ", new[]
+                            {
+                                line.Shade?.TintVariant?.VariantName,
+                                line.Shade?.ShadeName,
+                                line.Panel?.PanelName,
+                                line.VehicleClassification?.ClassificationName
+                            }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                        }
+                        @if (!string.IsNullOrEmpty(lineNote))
                         {
-                            <div class="text-muted small">
-                                @string.Join(" · ", new[] { line.Shade.TintVariant?.VariantName, line.Shade.ShadeName }
-                                    .Where(x => !string.IsNullOrWhiteSpace(x)))
-                            </div>
+                            <div class="text-muted small">@lineNote</div>
                         }
                     </td>
                     <td>@line.Quantity</td>

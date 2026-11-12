@@ -15,6 +15,10 @@
     // being read-only is a courtesy and not the rule.
     var canEditPrice = AppRoles.CanEditCatalogPrices(User);
 
+    // The classes of car the price list is keyed by. A film line names one
+    // instead of naming a quantity - see the Qty column.
+    var classifications = ViewData["Classifications"] as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
 
     // Modes charged the exact total, for the script below - it fills the
@@ -35,6 +39,12 @@
     /* The same product written on two rows. Said while it can still be
        changed, rather than discovered on the receipt. */
     .price-note { font-size:11.5px; color:#8a6d1f; margin-top:3px; line-height:1.4; }
+
+    /* A film row asks which class of car; every other row does not. */
+    td .classification-select { display:none; }
+    td.asks-class .classification-select { display:block; }
+    .cut-note { font-size:11.5px; color:#2f7a3e; margin-top:4px; line-height:1.4; font-weight:600; }
+    .cut-note.missing { color:#b91c1c; font-weight:500; }
 
     #duplicateLines { font-size:12.5px; color:#8a6d1f; background:#fdf6e3;
                       border:1px solid #f0e3bd; border-radius:6px;
@@ -154,7 +164,11 @@
                        not just shown: sales.SalesDetail.ShadeID. *@
                     <th style="width:18%;">Shade</th>
                     <th style="width:16%;">Panel</th>
-                    <th style="width:84px;">Qty</th>
+                    @* For film the quantity is not the question - a panel
+                       is a panel, and what leaves the roll is the cut size
+                       for that panel on that class of car. So this column
+                       asks which class instead, and says the length. *@
+                    <th style="width:150px;">Qty / Vehicle class</th>
                     <th style="width:130px;">Unit Price</th>
                     <th style="width:52px;"></th>
                 </tr>
@@ -190,7 +204,23 @@
                             <option value="">-- N/A --</option>
                         </select>
                     </td>
-                    <td><input type="number" name="quantity" class="form-control" value="1" min="1" required /></td>
+                    <td>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required />
+                        @* Hidden on a non-film row, and posting its blank either way: this
+                           column has to stay the same length as the ones beside it. *@
+                        <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
+                            <option value="">-- Vehicle class --</option>
+                            @foreach (var c in classifications)
+                            {
+                                <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
+                            }
+                        </select>
+                        @* What the panel takes off the roll. *@
+                        <div class="cut-note" style="display:none;"></div>
+                        @* The panel the row is priced for. A disabled select posts nothing,
+                           so the id travels in here instead. *@
+                        <input type="hidden" name="panelId" class="panel-id" value="" />
+                    </td>
                     <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
                                readonly="@(canEditPrice ? null : "readonly")"
                                tabindex="@(canEditPrice ? null : "-1")" /></td>
@@ -237,7 +267,23 @@
                         <option value="">-- N/A --</option>
                     </select>
                 </td>
-                <td><input type="number" name="quantity" class="form-control" value="1" min="1" required /></td>
+                <td>
+                    <input type="number" name="quantity" class="form-control" value="1" min="1" required />
+                    @* Hidden on a non-film row, and posting its blank either way: this
+                       column has to stay the same length as the ones beside it. *@
+                    <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
+                        <option value="">-- Vehicle class --</option>
+                        @foreach (var c in classifications)
+                        {
+                            <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
+                        }
+                    </select>
+                    @* What the panel takes off the roll. *@
+                    <div class="cut-note" style="display:none;"></div>
+                    @* The panel the row is priced for. A disabled select posts nothing,
+                       so the id travels in here instead. *@
+                    <input type="hidden" name="panelId" class="panel-id" value="" />
+                </td>
                 <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
                            readonly="@(canEditPrice ? null : "readonly")"
                            tabindex="@(canEditPrice ? null : "-1")" /></td>
@@ -301,10 +347,47 @@
             var $customer = $('#customerId');
             var $vehicle = $('#vehicleId');
 
-            // Every Pricing row for the selected vehicle's classification -
-            // empty until a vehicle is picked, since panel pricing depends
-            // on it. Re-fetched whenever the vehicle changes.
-            var pricingMatrix = [];
+            // The price list, one class of car at a time, fetched as it is
+            // needed and kept.
+            //
+            // It used to be a single list for the vehicle on the sale, which
+            // left a walk-in with no prices at all: the price list is keyed
+            // by the CLASS of car, and someone who has never been here before
+            // has no vehicle on file to read a class off. So a film line
+            // names its own class, the prices for that class are fetched, and
+            // the panel it is for gives the price and the length.
+            var matrixByClass = {};
+            var saleClassId = '';
+
+            function matrixFor(classId) {
+                return (classId && matrixByClass[classId]) ? matrixByClass[classId] : [];
+            }
+
+            // Fetches a class's prices once, then calls back. Calling again
+            // for a class already held is free.
+            function loadMatrix(classId, then) {
+                if (!classId) { if (then) { then(); } return; }
+                if (matrixByClass[classId]) { if (then) { then(); } return; }
+
+                $.getJSON('@Url.Action("PricingForClassification")', { classificationId: classId })
+                    .done(function (data) {
+                        matrixByClass[classId] = (data && data.rows) ? data.rows : [];
+                        $('#pricingLoadError').hide();
+                        if (then) { then(); }
+                    })
+                    .fail(function (xhr) {
+                        matrixByClass[classId] = [];
+                        console.error('PricingForClassification failed:', xhr.status, xhr.responseText);
+                        $('#pricingLoadError').show();
+                        if (then) { then(); }
+                    });
+            }
+
+            // The class a row is priced against: the one it names, or the
+            // class of the car on the sale where there is one.
+            function classOf($row) {
+                return $row.find('.classification-select').val() || '';
+            }
 
             // What is on the rack shade by shade, for the films that have
             // shades on file. A customer buying tint asks which shades there
@@ -404,21 +487,30 @@
                 loadVehicles($(this).val());
             });
 
+            // Picking the customer's car is a way of saying which class the
+            // film lines are for - it fills the class in on every film row
+            // that has not been told otherwise. The row still decides.
             function loadPricingMatrix(vehicleId) {
                 if (!vehicleId) {
-                    pricingMatrix = [];
+                    saleClassId = '';
                     reevaluateAllRows();
                     return;
                 }
 
                 $.getJSON('@Url.Action("PricingForVehicle")', { vehicleId: vehicleId })
                     .done(function (data) {
-                        pricingMatrix = data;
+                        saleClassId = data && data.classificationId ? String(data.classificationId) : '';
+                        if (saleClassId) { matrixByClass[saleClassId] = (data.rows || []); }
                         $('#pricingLoadError').hide();
+
+                        $('.line-row').each(function () {
+                            var $select = $(this).find('.classification-select');
+                            if (saleClassId && !$select.val()) { $select.val(saleClassId); }
+                        });
+
                         reevaluateAllRows();
                     })
                     .fail(function (xhr) {
-                        pricingMatrix = [];
                         console.error('PricingForVehicle failed:', xhr.status, xhr.responseText);
                         $('#pricingLoadError').show();
                         reevaluateAllRows();
@@ -429,8 +521,10 @@
                 loadPricingMatrix($(this).val());
             });
 
-            function rowsForProduct(productId) {
-                return pricingMatrix.filter(function (r) { return String(r.productId) === String(productId); });
+            function rowsForProduct(productId, classId) {
+                return matrixFor(classId).filter(function (r) {
+                    return String(r.productId) === String(productId);
+                });
             }
 
             function resetSelect($select, placeholder) {
@@ -480,15 +574,21 @@
             function refreshPanels($row, tintVariantId) {
                 var productId = $row.find('.product-select').val();
                 var $panel = $row.find('.panel-select');
-                var rows = rowsForProduct(productId).filter(function (r) {
+                var rows = rowsForProduct(productId, classOf($row)).filter(function (r) {
                     return tintVariantId ? String(r.tintVariantId) === String(tintVariantId) : !r.tintVariantId;
                 });
 
                 resetSelect($panel, '-- Select Panel --');
-                if (rows.length === 0) return;
+                if (rows.length === 0) { syncPanel($row); return; }
 
                 $.each(rows, function (i, r) {
-                    $panel.append($('<option></option>').val(r.panelId).text(r.panelName).attr('data-price', r.price));
+                    // The cut size rides on the option: it is what leaves the
+                    // roll, and the counter should see it before the sale.
+                    $panel.append($('<option></option>')
+                        .val(r.panelId)
+                        .text(r.panelName)
+                        .attr('data-price', r.price)
+                        .attr('data-cut', r.cutCm === null || r.cutCm === undefined ? '' : r.cutCm));
                 });
                 usable($panel);
 
@@ -502,7 +602,7 @@
             function refreshTintVariants($row) {
                 var productId = $row.find('.product-select').val();
                 var $tint = $row.find('.tint-variant-select');
-                var rows = rowsForProduct(productId);
+                var rows = rowsForProduct(productId, classOf($row));
 
                 var variants = [];
                 var seen = {};
@@ -535,7 +635,26 @@
             function evaluateProductRow($row) {
                 var $product = $row.find('.product-select');
                 var productId = $product.val();
-                var rows = rowsForProduct(productId);
+
+                // Film and tint are priced by panel, and a panel price is
+                // keyed to a class of car - so a film row asks which class
+                // instead of asking how many. Everything else is counted.
+                var isFilm = $product.find(':selected').data('roll') === true;
+                var $class = $row.find('.classification-select');
+
+                $class.closest('td').toggleClass('asks-class', isFilm);
+                if (isFilm && !$class.val() && saleClassId) { $class.val(saleClassId); }
+                if (!isFilm) { $class.val(''); }
+
+                // The prices for this row's class may not be in hand yet.
+                // Fetch them, then come back and do the rest.
+                var classId = classOf($row);
+                if (isFilm && classId && !matrixByClass[classId]) {
+                    loadMatrix(classId, function () { evaluateProductRow($row); });
+                    return;
+                }
+
+                var rows = rowsForProduct(productId, classId);
 
                 if (rows.length > 0) {
                     // Matrix-priced product - needs Tint Variant/Panel picked
@@ -552,9 +671,50 @@
                     }
                 }
 
+                syncPanel($row);
                 allowTypedPriceWhereThereIsNone($row);
                 recalcTotal();
                 updateSubmit();
+            }
+
+            // What the row posts for its panel, and what the panel means for
+            // the roll.
+            //
+            // For film and tint the quantity is not the question - a panel is
+            // a panel. What matters is how much film that panel takes on that
+            // class of car, which is the cut size, and that is what comes off
+            // the inventory. So the Qty box steps aside and the length is
+            // shown in its place.
+            //
+            // The id goes in a hidden input rather than being read off the
+            // select, because a disabled select posts nothing and these
+            // columns have to stay the same length as the rows beside them.
+            function syncPanel($row) {
+                var $panel = $row.find('.panel-select');
+                var $selected = $panel.find(':selected');
+                var panelId = $panel.prop('disabled') ? '' : ($panel.val() || '');
+
+                $row.find('.panel-id').val(panelId);
+
+                var $qty = $row.find('input[name=quantity]');
+                var $note = $row.find('.cut-note');
+                var cut = parseFloat($selected.attr('data-cut'));
+
+                if (!panelId) {
+                    // No panel: film is sold as a length off the roll, and
+                    // the quantity is that length in metres.
+                    $qty.show();
+                    $note.hide().text('');
+                    return;
+                }
+
+                $qty.val(1).hide();
+
+                $note.text(isNaN(cut) || cut <= 0
+                        ? 'No cut size set for this panel - set one under Inventory, Cut Sizes'
+                        : metres(cut) + ' off the roll')
+                     .toggleClass('missing', isNaN(cut) || cut <= 0)
+                     .show();
             }
 
             // The price box is read-only to staff because the price comes
@@ -570,7 +730,8 @@
 
                 var productId = $row.find('.product-select').val();
                 var flat = parseFloat($row.find('.product-select :selected').data('price'));
-                var hasBookPrice = rowsForProduct(productId).length > 0 || (!isNaN(flat) && flat > 0);
+                var hasBookPrice = rowsForProduct(productId, classOf($row)).length > 0
+                    || (!isNaN(flat) && flat > 0);
 
                 if (hasBookPrice) {
                     $price.prop('readonly', true).data('locked', true).removeAttr('placeholder');
@@ -606,7 +767,27 @@
                 var stock = parseFloat($product.find(':selected').attr('data-stock'));
                 if (isNaN(stock)) { return true; }
 
-                var qty = parseFloat($qty.val()) || 0;
+                // A panel line takes the cut size, not the quantity: "1" of
+                // a Full Wrap is several metres of film, and comparing the 1
+                // against the metres on the rack would call an empty roll
+                // plenty. Both are in metres here, as the product list reads.
+                var cut = parseFloat($row.find('.panel-select :selected').attr('data-cut'));
+                var typed = parseFloat($qty.val()) || 0;
+                var onPanel = !!$row.find('.panel-id').val();
+
+                // A panel nobody has measured cannot be taken off the roll:
+                // the sale would have to guess how much film left, and the
+                // server refuses it anyway. Said here, before the customer is
+                // told a price.
+                if (onPanel && (isNaN(cut) || cut <= 0)) {
+                    $cell.append('<div class="stock-warning">No cut size for this panel</div>');
+                    return false;
+                }
+
+                var qty = (onPanel && !isNaN(cut) && cut > 0)
+                    ? (cut / 100) * (typed || 1)
+                    : typed;
+
                 if (stock <= 0) {
                     $qty.addClass('is-invalid');
                     $cell.append('<div class="stock-warning">Out of stock</div>');
@@ -614,7 +795,8 @@
                 }
                 if (qty > stock) {
                     $qty.addClass('is-invalid');
-                    $cell.append('<div class="stock-warning">Only ' + stock + ' left</div>');
+                    $cell.append('<div class="stock-warning">This takes '
+                        + qty.toFixed(2) + ' - only ' + stock + ' left</div>');
                     return false;
                 }
                 return true;
@@ -788,10 +970,14 @@
                 var productId = $product.val();
                 if (!productId) { return false; }
 
-                // The shade is part of what has to match. Two shades of
-                // one film are two different things, and merging them would
-                // put a quantity against a shade nobody sold.
+                // The shade and the panel are part of what has to match.
+                // Two shades of one film, or two panels of it, are different
+                // things - merging them would put a quantity against
+                // something nobody sold, and on a panel line the quantity is
+                // not even the figure that matters.
                 var shade = $row.find('.shade-select').val() || '';
+                var panel = $row.find('.panel-id').val() || '';
+                var klass = classOf($row);
 
                 var $match = null;
                 $('#linesTable tbody .line-row').each(function () {
@@ -799,7 +985,9 @@
 
                     var $other = $(this);
                     if ($other.find('.product-select').val() === productId
-                        && ($other.find('.shade-select').val() || '') === shade) {
+                        && ($other.find('.shade-select').val() || '') === shade
+                        && ($other.find('.panel-id').val() || '') === panel
+                        && classOf($other) === klass) {
                         $match = $other;
                     }
                 });
@@ -839,6 +1027,10 @@
                 mergeIfAlreadyOnSale($(this).closest('tr'));
             });
 
+            $(document).on('change', '.panel-select', function () {
+                mergeIfAlreadyOnSale($(this).closest('tr'));
+            });
+
             $(document).on('change', '.product-select', function () {
                 evaluateProductRow($(this).closest('tr'));
             });
@@ -855,8 +1047,17 @@
                 if (price !== undefined && price !== '') {
                     $row.find('.unit-price').val(parseFloat(price).toFixed(2));
                 }
+                syncPanel($row);
                 recalcTotal();
+                refreshStockState();
                 updateSubmit();
+            });
+
+            // Saying which class of car re-prices the row: the price list is
+            // keyed by it, and so is the cut size.
+            $(document).on('change', '.classification-select', function () {
+                var $row = $(this).closest('tr');
+                loadMatrix($(this).val(), function () { evaluateProductRow($row); });
             });
 
             $(document).on('input', 'input[name=quantity], input[name=unitPrice]', function () {

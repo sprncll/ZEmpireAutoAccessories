@@ -31,5 +31,17 @@ namespace ZEmpireAutoAccessories.Services.Interfaces
         /// put on file.
         /// </summary>
         public int? ShadeID { get; set; }
+
+        /// <summary>
+        /// The panel this line is priced for, where the counter priced it by
+        /// panel. Null is a length off the roll, or anything that is not film.
+        /// </summary>
+        public int? PanelID { get; set; }
+
+        /// <summary>
+        /// The class of car that panel was priced for. Needed with the panel
+        /// to work out the cut size - what actually leaves the roll.
+        /// </summary>
+        public int? VehicleClassificationID { get; set; }
     }
 }
