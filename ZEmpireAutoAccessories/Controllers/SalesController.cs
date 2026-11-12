@@ -17,17 +17,20 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ISalesService _salesService;
         private readonly IQuotationService _quotationService; // GetNextInvoiceNumber lives here
         private readonly IInventoryService _inventoryService;
+        private readonly IShadeStockService _shadeStock;
 
         public SalesController(
             ApplicationDbContext context,
             ISalesService salesService,
             IQuotationService quotationService,
-            IInventoryService inventoryService)
+            IInventoryService inventoryService,
+            IShadeStockService shadeStock)
         {
             _context = context;
             _salesService = salesService;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
+            _shadeStock = shadeStock;
         }
 
         // GET: Sale?q=...&productId=...&dateFrom=...&dateTo=...
@@ -340,6 +343,26 @@ namespace ZEmpireAutoAccessories.Controllers
                             pr.Price == line.UnitPrice);
                     }
 
+                    // A product the book has no price for at all is the
+                    // one case a staff member may still name one: refusing it
+                    // would mean a sale nobody can ring up until an
+                    // administrator is found, with the customer at the
+                    // counter. The same carve-out the job order has.
+                    if (!inTheBook)
+                    {
+                        var hasAnyPrice =
+                            product?.DefaultPrice is { } any && any > 0;
+
+                        if (!hasAnyPrice && vehicleClassificationId != null)
+                        {
+                            hasAnyPrice = await _context.Pricings.AnyAsync(pr =>
+                                pr.ProductID == line.ProductID &&
+                                pr.VehicleClassificationID == vehicleClassificationId);
+                        }
+
+                        inTheBook = !hasAnyPrice;
+                    }
+
                     if (!inTheBook)
                     {
                         ModelState.AddModelError(string.Empty,
@@ -526,6 +549,38 @@ namespace ZEmpireAutoAccessories.Controllers
                     Stock = g.Sum(t => t.TransactionType == "IN" ? t.Quantity : -t.Quantity)
                 })
                 .ToDictionaryAsync(x => x.ProductID, x => x.Stock);
+
+            // What is on the rack, shade by shade, for the films that have
+            // shades on file.
+            //
+            // A customer buying tint asks which shades there are before they
+            // ask anything else, and the figure on the product line - "92.61 m
+            // in stock" - cannot answer it: inv.InventoryTransaction records a
+            // product and nothing finer. ShadeStock works the breakdown out
+            // from the last count and the lines since, which is an estimate
+            // and says so.
+            //
+            // Shown, not recorded: sales.SalesDetail has no shade column, so a
+            // counter sale of film still comes off the product as a whole.
+            // Telling the customer what is there is worth doing anyway, and is
+            // the half that needs no table to change.
+            ViewData["ShadeStock"] = (await _shadeStock.Build())
+                .Select(p => new
+                {
+                    productId = p.ProductID,
+                    counted = p.Shades.Any(sh => sh.Left != null),
+                    shades = p.Shades
+                        .OrderByDescending(sh => sh.Left ?? -1m)
+                        .ThenBy(sh => sh.Label)
+                        .Select(sh => new
+                        {
+                            label = sh.Label,
+                            left = sh.Left,
+                            exhausted = sh.Exhausted
+                        })
+                        .ToList()
+                })
+                .ToList();
         }
     }
 }

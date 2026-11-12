@@ -34,6 +34,11 @@
 
     /* The same product written on two rows. Said while it can still be
        changed, rather than discovered on the receipt. */
+    /* What is on the rack, shade by shade, under the film it belongs to. */
+    .shade-note { font-size:12px; color:#5a6472; margin-top:4px; line-height:1.5; }
+    .price-note { font-size:11.5px; color:#8a6d1f; margin-top:3px; line-height:1.4; }
+    .shade-note s { color:#aab0ba; }
+
     #duplicateLines { font-size:12.5px; color:#8a6d1f; background:#fdf6e3;
                       border:1px solid #f0e3bd; border-radius:6px;
                       padding:7px 11px; margin-bottom:12px; display:none; }
@@ -281,6 +286,59 @@
             // on it. Re-fetched whenever the vehicle changes.
             var pricingMatrix = [];
 
+            // What is on the rack shade by shade, for the films that have
+            // shades on file. A customer buying tint asks which shades there
+            // are before anything else, and "92.61 m in stock" cannot answer
+            // it - the ledger records a product and nothing finer.
+            var shadeStock = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["ShadeStock"] ?? new List<object>()));
+
+            function shadesFor(productId) {
+                for (var i = 0; i < shadeStock.length; i++) {
+                    if (String(shadeStock[i].productId) === String(productId)) { return shadeStock[i]; }
+                }
+                return null;
+            }
+
+            function metres(centimetres) {
+                return centimetres >= 100
+                    ? (centimetres / 100).toFixed(2) + ' m'
+                    : centimetres.toFixed(1) + ' cm';
+            }
+
+            // Under the product, in the row it belongs to: what the shop has
+            // of this film, shade by shade. Worked out from the last stock
+            // count and the lines since, so it is an estimate and says which
+            // ones have run out rather than hiding them - "we have none of
+            // that" is an answer a customer needs too.
+            function showShades($row) {
+                $row.find('.shade-note').remove();
+
+                var $product = $row.find('.product-select');
+                var productId = $product.val();
+                if (!productId) { return; }
+
+                var product = shadesFor(productId);
+                if (!product || !product.shades || product.shades.length === 0) { return; }
+
+                var note;
+                if (!product.counted) {
+                    note = 'Shades on file: '
+                         + product.shades.map(function (sh) { return sh.label; }).join(' &middot; ')
+                         + ' &mdash; none counted yet, so there is no figure per shade.';
+                } else {
+                    note = 'On the rack: ' + product.shades.map(function (sh) {
+                        if (sh.left === null || sh.left === undefined) {
+                            return sh.label + ' (not counted)';
+                        }
+                        return sh.left <= 0
+                            ? '<s>' + sh.label + '</s>'
+                            : sh.label + ' ' + metres(sh.left);
+                    }).join(' &middot; ');
+                }
+
+                $product.closest('td').append('<div class="shade-note">' + note + '</div>');
+            }
+
             function loadVehicles(customerId) {
                 $vehicle.prop('disabled', true).empty();
 
@@ -457,7 +515,39 @@
                         $row.find('.unit-price').val(parseFloat(price).toFixed(2));
                     }
                 }
+
+                allowTypedPriceWhereThereIsNone($row);
                 recalcTotal();
+                updateSubmit();
+            }
+
+            // The price box is read-only to staff because the price comes
+            // from the book. A product the book has no price for at all is
+            // the one case they may still name one: a locked empty box there
+            // means nobody can ring the sale up until an administrator is
+            // found, with the customer at the counter. The same carve-out the
+            // job order has, and the server keeps the same line - it accepts
+            // a typed price only where it finds no price of its own.
+            function allowTypedPriceWhereThereIsNone($row) {
+                var $price = $row.find('.unit-price');
+                if (!$price.prop('readonly') && !$price.data('locked')) { return; }
+
+                var productId = $row.find('.product-select').val();
+                var flat = parseFloat($row.find('.product-select :selected').data('price'));
+                var hasBookPrice = rowsForProduct(productId).length > 0 || (!isNaN(flat) && flat > 0);
+
+                if (hasBookPrice) {
+                    $price.prop('readonly', true).data('locked', true).removeAttr('placeholder');
+                    $row.find('.price-note').remove();
+                } else {
+                    $price.prop('readonly', false).data('locked', true)
+                          .attr('placeholder', 'No price on file');
+
+                    if ($row.find('.price-note').length === 0) {
+                        $price.closest('td').append(
+                            '<div class="price-note">Nothing in the price list for this - type what was agreed.</div>');
+                    }
+                }
             }
 
             function reevaluateAllRows() {
@@ -647,6 +737,57 @@
 
             $(document).on('change', '#paymentModeId', applyPaymentMode);
 
+            // A product already on the sale is added to, not written again.
+            //
+            // Picking the same step board on a fourth row made four lines of
+            // one where the customer is buying four of a thing - and four
+            // rows invite somebody voiding "a duplicate" to take off a
+            // quantity that was really sold. The quantity goes onto the line
+            // that is already there and the row just filled in goes away.
+            //
+            // Returns whether it merged, so the handlers that follow can be
+            // skipped: the row they would work on no longer exists.
+            function mergeIfAlreadyOnSale($row) {
+                var $product = $row.find('.product-select');
+                var productId = $product.val();
+                if (!productId) { return false; }
+
+                var $match = null;
+                $('#linesTable tbody .line-row').each(function () {
+                    if ($match || this === $row[0]) { return; }
+                    if ($(this).find('.product-select').val() === productId) { $match = $(this); }
+                });
+
+                if (!$match) { return false; }
+
+                var $qty = $match.find('input[name=quantity]');
+                var added = parseFloat($row.find('input[name=quantity]').val()) || 1;
+                var now = (parseFloat($qty.val()) || 0) + added;
+
+                $qty.val(now);
+                $row.remove();
+
+                var name = ($product.find(':selected').text() || '')
+                    .replace(/\s*\([^)]*\)\s*$/, '')
+                    .trim();
+
+                $('#duplicateLines')
+                    .html(name + ' is already on this sale &mdash; that line now reads ' + now + '.')
+                    .show();
+
+                showShades($match);
+                recalcTotal();
+                refreshStockState();
+                return true;
+            }
+
+            $(document).on('change', '.product-select', function (e) {
+                if (mergeIfAlreadyOnSale($(this).closest('tr'))) {
+                    // The row is gone; nothing after this has one to work on.
+                    e.stopImmediatePropagation();
+                }
+            });
+
             $(document).on('change', '.product-select', function () {
                 evaluateProductRow($(this).closest('tr'));
             });
@@ -675,6 +816,9 @@
 
             $(document).on('change', '.product-select', refreshStockState);
             $(document).on('change', '.product-select', showDuplicates);
+            $(document).on('change', '.product-select', function () {
+                showShades($(this).closest('tr'));
+            });
 
             $('#addRow').on('click', function () {
                 // Clone from the inert <template>, not the live first row -
