@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -400,11 +400,13 @@ namespace ZEmpireAutoAccessories.Controllers
             // in, so refuse a short one here - RecalculateTotals used to
             // quietly raise it to the total instead, which meant the field
             // accepted a number and then saved a different one.
-            if (invoice.AmountPaid < newTotal)
+            // A part payment is a deposit now, not an error. What is still
+            // refused is money that was never handed over: more than the total
+            // is change, and that is fine, but a negative is not a payment.
+            if (invoice.AmountPaid < 0)
             {
                 ModelState.AddModelError(nameof(ServiceInvoice.AmountPaid),
-                    $"Amount paid can't be less than the invoice total of ₱{newTotal:N2}. " +
-                    "This invoice records payment in full plus any change, so it can't hold a part payment.");
+                    "Amount paid can't be negative.");
                 await LoadHeaderDropdowns(invoice);
                 return View(invoice);
             }
@@ -642,40 +644,62 @@ namespace ZEmpireAutoAccessories.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            // A transfer, a wallet or a card is charged the total. The form
-            // fills that in and locks it, and this is what makes it true
-            // rather than merely displayed.
-            //
-            // Only upwards, though. Forcing a short figure up to the total
-            // would take the one guard below out of play for every mode but
-            // cash, and quietly record a part payment as settled in full -
-            // which is the opposite of what an exact-amount mode means. A
-            // figure below the total still falls through and is refused.
-            if (amountTendered >= invoice.TotalAmount
-                && PaymentModes.SettlesExactly(invoice.PaymentMode?.PaymentModeName))
-                amountTendered = invoice.TotalAmount;
-
-            if (amountTendered < invoice.TotalAmount)
+            if (amountTendered <= 0)
             {
-                // CK_ServiceInvoice_Math ties ChangeAmount to
-                // AmountPaid - TotalAmount and CK_ServiceInvoice_Change keeps
-                // it at or above zero, so short payment cannot be stored at
-                // all. Say so rather than letting the database refuse it.
-                TempData["StatusError"] =
-                    $"That is short of the total. ₱{invoice.TotalAmount:N2} is due, " +
-                    $"₱{amountTendered:N2} was tendered.";
+                TempData["StatusError"] = "Enter what the customer handed over.";
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            invoice.AmountPaid = amountTendered;
-            invoice.ChangeAmount = amountTendered - invoice.TotalAmount;
+            // What is still owed, not the whole total: a customer who left a
+            // deposit last week owes the remainder today, and handing over the
+            // full total again would record an overpayment that never
+            // happened.
+            var balance = invoice.TotalAmount - invoice.AmountPaid;
 
-            await MoveToStatus(invoice, "Paid");
+            if (balance <= 0)
+            {
+                TempData["StatusError"] = "This invoice is already settled in full.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
 
-            if (TempData["StatusError"] == null)
-                TempData["Success"] = invoice.ChangeAmount > 0m
-                    ? $"Payment recorded. Change ₱{invoice.ChangeAmount:N2}."
-                    : "Payment recorded.";
+            // A transfer, a wallet or a card is charged what it is asked for
+            // and gives nothing back, so anything at or above the balance
+            // settles it exactly. Below the balance it is a deposit, and falls
+            // through untouched - a deposit by transfer is a real thing.
+            if (amountTendered >= balance
+                && PaymentModes.SettlesExactly(invoice.PaymentMode?.PaymentModeName))
+                amountTendered = balance;
+
+            var paidAfter = invoice.AmountPaid + amountTendered;
+
+            invoice.AmountPaid = paidAfter;
+
+            // Change only once the whole total is covered. Below it there is
+            // nothing to give back; there is a balance still owed.
+            invoice.ChangeAmount = paidAfter > invoice.TotalAmount
+                ? paidAfter - invoice.TotalAmount
+                : 0m;
+
+            if (paidAfter >= invoice.TotalAmount)
+            {
+                await MoveToStatus(invoice, "Paid");
+
+                if (TempData["StatusError"] == null)
+                    TempData["Success"] = invoice.ChangeAmount > 0m
+                        ? $"Payment recorded. Change {Money.Peso(invoice.ChangeAmount)}."
+                        : "Payment recorded. Invoice settled in full.";
+            }
+            else
+            {
+                // Stays Pending, and deliberately does not move stock: the
+                // film has not been paid for yet, and MoveToStatus is what
+                // posts it. A deposit is a promise, not a settlement.
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] =
+                    $"Down payment of {Money.Peso(amountTendered)} recorded. "
+                    + $"{Money.Peso(invoice.TotalAmount - paidAfter)} still due.";
+            }
 
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -699,13 +723,13 @@ namespace ZEmpireAutoAccessories.Controllers
                         willHoldStock, CurrentUserId);
 
                 // Sent back to be worked on or written off: the tender that
-                // was recorded no longer stands. Cleared to the total, which
-                // is the only figure CK_ServiceInvoice_Math and
-                // CK_ServiceInvoice_Change allow while nothing has been paid,
-                // so the next payment starts from a clean slate.
+                // was recorded no longer stands. Cleared to nothing, which the
+                // constraints now allow and which is what actually happened -
+                // before this they had to read as paid in full, because that
+                // was the only figure the table could hold.
                 if (invoice.Status == "Paid" && (status == "Pending" || status == "Cancelled"))
                 {
-                    invoice.AmountPaid = invoice.TotalAmount;
+                    invoice.AmountPaid = 0m;
                     invoice.ChangeAmount = 0m;
                 }
 
@@ -770,12 +794,15 @@ namespace ZEmpireAutoAccessories.Controllers
             invoice.SubTotal = invoice.Details.Sum(d => d.SubTotal);
             invoice.TotalAmount = invoice.SubTotal - invoice.DiscountAmount + invoice.TaxAmount;
 
-            if (clampAmountPaid && invoice.AmountPaid < invoice.TotalAmount)
-            {
-                invoice.AmountPaid = invoice.TotalAmount;
-            }
+            // AmountPaid is no longer carried up to the total. It was only
+            // ever raised because the table could not hold a smaller figure;
+            // now that it can, an invoice with a deposit on it keeps the
+            // deposit when a line is added, which is what happened.
+            _ = clampAmountPaid;
 
-            invoice.ChangeAmount = invoice.AmountPaid - invoice.TotalAmount;
+            invoice.ChangeAmount = invoice.AmountPaid > invoice.TotalAmount
+                ? invoice.AmountPaid - invoice.TotalAmount
+                : 0m;
         }
 
         // ServiceInvoice -> ServiceInvoiceDetail cascades, but a Warranty referencing
