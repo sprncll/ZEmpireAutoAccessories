@@ -375,19 +375,19 @@
                 }
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 line-opt" id="wrap-addLineTintVariant" style="display:none;">
             <label class="form-label" title="Only applies to products with more than one tint variant (e.g. Play/Freeze/Max)">Tint Variant</label>
             <select id="addLineTintVariant" name="tintVariantId" class="form-select" disabled>
                 <option value="">-- N/A --</option>
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 line-opt" id="wrap-addLineShade" style="display:none;">
             <label class="form-label" title="Which shade of the chosen tint variant was fitted - e.g. Light, Medium, Superdark">Shade</label>
             <select id="addLineShade" name="shadeId" class="form-select" disabled>
                 <option value="">-- N/A --</option>
             </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 line-opt" id="wrap-addLinePanel" style="display:none;">
             <label class="form-label" title="Which part of the vehicle this line covers - determines the matrix price for this vehicle's classification">Panel</label>
             <select id="addLinePanel" name="panelId" class="form-select" disabled>
                 <option value="">-- N/A --</option>
@@ -549,6 +549,16 @@
 
             function resetSelect($select, placeholder) {
                 $select.empty().append($('<option></option>').val('').text(placeholder)).prop('disabled', true);
+                showIfUsable($select);
+            }
+
+            // A field that cannot be used is not shown at all. Variant, shade
+            // and panel only mean anything once a film has been picked, and a
+            // row of boxes reading "-- N/A --" asks somebody to work out which
+            // of them they are meant to ignore.
+            function showIfUsable($select) {
+                var usable = !$select.prop('disabled') && $select.find('option').length > 1;
+                $('#wrap-' + $select.attr('id')).toggle(usable);
             }
 
             function refreshPanels() {
@@ -580,6 +590,7 @@
                 }
 
                 $panel.empty().append($('<option></option>').val('').text('-- Select Panel --')).prop('disabled', false);
+                showIfUsable($panel);
                 rows.forEach(function (r) {
                     $panel.append($('<option></option>').val(r.panelId).text(r.panelName).attr('data-price', r.price));
                 });
@@ -613,6 +624,7 @@
                 $shade.empty()
                       .append($('<option></option>').val('').text('-- Select Shade --'))
                       .prop('disabled', false);
+                showIfUsable($shade);
 
                 shades.forEach(function (sh) {
                     $shade.append($('<option></option>').val(sh.shadeId).text(sh.shadeName));
@@ -637,6 +649,7 @@
                     resetSelect($tintVariant, '-- N/A --');
                 } else {
                     $tintVariant.empty().append($('<option></option>').val('').text('-- Select Variant --')).prop('disabled', false);
+                showIfUsable($tintVariant);
                     variants.forEach(function (v) {
                         $tintVariant.append($('<option></option>').val(v.tintVariantId).text(v.tintVariantName));
                     });
