@@ -750,23 +750,39 @@
                 // values, but it is not on screen to be answered.
                 var isFilm = $row.find('.classification-select').closest('td').hasClass('asks-class');
                 var classChosen = !!classOf($row);
-                var hasPanels = !$row.find('.panel-select').prop('disabled') || !!panelId;
+
+                // Whether the price list holds anything at all for this film
+                // on this class of car.
+                //
+                // Asked of the price list, not of the Panel box. The Panel
+                // box is also empty while it waits for a tint variant to be
+                // picked, and reading that as "no prices for this class"
+                // dropped a row into selling by the metre - with a quantity
+                // of 1 sitting there - before anybody had been given the
+                // chance to answer the two boxes in front of it.
+                var priced = isFilm && classChosen
+                    && rowsForProduct($row.find('.product-select').val(), classOf($row)).length > 0;
 
                 // The one case film still goes by the metre: a class of car
                 // the price list has nothing for. Refusing the sale there
                 // would mean a customer turned away over a gap in a table, so
                 // the Qty box comes back and the price is typed - but only
-                // after somebody has said which class and been told there is
+                // once somebody has named a class and there is genuinely
                 // nothing for it.
-                var byLength = isFilm && classChosen && !hasPanels;
+                var byLength = isFilm && classChosen && !priced;
 
                 $qty.toggle(!isFilm || byLength);
                 if (isFilm && !byLength) { $qty.val(1); }
 
                 if (!panelId) {
+                    var waitingForVariant = priced
+                        && $row.find('.tint-variant-select').is(':enabled')
+                        && !$row.find('.tint-variant-select').val();
+
                     $note.toggleClass('missing', false)
                          .text(!isFilm ? ''
                              : byLength ? 'No panel prices for this class - sold by the metre'
+                             : waitingForVariant ? 'Pick a tint variant, then the panel'
                              : classChosen ? 'Pick a panel - the length comes from it'
                              : 'Say which class of car, then the panel')
                          .toggle(isFilm);
