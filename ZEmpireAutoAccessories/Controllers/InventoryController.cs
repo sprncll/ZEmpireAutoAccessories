@@ -35,8 +35,12 @@ namespace ZEmpireAutoAccessories.Controllers
             return View(await _shadeStock.Build());
         }
 
-        public async Task<IActionResult> Index(string? status, string? q)
+        public async Task<IActionResult> Index(string? status, string? q, int? focus = null)
         {
+            // The row a movement was just made on, so the list can put the
+            // cursor back where it was.
+            ViewData["Focus"] = focus;
+
             var stockLevels = await BuildRows();
 
             const decimal lowStockThreshold = 5;
@@ -174,7 +178,12 @@ namespace ZEmpireAutoAccessories.Controllers
         /// </summary>
         private IActionResult Back(int productId, string? returnTo, string? status, string? q) =>
             returnTo == "index"
-                ? RedirectToAction(nameof(Index), new { status, q })
+                // Which row it was, so the list can put the cursor back in
+                // it. Taking in a delivery is ten movements one after
+                // another, and hunting down the same row each time - after a
+                // reload that has forgotten where you were - is most of the
+                // work.
+                ? RedirectToAction(nameof(Index), new { status, q, focus = productId })
                 : RedirectToAction(nameof(Details), new { id = productId });
 
         /// <summary>Product name for the confirmation message.</summary>
