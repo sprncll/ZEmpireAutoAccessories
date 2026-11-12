@@ -75,6 +75,16 @@ namespace ZEmpireAutoAccessories.Controllers
         /// somebody to the checklist list afterwards strands them two screens
         /// from the job they were working on.
         /// </summary>
+        /// <summary>
+        /// Where saving lands: the screen this was opened from - a job order,
+        /// nearly always - and the checklist itself when it was opened on its
+        /// own.
+        /// </summary>
+        private IActionResult BackToOrChecklist(string? returnUrl, int checklistId) =>
+            !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? Redirect(returnUrl)
+                : RedirectToAction(nameof(Details), new { id = checklistId });
+
         private string BackTo(string? returnUrl) =>
             !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
                 ? returnUrl
@@ -174,6 +184,9 @@ namespace ZEmpireAutoAccessories.Controllers
 
             await LoadForm(checklist.JobOrderID);
 
+            ViewData["MaxPhotos"] = _photos.MaxPerChecklist;
+            ViewData["MaxPhotoMb"] = _photos.MaxBytes / 1024m / 1024m;
+
             return View(checklist);
         }
 
@@ -182,11 +195,14 @@ namespace ZEmpireAutoAccessories.Controllers
         // trips through the server, on a phone, in a workshop.
         [HttpPost]
         [ValidateAntiForgeryToken]
+        // Five photographs at fifteen megabytes apiece, plus the sheet.
+        [RequestSizeLimit(80 * 1024 * 1024)]
         public async Task<IActionResult> Create(
             [Bind("JobOrderID,AdditionalNotes,ClientSignature")] VehicleChecklist checklist,
             List<int> panelId,
             List<string?> existingCondition,
             List<string?> notes,
+            List<IFormFile>? photos = null,
             string? returnUrl = null)
         {
             ModelState.Remove(nameof(VehicleChecklist.UserId));
@@ -216,6 +232,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 // Whoever typed this walked around the car to get it. Losing
                 // it over a wrong job order would mean walking it again.
                 await LoadForm(checklist.JobOrderID, typed);
+
+                ViewData["MaxPhotos"] = _photos.MaxPerChecklist;
+                ViewData["MaxPhotoMb"] = _photos.MaxBytes / 1024m / 1024m;
+
                 return View(checklist);
             }
 
@@ -238,11 +258,41 @@ namespace ZEmpireAutoAccessories.Controllers
             _context.VehicleChecklists.Add(checklist);
             await _context.SaveChangesAsync();
 
-            TempData["Success"] = checklist.Details.Count == 0
-                ? "Checklist created. No panel conditions recorded yet."
-                : $"Checklist saved with {checklist.Details.Count} panel{(checklist.Details.Count == 1 ? "" : "s")} recorded.";
+            // Now, and not before: a photograph is filed against a checklist,
+            // and until SaveChanges there was no id to file it against.
+            var stored = 0;
+            var refusals = new List<string>();
 
-            return RedirectToAction(nameof(Details), new { id = checklist.ChecklistID, returnUrl });
+            foreach (var photo in (photos ?? new List<IFormFile>()).Where(f => f is { Length: > 0 }))
+            {
+                var refused = await _photos.Save(checklist.ChecklistID, photo);
+
+                if (refused == null)
+                    stored++;
+                else
+                    refusals.Add($"{photo.FileName}: {refused}");
+            }
+
+            // A refused photo does not undo the walkaround. Somebody stood at
+            // the car to type it, and losing that over a file that was too
+            // big would be the worse trade - so the sheet is saved and the
+            // refusal is reported against it.
+            if (refusals.Count > 0)
+                TempData["PhotoError"] = string.Join(" ", refusals);
+
+            var panels = checklist.Details.Count == 0
+                ? "No panel conditions recorded yet."
+                : $"{checklist.Details.Count} panel{(checklist.Details.Count == 1 ? "" : "s")} recorded.";
+
+            TempData["Success"] = stored == 0
+                ? $"Checklist saved. {panels}"
+                : $"Checklist saved with {stored} photo{(stored == 1 ? "" : "s")}. {panels}";
+
+            // Back to the job order this was raised from. The walkaround is a
+            // step in writing one up, not a place to be left standing - the
+            // checklist is one press away from the job order whenever it is
+            // wanted again.
+            return BackToOrChecklist(returnUrl, checklist.ChecklistID);
         }
 
         /// <summary>

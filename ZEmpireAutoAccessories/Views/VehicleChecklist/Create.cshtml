@@ -16,6 +16,10 @@
         var returnUrl = Context.Request.Query["returnUrl"].ToString();
         var cameFromElsewhere = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl);
         var backUrl = cameFromElsewhere ? returnUrl : Url.Action("Index");
+
+        var maxPhotos = ViewData["MaxPhotos"] as int? ?? 5;
+        var maxPhotoMb = ViewData["MaxPhotoMb"] as decimal? ?? 15m;
+        var photoError = TempData["PhotoError"] as string;
     }
     <a class="btn btn-outline-secondary" href="@backUrl">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
@@ -42,7 +46,7 @@ else if (available == 0)
     </div>
 }
 
-<form asp-action="Create" method="post">
+<form asp-action="Create" method="post" enctype="multipart/form-data">
         <input type="hidden" name="returnUrl" value="@returnUrl" />
     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
@@ -93,19 +97,29 @@ else if (available == 0)
     @* Photographs are filed against a checklist, and this one does not exist
        until it is saved. Rather than leave somebody hunting this screen for
        an upload box, say where it is. *@
+    @* Taken on this form rather than after it. A photograph is filed against
+       the checklist, which does not exist until this is saved - so the files
+       ride along with the post and are stored the moment it does. Nothing is
+       parked in between, so an abandoned form leaves no orphaned files. *@
     <div class="zx-card padded">
         <h6 class="mb-1">Photos on arrival</h6>
-        <p class="text-muted mb-0" style="font-size:13px;">
-            Save the checklist and the photo boxes appear on the next screen &mdash; up to
-            five, JPG or PNG. A photograph taken before any film is touched is what settles
-            an argument about a scratch afterwards.
+        <p class="text-muted" style="font-size:13px;">
+            Up to @maxPhotos, JPG or PNG, @maxPhotoMb.ToString("N0") MB each. A photograph
+            taken before any film is touched is what settles an argument about a scratch
+            afterwards. More can be added later from the saved checklist.
         </p>
+        <input type="file" name="photos" multiple accept="image/jpeg,image/png"
+               class="form-control" style="max-width:520px;" />
+        @if (!string.IsNullOrEmpty(photoError))
+        {
+            <div class="alert alert-danger py-2 px-3 mt-2 mb-0">@photoError</div>
+        }
     </div>
 
     <div class="form-actions">
         <button type="submit" class="btn btn-zx" @(total == 0 || available == 0 ? "disabled" : "")>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
-            Save &amp; add photos
+            Save checklist
         </button>
         <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
     </div>
