@@ -171,6 +171,8 @@
 
         var MENU_MAX_HEIGHT = 260;
         var MENU_GAP = 4;
+        var MENU_MIN_WIDTH = 280;
+        var MENU_EDGE = 8;
 
         // The menu is position:fixed, so it has to be told where to sit.
         // Below the input by default; above it when there is not enough room
@@ -182,8 +184,16 @@
             var above = rect.top - MENU_GAP;
             var flip = below < Math.min(MENU_MAX_HEIGHT, 160) && above > below;
 
-            menu.style.left = rect.left + "px";
-            menu.style.width = rect.width + "px";
+            // At least MENU_MIN_WIDTH wide, whatever the box: in a line-item
+            // table on a phone the box can be 60px across, and a menu that
+            // narrow cut every product to "A...". Never wider than the
+            // window, and pulled back left if it would run off the edge.
+            var room = window.innerWidth - MENU_EDGE * 2;
+            var width = Math.min(Math.max(rect.width, MENU_MIN_WIDTH), room);
+            var left = Math.min(rect.left, window.innerWidth - MENU_EDGE - width);
+
+            menu.style.left = Math.max(MENU_EDGE, left) + "px";
+            menu.style.width = width + "px";
 
             if (flip) {
                 menu.style.top = "auto";

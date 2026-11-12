@@ -57,9 +57,11 @@
     font-size: 14px;
     color: #0b0b0c;
     cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    /* Wrapped, not cut off. Product names here are long and differ at the
+       end ("... 70", "... 35"), which is exactly the part an ellipsis hid. */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
 }
 
 .ss-option.ss-active {
@@ -78,4 +80,18 @@
     padding: 8px 10px;
     font-size: 13.5px;
     color: #7b8290;
+}
+
+/* A dropdown inside a table cell keeps a usable width. On a narrow screen
+   the line-item tables used to share the width out until the Product box
+   was a few letters wide; now the cells hold their width and the table
+   scrolls sideways inside its .table-responsive instead, which is what
+   that wrapper is for. */
+.table td .ss-wrap {
+    min-width: 200px;
+}
+
+.table td > .form-select,
+.table td > select.form-control {
+    min-width: 140px;
 }
