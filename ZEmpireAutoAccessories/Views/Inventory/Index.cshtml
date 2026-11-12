@@ -76,10 +76,11 @@
 
     .zx-page-sub { color:#7b8290; font-size:13.5px; margin:-8px 0 18px; }
 
-    .search-wrap { position:relative; max-width:420px; margin-bottom:14px; }
+    .search-bar { display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .search-wrap { position:relative; flex:1 1 320px; max-width:420px; }
     .search-wrap svg { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:#98a0ad; }
     .search-input { padding-left:38px; border-radius:10px; }
-    .search-actions { display:flex; gap:8px; margin-bottom:18px; }
+
 
     /* Count beside each filter, so "4 low" is visible without clicking in. */
     .status-filters .tab-count {
@@ -90,9 +91,26 @@
 
     /* Move stock straight from the row rather than opening the product. */
     .move-form { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
-    .move-input { width:auto; flex:0 0 auto; }
-    .move-qty { width:76px; }
-    .move-unit { width:64px; flex:0 0 auto; }
+
+    .move-qty { min-width:0; }
+    .move-unit { width:62px; flex:0 0 auto; }
+
+    /* A fixed width on the amount and its unit, because a .form-control
+       inside an .input-group takes flex:1 1 auto and grows to whatever the
+       cell gives it - which is how a box for "5" ended up as wide as the
+       product name beside it.
+
+       Only where there is width to spare. On a phone the row is laid out
+       again further down this file, with the amount on its own line, and a
+       width pinned here would fight it. */
+    @@media (min-width: 576px) {
+        .move-input { flex:0 0 auto; width:86px; }
+        .move-input.has-unit { width:148px; }
+    }
+
+    /* The two that change stock, then the three that only look at it. */
+    .move-links { display:flex; gap:2px; align-items:center; padding-left:8px;
+                  margin-left:4px; border-left:1px solid #e8ebf0; }
 
     /* Category bands, so the list reads as shelves rather than one long run. */
     .cat-row td {
@@ -118,11 +136,34 @@
     /* The figure and its unit are separate so the numbers line up in a
        column and the unit stays quiet beside them - a column mixing
        "4.32 m" with "100" is unreadable when both are the same weight. */
+    /* Widths on everything except the name, so the figures and the controls
+       sit together on the right and the name takes whatever is left. Without
+       them the browser shares the table out evenly and leaves a hand's width
+       of nothing between the status and the buttons.
+
+       Only where there is width to share: on a phone these same figures turn
+       the row into a sideways scroll with the buttons off the end of it,
+       which is what the rules at the bottom of this file exist to prevent. */
+    @@media (min-width: 576px) {
+        .onhand-col { width: 120px; }
+        .status-col { width: 130px; }
+        .move-col { width: 330px; }
+    }
+
     .onhand-col { text-align: right; white-space: nowrap; padding-right: 18px !important; }
     .onhand-value { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; color: #0b0b0c; }
     .onhand-value.is-zero { color: #b91c1c; }
     .onhand-unit { color: #98a0ad; font-size: 12px; margin-left: 3px; display: inline-block; min-width: 24px; text-align: left; }
-    .move-form .btn { padding:4px 10px; font-weight:600; }
+    .move-form .btn { padding:4px 10px; font-weight:600; min-width:46px; }
+
+    /* A row is a thing to act on, so it answers the pointer. */
+    .zx-table tbody tr:not(.cat-row):hover { background:#fbfcfd; }
+
+    /* Seventy-four products is a scroll, and a scroll with the headings
+       gone is four columns of unlabelled figures. */
+    /* The background has to go on the cell, not the row: a sticky th with
+       nothing behind it has the list scrolling through the headings. */
+    .zx-table thead th { position:sticky; top:0; z-index:2; background:#0b0b0c; }
 
     /* On a phone the four columns plus a quantity box and two buttons are
        wider than the screen, which pushes the buttons out of reach inside the
@@ -134,6 +175,9 @@
         .move-qty { width:54px; }
         .move-form .btn { padding:3px 7px; font-size:12px; }
         .move-form .icon-btn { display:none; }
+        /* And the rule they were separated from, which would otherwise be a
+           stray border taking a row's width for nothing. */
+        .move-links { display:none; }
 
         /* The stock figure and the filter tabs already say whether a product
            is low or out, so the badge column earns its space back for the
@@ -141,7 +185,11 @@
         .status-col { display:none; }
         .cat-row td { font-size:10.5px; }
         .cat-measure { display:none; }
-        .onhand-col { padding-right:8px !important; }
+        /* The figure needs room for "366.32 m" and no more; what it gives
+           up goes to the amount box, which was down to the width of two
+           digits with the unit picker beside it. */
+        .onhand-col { padding-right:6px !important; width:74px; }
+        .move-col { width:140px; }
         .onhand-value { font-size:13px; }
         /* Qty and its unit on one line, In/Out beneath: with a unit picker
            in the row there is not enough width for all four side by side,
@@ -152,8 +200,12 @@
            underneath rather than one of them dangling on a line of its own. */
         .move-input { flex:1 0 100%; }
         .move-qty { width:auto; flex:1 1 auto; }
-        .move-unit { width:62px; padding-left:6px; padding-right:16px; }
-        .move-form .btn { padding:3px 12px; }
+        .move-unit { width:52px; padding-left:5px; padding-right:14px; }
+
+        /* In and Out share the line under the amount. Left to size
+           themselves they each took a line of their own, which made a row
+           three deep for two buttons. */
+        .move-form .btn { padding:3px 8px; flex:1 1 0; min-width:0; }
     }
 </style>
 
@@ -184,20 +236,21 @@
     <div class="alert alert-danger py-2 px-3">@inventoryError</div>
 }
 
-<form asp-action="Index" method="get">
+@* The box and its buttons on one line. They were stacked, which put a
+   lone "Search" button under a lone box and spent two rows of the screen
+   saying what one says. *@
+<form asp-action="Index" method="get" class="search-bar">
     @* Keep the tab you are on while searching within it. *@
     <input type="hidden" name="status" value="@currentStatus" />
     <div class="search-wrap">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
         <input type="text" name="q" value="@search" class="form-control search-input" placeholder="Search product" />
     </div>
-    <div class="search-actions">
-        <button type="submit" class="btn btn-outline-secondary btn-sm">Search</button>
-        @if (!string.IsNullOrEmpty(search))
-        {
-            <a asp-action="Index" asp-route-status="@currentStatus" class="btn btn-outline-secondary btn-sm">Clear</a>
-        }
-    </div>
+    <button type="submit" class="btn btn-outline-secondary">Search</button>
+    @if (!string.IsNullOrEmpty(search))
+    {
+        <a asp-action="Index" asp-route-status="@currentStatus" class="btn btn-outline-secondary">Clear</a>
+    }
 </form>
 
 <div class="status-filters">
@@ -211,11 +264,16 @@
     <div class="table-responsive">
     <table class="table zx-table mb-0">
         <thead>
+            @* Widths on everything except the name, so the figures and the
+               controls sit together on the right and the name takes whatever
+               is left. Without them the browser shared the table out evenly
+               and left a hand's width of nothing between the status and the
+               buttons. *@
             <tr>
                 <th>Product</th>
                 <th class="onhand-col">On Hand</th>
                 <th class="status-col">Status</th>
-                <th class="text-end pe-3">Move Stock</th>
+                <th class="move-col text-end pe-3">Move Stock</th>
             </tr>
         </thead>
         <tbody>
@@ -270,7 +328,7 @@
                             @* Amount and unit are one control, so on a narrow
                                screen they wrap as a pair and leave In/Out
                                together on the line below. *@
-                            <div class="input-group input-group-sm move-input">
+                            <div class="input-group input-group-sm move-input @(roll ? "has-unit" : "")">
                                 <input type="number" name="quantity" step="0.01" min="0.01"
                                        class="form-control move-qty" placeholder="Qty" />
                                 @if (roll)
@@ -291,6 +349,7 @@
                                     formaction="@Url.Action("StockOut")"
                                     disabled="@(stock <= 0)"
                                     title="@(stock <= 0 ? "Nothing in stock to take out" : "Stock out")">Out</button>
+                            <span class="move-links">
                             <a asp-action="Details" asp-route-id="@item.ProductID" class="icon-btn" title="Stock history">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V8" /><path d="M10 12h4" /></svg>
                             </a>
@@ -312,6 +371,7 @@
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16" /><path d="M8 4h5.5a4 4 0 0 1 0 8H8" /><path d="M4.5 8h13" /><path d="M4.5 12h13" /></svg>
                                 </a>
                             }
+                            </span>
                         </form>
                     </td>
                 </tr>
