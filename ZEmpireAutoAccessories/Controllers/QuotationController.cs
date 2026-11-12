@@ -474,20 +474,59 @@ namespace ZEmpireAutoAccessories.Controllers
                     lineUnit = UnitOfMeasure.PanelUnit;
                 }
 
-                _context.QuotationDetails.Add(new QuotationDetail
+                // The same PRODUCT added twice is one line of two, not two
+                // lines of one - the job order's rule, and a quotation a
+                // customer reads should add up the same way. Three rows
+                // reading "Armor Rear Side Step" at 1, 1 and 4 tell nobody
+                // anything the single row "6" does not. A service never
+                // reaches here; it is refused above.
+                //
+                // Only a line that matches in every respect is added to:
+                // same product, same variant, shade and panel, same unit and
+                // the same price. A different price is a different deal and
+                // has to stay its own line.
+                var existingLine = await _context.QuotationDetails
+                    .FirstOrDefaultAsync(d =>
+                        d.QuotationID == quotationId &&
+                        d.ProductID == productId &&
+                        d.ServiceID == serviceId &&
+                        d.TintVariantID == keptVariantId &&
+                        d.ShadeID == keptShadeId &&
+                        d.PanelID == keptPanelId &&
+                        d.Unit == lineUnit &&
+                        d.UnitPrice == unitPrice);
+
+                if (existingLine != null)
                 {
-                    QuotationID = quotationId,
-                    ProductID = productId,
-                    ServiceID = serviceId,
-                    TintVariantID = keptVariantId,
-                    ShadeID = keptShadeId,
-                    PanelID = keptPanelId,
-                    PricingID = pricingId,
-                    Description = description,
-                    Quantity = quantity,
-                    Unit = lineUnit,
-                    UnitPrice = unitPrice
-                });
+                    existingLine.Quantity += quantity;
+
+                    // A description typed on the second go is kept only where
+                    // the first had none, so adding to a line cannot quietly
+                    // rewrite what it says.
+                    if (string.IsNullOrWhiteSpace(existingLine.Description)
+                        && !string.IsNullOrWhiteSpace(description))
+                        existingLine.Description = description;
+
+                    TempData["Success"] =
+                        $"Added {quantity} to the existing line - it now reads {existingLine.Quantity}.";
+                }
+                else
+                {
+                    _context.QuotationDetails.Add(new QuotationDetail
+                    {
+                        QuotationID = quotationId,
+                        ProductID = productId,
+                        ServiceID = serviceId,
+                        TintVariantID = keptVariantId,
+                        ShadeID = keptShadeId,
+                        PanelID = keptPanelId,
+                        PricingID = pricingId,
+                        Description = description,
+                        Quantity = quantity,
+                        Unit = lineUnit,
+                        UnitPrice = unitPrice
+                    });
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -583,6 +622,29 @@ namespace ZEmpireAutoAccessories.Controllers
                     // Left with the placeholder it was created under.
                 }
 
+                // dbo.ConvertQuotationToJobOrder is the shop's own procedure
+                // and not mine to change, and what it copies onto a job order
+                // line is whatever it was written to copy. If it does not
+                // carry the tint variant, the shade and the panel across,
+                // the job sheet for a converted quotation cannot say which
+                // film went on which glass - the one thing the line is for.
+                //
+                // So they are carried here instead, and only where the job
+                // order line is plainly the quotation line it came from:
+                // same product or service, same price, same quantity, and
+                // the same number of each on both sides, matched in the
+                // order they were written. Anything less certain is left
+                // alone rather than guessed at. Where the procedure already
+                // copies them, this finds nothing to do.
+                try
+                {
+                    await CarryFilmDetailsToJobOrder(id, jobOrderId);
+                }
+                catch (Exception)
+                {
+                    // The job order stands either way.
+                }
+
                 TempData["Success"] =
                     $"Converted to Job Order {jobOrderNumber}. "
                     + "Walk the car before any film is touched.";
@@ -623,6 +685,25 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             return RedirectToAction(nameof(Details), new { id });
+        }
+
+        /// <summary>
+        /// Carries what the quotation's lines say about film onto the job
+        /// order's. See <see cref="ConvertedLines"/> for which lines are
+        /// matched and why the careful ones are the only ones touched.
+        /// </summary>
+        private async Task CarryFilmDetailsToJobOrder(int quotationId, int jobOrderId)
+        {
+            var fromQuotation = await _context.QuotationDetails
+                .Where(d => d.QuotationID == quotationId)
+                .ToListAsync();
+
+            var onJobOrder = await _context.JobOrderDetails
+                .Where(d => d.JobOrderID == jobOrderId)
+                .ToListAsync();
+
+            if (ConvertedLines.Carry(fromQuotation, onJobOrder))
+                await _context.SaveChangesAsync();
         }
 
         private static void RecalculateTotals(Quotation quotation)

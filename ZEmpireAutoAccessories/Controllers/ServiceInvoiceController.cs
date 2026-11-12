@@ -67,6 +67,13 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Include(i => i.Details)
                     .ThenInclude(d => d.TintVariant)
                 .Include(i => i.Details)
+                    // Without this the shade on a line reads as null, so the
+                    // screen quietly dropped it: a line fitted in Freeze
+                    // Medium printed on the PDF with its shade and showed on
+                    // screen as "Freeze - Full Wrap". The PDF path has always
+                    // included it; this is the screen catching up.
+                    .ThenInclude(d => d.Shade)
+                .Include(i => i.Details)
                     .ThenInclude(d => d.Panel)
                 .FirstOrDefaultAsync(i => i.ServiceInvoiceID == id);
 

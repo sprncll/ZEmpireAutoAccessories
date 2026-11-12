@@ -524,12 +524,18 @@
                     return;
                 }
 
-                $panel.empty().append($('<option></option>').val('').text('-- Select Panel --')).prop('disabled', false);
-                showIfUsable($panel);
+                $panel.empty()
+                      .append($('<option></option>').val('').text('-- Select Panel --'))
+                      .prop('disabled', false);
+
                 rows.forEach(function (r) {
                     $panel.append($('<option></option>').val(r.panelId).text(r.panelName).attr('data-price', r.price));
                 });
 
+                // After the options, never before them: showIfUsable counts
+                // what is in the box, and a box holding only its placeholder
+                // reads as nothing worth showing - so asking first hid the
+                // box the panels were about to go into.
                 showIfUsable($panel);
 
                 // Only one panel option for this product/variant - skip
@@ -596,10 +602,11 @@
                         : '-- N/A --');
                 } else {
                     $tintVariant.empty().append($('<option></option>').val('').text('-- Select Variant --')).prop('disabled', false);
-                showIfUsable($tintVariant);
                     variants.forEach(function (v) {
                         $tintVariant.append($('<option></option>').val(v.tintVariantId).text(v.tintVariantName));
                     });
+
+                    showIfUsable($tintVariant);
 
                     // Only one tint variant on file for this product - skip
                     // making the user pick it themselves.
