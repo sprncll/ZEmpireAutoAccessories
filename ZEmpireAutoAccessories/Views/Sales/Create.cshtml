@@ -43,6 +43,7 @@
     /* A film row asks which class of car; every other row does not. */
     td .classification-select { display:none; }
     td.asks-class .classification-select { display:block; }
+    td.asks-class .classification-select { margin-top:0; }
     .cut-note { font-size:11.5px; color:#2f7a3e; margin-top:4px; line-height:1.4; font-weight:600; }
     .cut-note.missing { color:#b91c1c; font-weight:500; }
 
@@ -139,7 +140,11 @@
         </div>
 
         <h6 class="mt-4 mb-2">Line Items</h6>
-        <p class="zx-page-sub mb-2">Products priced by panel need a Vehicle picked above to look up the matching price.</p>
+        <p class="zx-page-sub mb-2">
+            Film and tint are priced by panel: on the line, say which class of car and the price and the
+            length follow by themselves. Leave the class on <strong>By the metre</strong> to sell film off
+            the roll instead. Everything else is counted as usual.
+        </p>
         <div id="priceBlocked" class="alert alert-danger py-2 px-3" style="display:none; font-size:13px;">
             A line has no price yet. For a product priced by panel, pick the Tint Variant and Panel so the
             price can be looked up - if there is no price for that combination, an administrator sets one
@@ -209,7 +214,7 @@
                         @* Hidden on a non-film row, and posting its blank either way: this
                            column has to stay the same length as the ones beside it. *@
                         <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
-                            <option value="">-- Vehicle class --</option>
+                            <option value="">-- By the metre --</option>
                             @foreach (var c in classifications)
                             {
                                 <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
@@ -272,7 +277,7 @@
                     @* Hidden on a non-film row, and posting its blank either way: this
                        column has to stay the same length as the ones beside it. *@
                     <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
-                        <option value="">-- Vehicle class --</option>
+                        <option value="">-- By the metre --</option>
                         @foreach (var c in classifications)
                         {
                             <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
@@ -643,8 +648,16 @@
                 var $class = $row.find('.classification-select');
 
                 $class.closest('td').toggleClass('asks-class', isFilm);
-                if (isFilm && !$class.val() && saleClassId) { $class.val(saleClassId); }
-                if (!isFilm) { $class.val(''); }
+
+                // The car on the sale is a sensible first answer, but only
+                // until somebody answers for themselves: picking "By the
+                // metre" has to stick, or the next refresh would put the
+                // class back and take the Qty box away again.
+                if (isFilm && !$class.val() && saleClassId && !$class.data('touched')) {
+                    $class.val(saleClassId);
+                }
+
+                if (!isFilm) { $class.val('').removeData('touched'); }
 
                 // The prices for this row's class may not be in hand yet.
                 // Fetch them, then come back and do the rest.
@@ -700,18 +713,25 @@
                 var $note = $row.find('.cut-note');
                 var cut = parseFloat($selected.attr('data-cut'));
 
+                // One control at a time. A row priced by panel has nothing to
+                // count - the length is the cut size - so the Qty box goes
+                // away the moment a class of car is named, and comes back if
+                // the row goes back to being sold by the metre.
+                var byPanel = $row.find('.classification-select').closest('td').hasClass('asks-class')
+                    && !!classOf($row);
+
+                $qty.toggle(!byPanel);
+                if (byPanel) { $qty.val(1); }
+
                 if (!panelId) {
-                    // No panel: film is sold as a length off the roll, and
-                    // the quantity is that length in metres.
-                    $qty.show();
-                    $note.hide().text('');
+                    $note.toggleClass('missing', false)
+                         .text(byPanel ? 'Pick a panel - the length comes from it' : '')
+                         .toggle(byPanel);
                     return;
                 }
 
-                $qty.val(1).hide();
-
                 $note.text(isNaN(cut) || cut <= 0
-                        ? 'No cut size set for this panel - set one under Inventory, Cut Sizes'
+                        ? 'No cut size for this panel - set one under Inventory, Cut Sizes'
                         : metres(cut) + ' off the roll')
                      .toggleClass('missing', isNaN(cut) || cut <= 0)
                      .show();
@@ -1057,7 +1077,12 @@
             // keyed by it, and so is the cut size.
             $(document).on('change', '.classification-select', function () {
                 var $row = $(this).closest('tr');
-                loadMatrix($(this).val(), function () { evaluateProductRow($row); });
+                $(this).data('touched', true);
+                syncPanel($row);
+                loadMatrix($(this).val(), function () {
+                    evaluateProductRow($row);
+                    refreshStockState();
+                });
             });
 
             $(document).on('input', 'input[name=quantity], input[name=unitPrice]', function () {
