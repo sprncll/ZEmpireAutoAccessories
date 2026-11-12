@@ -1,4 +1,4 @@
-﻿namespace ZEmpireAutoAccessories.Models
+namespace ZEmpireAutoAccessories.Models
 {
     /// <summary>
     /// Paint Protection Film and Window Tint come off a roll and are measured
@@ -78,15 +78,32 @@
         public static readonly string[] LengthUnits = { Centimeter, Inch, Meter };
 
         /// <summary>
-        /// The units offered for anything counted rather than measured.
+        /// The units offered for goods that are counted rather than measured
+        /// - a horn, a wax, a step board.
         ///
         /// "Unit" used to head this list and was the default, but it is not a
         /// unit of measure - it says nothing about what one line covers. And
         /// "roll" sat here as a count while a roll of film is measured in
         /// cm/in/m, so the same word meant two different things depending on
         /// the screen. Both are gone; a piece is the sensible default.
+        ///
+        /// A pair is two sold as one - wiper blades, a set of mirror caps -
+        /// and a set is the same idea where the count is not two. They are
+        /// here because the shop sells boxed goods that way.
         /// </summary>
-        public static readonly string[] CountUnits = { "pc", "set", "pair", "job" };
+        public static readonly string[] CountUnits = { "pc", "set", "pair" };
+
+        /// <summary>
+        /// What labour is written in. A fitting is one job, not one piece of
+        /// anything, and offering "pc" against a service invited somebody to
+        /// count it as though it came out of a box.
+        ///
+        /// Kept apart from CountUnits so each unit only appears where it
+        /// means something: film is measured, goods are counted, work is a
+        /// job. Lines already written in another unit keep it - this decides
+        /// what is offered, never what is stored.
+        /// </summary>
+        public static readonly string[] ServiceUnits = { "job" };
 
         /// <summary>What a line is written in when nothing else is chosen.</summary>
         public const string DefaultCountUnit = "pc";

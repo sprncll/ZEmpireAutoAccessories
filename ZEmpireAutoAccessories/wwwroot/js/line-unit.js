@@ -1,13 +1,18 @@
 // Unit picker on the "add line item" forms of Quotation, Job Order and
 // Service Invoice.
 //
-// Paint Protection Film and Window Tint come off a roll and are written in
-// cm, inches or metres; everything else is counted. Picking a product swaps
-// the unit list to match, so nobody has to remember which products are
-// measured. The server converts whatever unit is chosen into the unit stock
-// is held in - this only decides what is offered.
+// Three kinds of thing go on a line and each is written differently. Paint
+// Protection Film and Window Tint come off a roll, so they are measured in
+// cm, inches or metres. A horn or a step board is counted, in pieces, pairs
+// or sets. Labour is neither - it is one job.
+//
+// Picking a product or a service swaps the unit list to match, so nobody has
+// to remember which is which, and no unit is offered where it says nothing.
+// The server converts whatever unit is chosen into the unit stock is held in
+// - this only decides what is offered.
 (function () {
     var product = document.getElementById('addLineProduct');
+    var service = document.getElementById('addLineService');
     var unit = document.querySelector('select[name="unit"]');
     var quantity = document.querySelector('input[name="quantity"]');
     if (!product || !unit) { return; }
@@ -21,11 +26,16 @@
     }
 
     var LENGTH_UNITS = unitList('lengthUnits', ['cm', 'in', 'm']);
-    var COUNT_UNITS = unitList('countUnits', ['pc', 'set', 'pair', 'job']);
+    var COUNT_UNITS = unitList('countUnits', ['pc', 'set', 'pair']);
+    var SERVICE_UNITS = unitList('serviceUnits', ['job']);
 
     function selectedIsRoll() {
         var option = product.options[product.selectedIndex];
         return !!option && option.dataset.roll === 'true';
+    }
+
+    function selectedIsService() {
+        return !!service && !!service.value;
     }
 
     function fill(values, preferred) {
@@ -45,9 +55,15 @@
     }
 
     function apply() {
+        // Each unit only where it means something: film is measured, goods
+        // are counted, work is a job. Offering all four against everything is
+        // what made "pair" and "job" look arbitrary on a line of film.
         var roll = selectedIsRoll();
-        fill(roll ? LENGTH_UNITS : COUNT_UNITS,
-             roll ? LENGTH_UNITS[0] : COUNT_UNITS[0]);
+        var units = selectedIsService() ? SERVICE_UNITS
+                  : roll ? LENGTH_UNITS
+                  : COUNT_UNITS;
+
+        fill(units, units[0]);
 
         // Quotation and Job Order lines store quantity as a whole number, so
         // a measured length has to be written in a unit that comes out whole
@@ -107,6 +123,7 @@
     }
 
     product.addEventListener('change', function () { apply(); showStock(); });
+    if (service) { service.addEventListener('change', function () { apply(); showStock(); }); }
     unit.addEventListener('change', showStock);
     if (quantity) { quantity.addEventListener('input', showStock); }
 

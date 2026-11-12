@@ -309,7 +309,8 @@
                     <input type="number" name="quantity" class="form-control" value="1" min="1" />
                     <select name="unit" class="form-select line-unit" data-searchable="false"
                             data-length-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)"
-                            data-count-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)">
+                            data-count-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)"
+                            data-service-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.ServiceUnits)">
                         @foreach (var u in ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)
                         {
                             <option value="@u">@u</option>

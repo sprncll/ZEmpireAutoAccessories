@@ -461,20 +461,62 @@ namespace ZEmpireAutoAccessories.Controllers
                     keptShadeId = shadeId;
                 }
 
-                _context.JobOrderDetails.Add(new JobOrderDetail
+                var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;
+                var linePanelId = pricingId != null ? panelId : null;
+
+                // The same thing added twice is one line of two, not two
+                // lines of one. Three rows reading "Armor Rear Side Step" at
+                // 1, 1 and 4 tell a customer nothing the single row "6" does
+                // not, and they invite somebody deleting a duplicate to
+                // remove a quantity that was really sold.
+                //
+                // Only a line that matches in every respect is added to:
+                // same product or service, same variant, shade and panel,
+                // same unit and the same price. A different price is a
+                // different deal - a discounted second fitting is its own
+                // line and has to stay one.
+                var existing = await _context.JobOrderDetails
+                    .FirstOrDefaultAsync(d =>
+                        d.JobOrderID == jobOrderId &&
+                        d.ProductID == productId &&
+                        d.ServiceID == serviceId &&
+                        d.TintVariantID == keptVariantId &&
+                        d.ShadeID == keptShadeId &&
+                        d.PanelID == linePanelId &&
+                        d.Unit == lineUnit &&
+                        d.UnitPrice == unitPrice);
+
+                if (existing != null)
                 {
-                    JobOrderID = jobOrderId,
-                    ProductID = productId,
-                    ServiceID = serviceId,
-                    TintVariantID = keptVariantId,
-                    ShadeID = keptShadeId,
-                    PanelID = pricingId != null ? panelId : null,
-                    PricingID = pricingId,
-                    Description = description,
-                    Quantity = quantity,
-                    Unit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit,
-                    UnitPrice = unitPrice
-                });
+                    existing.Quantity += quantity;
+
+                    // A description typed on the second go is kept only where
+                    // the first had none, so adding to a line cannot quietly
+                    // rewrite what it says.
+                    if (string.IsNullOrWhiteSpace(existing.Description)
+                        && !string.IsNullOrWhiteSpace(description))
+                        existing.Description = description;
+
+                    TempData["Success"] =
+                        $"Added {quantity} to the existing line - it now reads {existing.Quantity}.";
+                }
+                else
+                {
+                    _context.JobOrderDetails.Add(new JobOrderDetail
+                    {
+                        JobOrderID = jobOrderId,
+                        ProductID = productId,
+                        ServiceID = serviceId,
+                        TintVariantID = keptVariantId,
+                        ShadeID = keptShadeId,
+                        PanelID = linePanelId,
+                        PricingID = pricingId,
+                        Description = description,
+                        Quantity = quantity,
+                        Unit = lineUnit,
+                        UnitPrice = unitPrice
+                    });
+                }
 
                 await _context.SaveChangesAsync();
             }
