@@ -15,6 +15,18 @@ namespace ZEmpireAutoAccessories.Services
     {
         private static readonly string BrandRed = "#e5464d";
 
+        /// <summary>
+        /// The shop whose name goes at the top of every document.
+        ///
+        /// Set from the settings screen at startup and whenever it is saved,
+        /// the same way the VAT rate is. It used to be a string literal below
+        /// - which meant the shop could not move premises, and could not put
+        /// its TIN on an invoice, without a programmer.
+        /// </summary>
+        private static ShopSettings _shop = new();
+
+        public static void Configure(ShopSettings shop) => _shop = shop;
+
         public static byte[] BuildQuotationPdf(Quotation quotation, ICutSizeStore? cutSizes = null)
         {
             return Document.Create(container =>
@@ -480,8 +492,18 @@ namespace ZEmpireAutoAccessories.Services
                 {
                     row.RelativeItem().Column(col =>
                     {
-                        col.Item().Text("Z-Empire Auto Accessories").FontSize(16).Bold();
-                        col.Item().Text("Auto Tint & Accessories Shop").FontSize(8).FontColor(Colors.Grey.Medium);
+                        col.Item().Text(_shop.ShopName).FontSize(16).Bold();
+
+                        if (!string.IsNullOrWhiteSpace(_shop.Tagline))
+                            col.Item().Text(_shop.Tagline).FontSize(8).FontColor(Colors.Grey.Medium);
+
+                        // The address, the number and the TIN, where the shop
+                        // has said. A VAT-registered business prints its TIN
+                        // on every sales invoice; this document could not say
+                        // it before there was anywhere to put it.
+                        if (!string.IsNullOrWhiteSpace(_shop.ContactLine))
+                            col.Item().PaddingTop(2).Text(_shop.ContactLine)
+                               .FontSize(7.5f).FontColor(Colors.Grey.Medium);
                     });
 
                     row.ConstantItem(180).Column(col =>

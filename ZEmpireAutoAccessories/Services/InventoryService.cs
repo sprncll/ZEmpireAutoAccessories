@@ -48,6 +48,39 @@ namespace ZEmpireAutoAccessories.Services
                 .ToListAsync();
         }
 
+        public async Task<List<InventoryRow>> GetRows()
+        {
+            var levels = await GetStockLevels();
+
+            var products = await _context.Products
+                .Include(p => p.Category)
+                .ToDictionaryAsync(p => p.ProductID,
+                    p => new { p.CategoryID, p.Category.CategoryName });
+
+            return levels
+                .Select(l =>
+                {
+                    var category = products.TryGetValue(l.ProductID, out var c) ? c : null;
+                    var categoryName = category?.CategoryName;
+
+                    return new InventoryRow
+                    {
+                        ProductID = l.ProductID,
+                        ProductName = l.ProductName,
+                        // Grouped under the canonical name, so "Paint
+                        // Protection" and "Paint Protection Film" are one
+                        // band rather than two.
+                        CategoryName = ProductCategories.Canonical(categoryName),
+                        StockOnHand = l.StockOnHand ?? 0,
+                        SoldByLength = UnitOfMeasure.ForProduct(
+                            l.ProductID, category?.CategoryID ?? 0, categoryName)
+                    };
+                })
+                .OrderBy(r => r.CategoryName)
+                .ThenBy(r => r.ProductName)
+                .ToList();
+        }
+
         public async Task StockIn(int productId, decimal quantity, string userId, string? unit = null)
         {
             if (quantity <= 0)

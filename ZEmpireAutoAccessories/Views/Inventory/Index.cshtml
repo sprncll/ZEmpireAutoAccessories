@@ -2,7 +2,6 @@
 
 @{
     ViewData["Title"] = "Inventory";
-    const decimal lowStockThreshold = 5;
     var currentStatus = ViewData["Status"] as string;
     var search = ViewData["Search"] as string;
 
@@ -326,11 +325,15 @@
                         <span class="onhand-unit">@figure.Unit</span>
                     </td>
                     <td class="status-col">
-                        @if (stock <= 0)
+                        @* The same question the tabs above ask, and the
+                           dashboard with them: StockLevels, set on the
+                           settings screen, asking a roll in metres and a box
+                           in pieces. *@
+                        @if (StockLevels.IsOut(stock))
                         {
                             <span class="badge badge-out">Out of Stock</span>
                         }
-                        else if (stock <= lowStockThreshold)
+                        else if (StockLevels.IsLow(stock, roll))
                         {
                             <span class="badge badge-low">Low Stock</span>
                         }

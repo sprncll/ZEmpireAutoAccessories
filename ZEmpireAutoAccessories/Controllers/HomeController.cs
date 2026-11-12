@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
@@ -15,12 +15,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
         private readonly IReportService _reportService;
+        private readonly IInventoryService _inventoryService;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService)
+        public HomeController(
+            ILogger<HomeController> logger,
+            ApplicationDbContext context,
+            IReportService reportService,
+            IInventoryService inventoryService)
         {
             _logger = logger;
             _context = context;
             _reportService = reportService;
+            _inventoryService = inventoryService;
         }
 
         public async Task<IActionResult> Index()
@@ -78,15 +84,33 @@ namespace ZEmpireAutoAccessories.Controllers
 
             if (modules.Contains("Inventory"))
             {
-                var lowStock = (await _reportService.GetLowStock()).Count;
+                // Counted here the way the inventory list counts them, from
+                // the same rows, so the tile and the screen it links to
+                // cannot disagree.
+                //
+                // They did. The tile asked for everything at or below five -
+                // which includes nothing at all - and called the answer "Low
+                // Stock Items"; the screen's Low Stock tab means some left
+                // but not much. With eight products out and none low, the
+                // dashboard said eight and the list it opened was empty.
+                var rows = await _inventoryService.GetRows();
 
-                // The one figure on this screen that means somebody has to act
-                // before a job is turned away. It gets the loud treatment.
+                var outOfStock = rows.Count(r => StockLevels.IsOut(r.StockOnHand));
+                var lowStock = rows.Count(r => StockLevels.IsLow(r.StockOnHand, r.SoldByLength));
+
+                // Nothing left is the one that turns a job away at the door,
+                // so it gets the loud treatment and goes first.
                 stats.Add(new DashboardStat(
-                    "Low Stock Items", lowStock.ToString(),
+                    "Out of Stock", outOfStock.ToString(),
+                    Url.Action("Index", "Inventory", new { status = "OutOfStock" })!, "stock",
+                    outOfStock > 0 ? StatTone.Attention : StatTone.Plain,
+                    outOfStock == 0 ? "Nothing has run out" : "Reorder before a job needs it"));
+
+                stats.Add(new DashboardStat(
+                    "Low Stock", lowStock.ToString(),
                     Url.Action("Index", "Inventory", new { status = "LowStock" })!, "stock",
-                    lowStock > 0 ? StatTone.Attention : StatTone.Plain,
-                    lowStock == 0 ? "All stocked" : "Running out"));
+                    lowStock > 0 ? StatTone.Waiting : StatTone.Plain,
+                    lowStock == 0 ? "All comfortable" : "Running out"));
             }
 
             if (modules.Contains("Warranty"))

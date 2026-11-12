@@ -14,6 +14,17 @@ namespace ZEmpireAutoAccessories.Services.Interfaces
         /// <summary>Stock-on-hand for every product, from the dbo.vw_StockOnHand view.</summary>
         Task<List<VwStockOnHand>> GetStockLevels();
 
+        /// <summary>
+        /// Every product with what is left of it, its category, and whether
+        /// it comes off a roll - which is what decides the unit and the
+        /// low-stock point.
+        ///
+        /// The inventory list and the dashboard both read this, so the figure
+        /// on a tile and the rows behind it are counted from one place. They
+        /// were counted separately, and disagreed.
+        /// </summary>
+        Task<List<InventoryRow>> GetRows();
+
         Task StockIn(int productId, decimal quantity, string userId, string? unit = null);
 
         Task StockOut(int productId, decimal quantity, string userId, string? unit = null);

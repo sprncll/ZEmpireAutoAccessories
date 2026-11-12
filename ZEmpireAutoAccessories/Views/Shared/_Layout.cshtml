@@ -184,6 +184,12 @@
                                 <li class="nav-item">
                                     <a class="nav-link" asp-controller="Security" asp-action="Index">Roles &amp; Permissions</a>
                                 </li>
+                                @* Beside the roles rather than among the day's
+                                   work: this changes what every screen says,
+                                   not what one of them does. *@
+                                <li class="nav-item">
+                                    <a class="nav-link" asp-controller="Settings" asp-action="Index">Settings</a>
+                                </li>
                             }
                         </ul>
 

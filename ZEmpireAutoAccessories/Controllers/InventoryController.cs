@@ -43,16 +43,17 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var stockLevels = await BuildRows();
 
-            const decimal lowStockThreshold = 5;
-
             // Counts come off the whole list, before any filtering, so the
             // tabs still say how much needs attention while you are looking
             // at one of them.
+            //
+            // What counts as low is StockLevels, which the settings screen
+            // sets - and which asks a roll in metres and a box in pieces,
+            // rather than the single 5 this file used to hold.
             ViewData["CountAll"] = stockLevels.Count;
-            ViewData["CountOut"] = stockLevels.Count(s => s.StockOnHand <= 0);
-            ViewData["CountLow"] = stockLevels.Count(s =>
-                s.StockOnHand > 0 && s.StockOnHand <= lowStockThreshold);
-            ViewData["CountIn"] = stockLevels.Count(s => s.StockOnHand > lowStockThreshold);
+            ViewData["CountOut"] = stockLevels.Count(s => StockLevels.IsOut(s.StockOnHand));
+            ViewData["CountLow"] = stockLevels.Count(s => StockLevels.IsLow(s.StockOnHand, s.SoldByLength));
+            ViewData["CountIn"] = stockLevels.Count(s => StockLevels.IsFine(s.StockOnHand, s.SoldByLength));
 
             if (!string.IsNullOrWhiteSpace(q))
             {
@@ -66,9 +67,9 @@ namespace ZEmpireAutoAccessories.Controllers
             {
                 stockLevels = status switch
                 {
-                    "OutOfStock" => stockLevels.Where(s => s.StockOnHand <= 0).ToList(),
-                    "LowStock" => stockLevels.Where(s => s.StockOnHand > 0 && s.StockOnHand <= lowStockThreshold).ToList(),
-                    "InStock" => stockLevels.Where(s => s.StockOnHand > lowStockThreshold).ToList(),
+                    "OutOfStock" => stockLevels.Where(s => StockLevels.IsOut(s.StockOnHand)).ToList(),
+                    "LowStock" => stockLevels.Where(s => StockLevels.IsLow(s.StockOnHand, s.SoldByLength)).ToList(),
+                    "InStock" => stockLevels.Where(s => StockLevels.IsFine(s.StockOnHand, s.SoldByLength)).ToList(),
                     _ => stockLevels
                 };
             }
@@ -85,37 +86,9 @@ namespace ZEmpireAutoAccessories.Controllers
         /// read "4.32 m" or "100 pcs" rather than a bare number whose meaning
         /// depends on the product.
         /// </summary>
-        private async Task<List<InventoryRow>> BuildRows()
-        {
-            var levels = await _inventoryService.GetStockLevels();
-
-            var products = await _context.Products
-                .Include(p => p.Category)
-                .ToDictionaryAsync(p => p.ProductID,
-                    p => new { p.CategoryID, p.Category.CategoryName });
-
-            return levels
-                .Select(l =>
-                {
-                    var category = products.TryGetValue(l.ProductID, out var c) ? c : null;
-                    var categoryName = category?.CategoryName;
-                    return new InventoryRow
-                    {
-                        ProductID = l.ProductID,
-                        ProductName = l.ProductName,
-                        // Grouped under the canonical name, so "Paint
-                        // Protection" and "Paint Protection Film" are one
-                        // band rather than two.
-                        CategoryName = ProductCategories.Canonical(categoryName),
-                        StockOnHand = l.StockOnHand ?? 0,
-                        SoldByLength = UnitOfMeasure.ForProduct(
-                            l.ProductID, category?.CategoryID ?? 0, categoryName)
-                    };
-                })
-                .OrderBy(r => r.CategoryName)
-                .ThenBy(r => r.ProductName)
-                .ToList();
-        }
+        // The same rows the dashboard counts, from the same place, so a
+        // tile and the list it opens cannot disagree about what is low.
+        private Task<List<InventoryRow>> BuildRows() => _inventoryService.GetRows();
 
         // id = ProductID
         public async Task<IActionResult> Details(int? id)
