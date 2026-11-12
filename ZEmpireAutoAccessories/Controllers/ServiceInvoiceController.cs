@@ -34,18 +34,34 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: ServiceInvoice?status=Paid
-        public async Task<IActionResult> Index(string? status)
+        public async Task<IActionResult> Index(string? status, string? q)
         {
-            var invoices = await _context.ServiceInvoices
+            var query = _context.ServiceInvoices
                 .Include(i => i.Customer)
                 .Include(i => i.Vehicle)
                 .Include(i => i.JobOrder)
                 .Include(i => i.PaymentMode)
-                .Where(i => status == null || i.Status == status)
+                .Where(i => status == null || i.Status == status);
+
+            // The same search the Job Orders list has: the number on the
+            // invoice, who it is for, the car, and the job order it came
+            // from - which is what a customer at the counter quotes.
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                query = query.Where(i =>
+                    i.InvoiceNumber.Contains(term) ||
+                    i.Customer.FullName.Contains(term) ||
+                    (i.Vehicle != null && i.Vehicle.PlateNumber != null && i.Vehicle.PlateNumber.Contains(term)) ||
+                    (i.JobOrder != null && i.JobOrder.JobOrderNumber.Contains(term)));
+            }
+
+            var invoices = await query
                 .OrderByDescending(i => i.InvoiceDate)
                 .ToListAsync();
 
             ViewData["Status"] = status;
+            ViewData["Search"] = q;
             return View(invoices);
         }
 
