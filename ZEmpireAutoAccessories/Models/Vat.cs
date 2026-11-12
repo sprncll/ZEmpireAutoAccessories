@@ -1,4 +1,4 @@
-﻿namespace ZEmpireAutoAccessories.Models
+namespace ZEmpireAutoAccessories.Models
 {
     /// <summary>
     /// Philippine VAT, at 12%.
@@ -20,35 +20,10 @@
     public static class Vat
     {
         /// <summary>The rate, as a fraction.</summary>
-        ///
-        /// <remarks>
-        /// Twelve per cent since 2006, and not a programmer's to decide: BIR
-        /// sets it and has moved it before. Set from the settings screen at
-        /// startup and whenever it is saved - see <see cref="Configure"/>.
-        /// </remarks>
-        public static decimal Rate { get; private set; } = 0.12m;
+        public const decimal Rate = 0.12m;
 
         /// <summary>The rate as it is written on a receipt.</summary>
-        public static string RateLabel { get; private set; } = "12%";
-
-        /// <summary>
-        /// Points the rate at what the shop has set. A rate outside 0 to 1 is
-        /// ignored rather than applied: a receipt is worse for being wrong
-        /// than for being out of date, and every figure on every document
-        /// goes through here.
-        ///
-        /// The label is worked out from the rate rather than typed, so the
-        /// two can never disagree - a receipt reading "VAT (12%)" beside an
-        /// 8% division is how a dispute starts.
-        /// </summary>
-        public static void Configure(decimal rate)
-        {
-            if (rate < 0m || rate > 1m)
-                return;
-
-            Rate = rate;
-            RateLabel = (rate * 100m).ToString("0.##") + "%";
-        }
+        public const string RateLabel = "12%";
 
         /// <summary>
         /// The part of a VAT-inclusive total that is the sale itself, to the

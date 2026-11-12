@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
@@ -35,6 +35,8 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IInventoryService _inventoryService;
 
+        // Matches the threshold the Inventory list filters on.
+        private const decimal LowStockThreshold = 5;
 
         public InventoryCheckController(
             ApplicationDbContext context,
@@ -125,7 +127,7 @@ namespace ZEmpireAutoAccessories.Controllers
                     // CK on inv.InventoryCheckDetail allows Piece or Roll only,
                     // so the measured unit lives in the figure, not the label.
                     Unit = byLength || typedUnit == "Roll" ? "Roll" : "Piece",
-                    StockLevel = LevelFor(counting, byLength)
+                    StockLevel = LevelFor(counting)
                 });
             }
 
@@ -425,16 +427,11 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // CK on inv.InventoryCheckDetail allows Normal, Low or Critical only.
-        //
-        // The threshold used to be a piece count applied to everything, which
-        // for a roll read as centimetres and meant only "nothing left" ever
-        // registered. StockLevels asks a roll in metres and a box in pieces -
-        // the same question the inventory list and the dashboard ask, from
-        // the same settings - so a counted roll with four metres on it now
-        // says Low, as it should.
-        private static string LevelFor(decimal physical, bool soldByLength) =>
-            StockLevels.IsOut(physical) ? "Critical"
-            : StockLevels.IsLow(physical, soldByLength) ? "Low"
+        // The threshold is a piece count; for roll goods it reads as
+        // centimetres, so only the Critical (nothing left) case is meaningful.
+        private static string LevelFor(decimal physical) =>
+            physical <= 0 ? "Critical"
+            : physical <= LowStockThreshold ? "Low"
             : "Normal";
 
         private string CurrentUserId =>

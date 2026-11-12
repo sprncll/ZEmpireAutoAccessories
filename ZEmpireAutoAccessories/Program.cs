@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Infrastructure;
@@ -128,11 +128,6 @@ builder.Services.AddScoped<IDocumentStockService, DocumentStockService>();
 // rather than when a screen first happens to inject it.
 builder.Services.AddSingleton<IMeasureStore, MeasureStore>();
 
-// The shop's own settings - its name, the VAT rate, when stock counts as
-// low. A singleton for the same reason: it is read on every document and
-// changes once a year.
-builder.Services.AddSingleton<ISettingsStore, SettingsStore>();
-
 // What is left of each shade, worked out from the last stock count and the
 // document lines since it. Scoped: it reads the database every time, because
 // the answer moves with every job completed.
@@ -155,10 +150,6 @@ var app = builder.Build();
 // hand reads as whatever its category name says, which for a measured product
 // means one centimetre coming off the roll instead of a whole windshield.
 app.Services.GetRequiredService<IMeasureStore>();
-
-// Built now rather than on the first request, so the VAT rate and the
-// low-stock points are the shop's before anything is priced or listed.
-app.Services.GetRequiredService<ISettingsStore>();
 
 // Configure HTTP request pipeline
 if (!app.Environment.IsDevelopment())
