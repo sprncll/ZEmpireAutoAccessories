@@ -8,12 +8,17 @@ namespace ZEmpireAutoAccessories.Services
     /// payment arrived, and the slip or photo showing a warranty was claimed.
     /// Each one is filed against the record it belongs to.
     ///
+    /// A record can hold several. A customer who puts money down and settles
+    /// the rest later sends a receipt each time, and the second one must not
+    /// push the first out: both are evidence, of different payments. They are
+    /// numbered in the order they were attached, starting at 1.
+    ///
     /// The files live in a folder, not in the database. There is nowhere in
     /// the schema to put them - sales.Sales holds a total and nothing else,
     /// sales.Warranty has no attachment column, and there is no attachment
     /// table - and adding one is off the table. A folder needs no migration,
-    /// and the link is the file's name: what kind of record it belongs to and
-    /// that record's id, and nothing else, so nothing the customer or the
+    /// and the link is the file's name: what kind of record it belongs to,
+    /// that record's id and the file's number, and nothing else, so nothing the customer or the
     /// staff types can steer where it is written.
     ///
     /// The folder sits outside wwwroot deliberately. These carry customers'
@@ -39,6 +44,8 @@ namespace ZEmpireAutoAccessories.Services
         private readonly string _folder;
         private readonly long _maxBytes;
 
+        public int MaxPerRecord { get; }
+
         public ProofStore(IConfiguration config, IWebHostEnvironment environment)
         {
             var configured = config["Payments:ProofFolder"];
@@ -50,47 +57,150 @@ namespace ZEmpireAutoAccessories.Services
                     : Path.Combine(environment.ContentRootPath, configured);
 
             _maxBytes = config.GetValue<long?>("Payments:MaxProofBytes") ?? 5 * 1024 * 1024;
+
+            // Enough for a down payment, a few instalments and the balance,
+            // with room for a retaken screenshot - and a ceiling, so one
+            // record cannot be used to fill the disk.
+            MaxPerRecord = Math.Max(1, config.GetValue<int?>("Payments:MaxProofsPerRecord") ?? 10);
         }
 
         public bool Exists(ProofKind kind, int recordId) =>
-            FindExisting(kind, recordId) != null;
+            Slots(kind, recordId).Count > 0;
 
-        public HashSet<(ProofKind Kind, int RecordId)> ExistingFor(
+        public IReadOnlyList<int> Slots(ProofKind kind, int recordId) =>
+            Existing(kind, recordId).Select(f => f.Slot).ToList();
+
+        public Dictionary<(ProofKind Kind, int RecordId), List<int>> SlotsFor(
             IEnumerable<(ProofKind Kind, int RecordId)> records)
         {
-            var found = new HashSet<(ProofKind, int)>();
+            var found = new Dictionary<(ProofKind, int), List<int>>();
 
             if (!Directory.Exists(_folder))
                 return found;
 
-            // One listing, then a lookup per row - a folder probe per
-            // transaction would be a few hundred stat calls on a busy day.
-            var names = new HashSet<string>(
-                Directory.EnumerateFiles(_folder).Select(Path.GetFileName)!,
-                StringComparer.OrdinalIgnoreCase);
+            var wanted = new HashSet<(ProofKind, int)>(records);
 
-            foreach (var (kind, recordId) in records)
+            // One listing, then a lookup per file - a folder probe per
+            // transaction would be a few hundred stat calls on a busy day.
+            foreach (var path in Directory.EnumerateFiles(_folder))
             {
-                var stem = StemFor(kind, recordId);
-                if (AllowedTypes.Keys.Any(ext => names.Contains(stem + ext)))
-                    found.Add((kind, recordId));
+                if (Parse(Path.GetFileName(path)) is not { } file)
+                    continue;
+
+                var key = (file.Kind, file.RecordId);
+                if (!wanted.Contains(key))
+                    continue;
+
+                if (!found.TryGetValue(key, out var slots))
+                    found[key] = slots = new List<int>();
+
+                // A JPG and a PNG left in the same slot by a half-failed
+                // replace are one attachment, not two.
+                if (!slots.Contains(file.Slot))
+                    slots.Add(file.Slot);
             }
+
+            foreach (var slots in found.Values)
+                slots.Sort();
 
             return found;
         }
 
         public async Task<string?> Save(ProofKind kind, int recordId, IFormFile file)
         {
+            var (error, extension) = await Check(file);
+            if (error != null)
+                return error;
+
+            Directory.CreateDirectory(_folder);
+
+            // Replacing means everything already there goes: whatever
+            // extension, whatever number, so a PNG replacing a JPG cannot
+            // leave two proofs behind with only one of them visible.
+            foreach (var stale in Existing(kind, recordId))
+                File.Delete(stale.Path);
+
+            await Write(file, PathFor(kind, recordId, 1, extension));
+            return null;
+        }
+
+        public async Task<string?> Add(ProofKind kind, int recordId, IFormFile file)
+        {
+            var (error, extension) = await Check(file);
+            if (error != null)
+                return error;
+
+            var slots = Slots(kind, recordId);
+
+            if (slots.Count >= MaxPerRecord)
+                return $"This payment already has {MaxPerRecord} files attached, which is the limit. " +
+                       "Remove one that is no longer needed to make room.";
+
+            Directory.CreateDirectory(_folder);
+
+            // One past the highest, never the first gap: the numbers say the
+            // order the receipts arrived in, and a removed second receipt
+            // should not have a later one filed in its place.
+            var slot = slots.Count == 0 ? 1 : slots[^1] + 1;
+
+            await Write(file, PathFor(kind, recordId, slot, extension));
+            return null;
+        }
+
+        public (Stream Content, string ContentType, string FileName)? Open(
+            ProofKind kind, int recordId, int slot = 1)
+        {
+            var path = Existing(kind, recordId)
+                .Where(f => f.Slot == slot)
+                .Select(f => f.Path)
+                .FirstOrDefault();
+
+            if (path == null)
+                return null;
+
+            var extension = Path.GetExtension(path);
+
+            // The type comes from the allow-list keyed by the extension this
+            // store wrote, never from anything an upload carried.
+            if (!AllowedTypes.TryGetValue(extension, out var contentType))
+                return null;
+
+            return (File.OpenRead(path), contentType, Path.GetFileName(path));
+        }
+
+        public bool Delete(ProofKind kind, int recordId, int? slot = null)
+        {
+            var removed = false;
+
+            // Every extension in the slot, not just the first: a replace
+            // that half-failed could have left two behind, and "delete" has
+            // to mean that attachment is gone. With no slot named, every
+            // attachment the record has.
+            foreach (var file in Existing(kind, recordId).Where(f => slot == null || f.Slot == slot))
+            {
+                File.Delete(file.Path);
+                removed = true;
+            }
+
+            return removed;
+        }
+
+        /// <summary>
+        /// Whether an upload is something this store keeps. Returns the reason
+        /// it is not, or null and the extension to file it under.
+        /// </summary>
+        private async Task<(string? Error, string Extension)> Check(IFormFile? file)
+        {
             if (file == null || file.Length == 0)
-                return "Choose a file to attach.";
+                return ("Choose a file to attach.", "");
 
             if (file.Length > _maxBytes)
-                return $"That file is {file.Length / 1024m / 1024m:N1} MB. " +
-                       $"The limit is {_maxBytes / 1024m / 1024m:N0} MB - a screenshot rather than a photo of the screen usually does it.";
+                return ($"That file is {file.Length / 1024m / 1024m:N1} MB. " +
+                       $"The limit is {_maxBytes / 1024m / 1024m:N0} MB - a screenshot rather than a photo of the screen usually does it.", "");
 
             var extension = Path.GetExtension(file.FileName);
             if (string.IsNullOrEmpty(extension) || !AllowedTypes.TryGetValue(extension, out var contentType))
-                return "Attach a screenshot or a PDF receipt (JPG, PNG, WEBP or PDF).";
+                return ("Attach a screenshot or a PDF receipt (JPG, PNG, WEBP or PDF).", "");
 
             // The extension is a claim, not a fact. Read the first bytes and
             // check they are the file they say they are, so a renamed
@@ -110,90 +220,104 @@ namespace ZEmpireAutoAccessories.Services
                     read += got;
 
                 if (!LooksLike(contentType, header.AsSpan(0, read)))
-                    return "That file is not the kind it claims to be. Attach a screenshot or a PDF receipt.";
+                    return ("That file is not the kind it claims to be. Attach a screenshot or a PDF receipt.", "");
             }
 
-            Directory.CreateDirectory(_folder);
+            return (null, extension.ToLowerInvariant());
+        }
 
-            // Replacing a proof means the old one goes: the other extensions
-            // for this transaction are cleared first, so a PNG replacing a JPG
-            // cannot leave two proofs behind with only one of them visible.
-            foreach (var stale in ExistingPaths(kind, recordId))
-                File.Delete(stale);
-
-            var path = Path.Combine(_folder, StemFor(kind, recordId) + extension.ToLowerInvariant());
-
+        private static async Task Write(IFormFile file, string path)
+        {
             await using var destination = File.Create(path);
             await using var upload = file.OpenReadStream();
             await upload.CopyToAsync(destination);
-
-            return null;
         }
 
-        public (Stream Content, string ContentType, string FileName)? Open(
-            ProofKind kind, int recordId)
-        {
-            var path = FindExisting(kind, recordId);
-            if (path == null)
-                return null;
-
-            var extension = Path.GetExtension(path);
-
-            // The type comes from the allow-list keyed by the extension this
-            // store wrote, never from anything an upload carried.
-            if (!AllowedTypes.TryGetValue(extension, out var contentType))
-                return null;
-
-            return (File.OpenRead(path), contentType, Path.GetFileName(path));
-        }
-
-        public bool Delete(ProofKind kind, int recordId)
-        {
-            var removed = false;
-
-            // Every extension for this record, not just the first: a replace
-            // that half-failed could have left two behind, and "delete" has
-            // to mean the record is left with nothing attached.
-            foreach (var path in ExistingPaths(kind, recordId).ToList())
-            {
-                File.Delete(path);
-                removed = true;
-            }
-
-            return removed;
-        }
-
-        /// <summary>
-        /// The file name for a record, built only from what kind of thing it
-        /// is evidence of and that record's id - never from anything typed or
-        /// uploaded, so there is nothing in it to escape the folder with.
-        /// </summary>
-        private static string StemFor(ProofKind kind, int recordId) =>
+        private static string PrefixFor(ProofKind kind) =>
             kind switch
             {
                 ProofKind.Sale => "sale-",
                 ProofKind.ServiceInvoice => "invoice-",
                 ProofKind.WarrantyClaim => "warranty-",
                 _ => throw new ArgumentOutOfRangeException(nameof(kind))
-            } + recordId.ToString();
+            };
 
-        private IEnumerable<string> ExistingPaths(ProofKind kind, int recordId)
+        /// <summary>
+        /// The path for one attachment, built only from what kind of thing it
+        /// is evidence of, that record's id and the attachment's number -
+        /// never from anything typed or uploaded, so there is nothing in it
+        /// to escape the folder with.
+        ///
+        /// The first attachment carries no number: "sale-5.png". That is the
+        /// name every proof had when a record could hold only one, so the
+        /// files already in the folder are attachment 1 without being
+        /// renamed. The rest are "sale-5-2.png", "sale-5-3.png" - the dash
+        /// keeps sale 5's second file apart from sale 52's first.
+        /// </summary>
+        private string PathFor(ProofKind kind, int recordId, int slot, string extension) =>
+            Path.Combine(_folder,
+                PrefixFor(kind) + recordId + (slot == 1 ? "" : "-" + slot) + extension);
+
+        /// <summary>
+        /// Reads a file name back into what it is attached to, or null for a
+        /// file this store did not write.
+        /// </summary>
+        private static (ProofKind Kind, int RecordId, int Slot)? Parse(string? fileName)
         {
-            if (!Directory.Exists(_folder))
-                yield break;
+            if (string.IsNullOrEmpty(fileName) ||
+                !AllowedTypes.ContainsKey(Path.GetExtension(fileName)))
+                return null;
 
-            var stem = StemFor(kind, recordId);
+            var stem = Path.GetFileNameWithoutExtension(fileName);
 
-            foreach (var extension in AllowedTypes.Keys)
+            foreach (var kind in Enum.GetValues<ProofKind>())
             {
-                var path = Path.Combine(_folder, stem + extension);
-                if (File.Exists(path))
-                    yield return path;
+                var prefix = PrefixFor(kind);
+                if (!stem.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var parts = stem[prefix.Length..].Split('-');
+                if (parts.Length is < 1 or > 2 || !IsNumber(parts[0], out var recordId))
+                    return null;
+
+                var slot = 1;
+                if (parts.Length == 2 && (!IsNumber(parts[1], out slot) || slot < 2))
+                    return null;
+
+                return (kind, recordId, slot);
             }
+
+            return null;
         }
 
-        private string? FindExisting(ProofKind kind, int recordId) =>
-            ExistingPaths(kind, recordId).FirstOrDefault();
+        // Digits only. int.TryParse alone would accept " 5" and "+5", and a
+        // file called that is not one this store wrote.
+        private static bool IsNumber(string text, out int value)
+        {
+            value = 0;
+            return text.Length > 0 && text.All(char.IsAsciiDigit) && int.TryParse(text, out value);
+        }
+
+        /// <summary>The attachments a record has, in the order they were added.</summary>
+        private List<(int Slot, string Path)> Existing(ProofKind kind, int recordId)
+        {
+            var found = new List<(int Slot, string Path)>();
+
+            if (!Directory.Exists(_folder))
+                return found;
+
+            // The pattern narrows the listing; Parse decides. "sale-5*" also
+            // matches sale 52's files, which Parse tells apart by their id.
+            foreach (var path in Directory.EnumerateFiles(_folder, PrefixFor(kind) + recordId + "*"))
+            {
+                if (Parse(Path.GetFileName(path)) is { } file &&
+                    file.Kind == kind && file.RecordId == recordId)
+                    found.Add((file.Slot, path));
+            }
+
+            found.Sort((x, y) => x.Slot.CompareTo(y.Slot));
+            return found;
+        }
 
         /// <summary>
         /// Whether the opening bytes match the format the extension promised.

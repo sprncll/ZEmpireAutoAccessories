@@ -70,11 +70,15 @@ namespace ZEmpireAutoAccessories.Models
         public bool IsCollected => Source == CashierSource.Sale || Status == "Paid";
 
         /// <summary>
-        /// Whether a receipt for this payment has been attached. Set by the
-        /// controller from the proof folder - there is no column for it, and
-        /// none is wanted: see PaymentProofStore.
+        /// The receipts attached to this payment, by number, in the order
+        /// they were added - a down payment and its balance are two. Set by
+        /// the controller from the proof folder - there is no column for it,
+        /// and none is wanted: see ProofStore.
         /// </summary>
-        public bool HasProof { get; set; }
+        public IReadOnlyList<int> ProofSlots { get; set; } = Array.Empty<int>();
+
+        /// <summary>Whether any receipt for this payment has been attached.</summary>
+        public bool HasProof => ProofSlots.Count > 0;
 
         /// <summary>
         /// Whether this payment left a record worth attaching - a transfer

@@ -90,14 +90,19 @@ namespace ZEmpireAutoAccessories.Controllers
                 model.ByCashier.Clear();
             }
 
-            // Which rows already have a receipt attached. One folder listing
-            // for the whole page - see PaymentProofStore.
-            var attached = _proofs.ExistingFor(
+            // Which receipts each row has attached. One folder listing for
+            // the whole page - see ProofStore.
+            var attached = _proofs.SlotsFor(
                 model.Transactions.Select(t => (ProofKinds.For(t.Source), t.SourceId)));
 
             foreach (var transaction in model.Transactions)
-                transaction.HasProof =
-                    attached.Contains((ProofKinds.For(transaction.Source), transaction.SourceId));
+            {
+                if (attached.TryGetValue(
+                        (ProofKinds.For(transaction.Source), transaction.SourceId), out var slots))
+                    transaction.ProofSlots = slots;
+            }
+
+            ViewData["MaxProofs"] = _proofs.MaxPerRecord;
 
             await LoadFilterDropdowns(model);
 
@@ -109,11 +114,16 @@ namespace ZEmpireAutoAccessories.Controllers
         // The screenshot or receipt for a payment that arrived from somewhere
         // other than the counter. Stored against the transaction and nowhere
         // else; the file itself never becomes part of the sale record.
+        //
+        // Several at once, and added to what is already there rather than
+        // replacing it. A customer who puts money down and pays the balance
+        // later sends a receipt each time, and the second is evidence of a
+        // different payment - it must not take the place of the first.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RequestSizeLimit(20 * 1024 * 1024)]
+        [RequestSizeLimit(28 * 1024 * 1024)]
         public async Task<IActionResult> AttachProof(
-            CashierSource source, int sourceId, IFormFile? proof, string? returnUrl)
+            CashierSource source, int sourceId, List<IFormFile>? proof, string? returnUrl)
         {
             if (!MaySee(source))
                 return Forbid();
@@ -121,28 +131,51 @@ namespace ZEmpireAutoAccessories.Controllers
             if (!await TransactionExists(source, sourceId))
                 return NotFound();
 
-            if (proof == null)
+            if (proof == null || proof.Count == 0)
+            {
                 TempData["ProofError"] = "Choose a file to attach.";
-            else
-                TempData["ProofError"] = await _proofs.Save(ProofKinds.For(source), sourceId, proof);
+                return RedirectBack(returnUrl);
+            }
 
-            if (TempData["ProofError"] == null)
-                TempData["Success"] = "Proof of payment attached.";
+            // Each file stands or falls on its own: one that is too large
+            // should not throw away the two good ones chosen with it. What
+            // went in and what did not are both said.
+            var saved = 0;
+            var refused = new List<string>();
+
+            foreach (var file in proof)
+            {
+                var error = await _proofs.Add(ProofKinds.For(source), sourceId, file);
+                if (error == null)
+                    saved++;
+                else
+                    // The name is the uploader's own and is only shown back
+                    // to them, encoded by the view; it is never used as a path.
+                    refused.Add(proof.Count == 1 ? error : $"{Path.GetFileName(file.FileName)}: {error}");
+            }
+
+            if (saved > 0)
+                TempData["Success"] = saved == 1
+                    ? "Proof of payment attached."
+                    : $"{saved} files attached as proof of payment.";
+
+            if (refused.Count > 0)
+                TempData["ProofError"] = string.Join(" ", refused);
 
             return RedirectBack(returnUrl);
         }
 
-        // GET: Cashiering/Proof?source=Sale&sourceId=5
+        // GET: Cashiering/Proof?source=Sale&sourceId=5&slot=2
         //
         // Streams a stored receipt. These carry names, reference numbers and
         // account details, which is why the folder sits outside wwwroot and
         // why this is the only way to read one.
-        public IActionResult Proof(CashierSource source, int sourceId)
+        public IActionResult Proof(CashierSource source, int sourceId, int slot = 1)
         {
             if (!MaySee(source))
                 return Forbid();
 
-            var stored = _proofs.Open(ProofKinds.For(source), sourceId);
+            var stored = _proofs.Open(ProofKinds.For(source), sourceId, slot);
             if (stored == null)
                 return NotFound();
 
@@ -160,19 +193,25 @@ namespace ZEmpireAutoAccessories.Controllers
         // POST: Cashiering/RemoveProof
         //
         // For the wrong file - the customer's other receipt, the screenshot
-        // before it finished sending. The row goes back to asking for one, so
-        // a removal cannot quietly leave a payment looking settled.
+        // before it finished sending. One file at a time, by its number, so
+        // taking out a mistaken second receipt leaves the first where it is.
+        // When the last one goes the row is back to asking for one, so a
+        // removal cannot quietly leave a payment looking settled.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult RemoveProof(CashierSource source, int sourceId, string? returnUrl)
+        public IActionResult RemoveProof(CashierSource source, int sourceId, int slot, string? returnUrl)
         {
             if (!MaySee(source))
                 return Forbid();
 
-            if (_proofs.Delete(ProofKinds.For(source), sourceId))
-                TempData["Success"] = "Proof of payment removed. Attach the right file in its place.";
+            var kind = ProofKinds.For(source);
+
+            if (!_proofs.Delete(kind, sourceId, slot))
+                TempData["ProofError"] = "That file was already removed.";
+            else if (_proofs.Exists(kind, sourceId))
+                TempData["Success"] = "File removed. The other receipts are still attached.";
             else
-                TempData["ProofError"] = "There was nothing attached to remove.";
+                TempData["Success"] = "Proof of payment removed. Attach the right file in its place.";
 
             return RedirectBack(returnUrl);
         }
