@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -170,7 +170,8 @@ namespace ZEmpireAutoAccessories.Controllers
             await _context.SaveChangesAsync();
 
             // Number depends on the generated ID, so it's set in a second save.
-            quotation.QuotationNumber = $"QT-{quotation.QuotationID:D6}";
+            quotation.QuotationNumber = DocumentNumber.For(
+                DocumentNumber.Quotation, quotation.QuotationID, quotation.QuotationDate);
             await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Details), new { id = quotation.QuotationID });

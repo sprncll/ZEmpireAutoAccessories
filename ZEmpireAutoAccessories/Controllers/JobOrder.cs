@@ -224,10 +224,28 @@ namespace ZEmpireAutoAccessories.Controllers
             await _context.SaveChangesAsync();
 
             // Number depends on the generated ID, so it's set in a second save.
-            jobOrder.JobOrderNumber = $"JO-{jobOrder.JobOrderID:D6}";
+            jobOrder.JobOrderNumber = DocumentNumber.For(
+                DocumentNumber.JobOrder, jobOrder.JobOrderID, jobOrder.JobOrderDate);
             await _context.SaveChangesAsync();
 
-            return RedirectToAction(nameof(Details), new { id = jobOrder.JobOrderID });
+            // Straight to the walkaround rather than to the job order.
+            //
+            // The condition of a car is a fact about the moment it arrived,
+            // and the moment has to be now: an hour later the film is on and
+            // nobody can say whether the scratch was there first. Leaving the
+            // checklist as something to remember afterwards means it is
+            // remembered only when there is a dispute, which is too late.
+            //
+            // The job order is one press away: the walkaround's Back goes to
+            // it, and saving the checklist lands there too.
+            TempData["Success"] =
+                $"Job order {jobOrder.JobOrderNumber} raised. Walk the car before any film is touched.";
+
+            return RedirectToAction("ForJobOrder", "VehicleChecklist", new
+            {
+                jobOrderId = jobOrder.JobOrderID,
+                returnUrl = Url.Action(nameof(Details), new { id = jobOrder.JobOrderID })
+            });
         }
 
         // GET: JobOrder/Edit/5
@@ -376,17 +394,49 @@ namespace ZEmpireAutoAccessories.Controllers
                 // Vehicle Classification x Panel) this line's price came from,
                 // when the Add Line Item form resolved one client-side.
                 int? pricingId = null;
+                decimal? bookPrice = null;
+
                 if (productId != null && panelId != null)
                 {
-                    pricingId = await _context.Pricings
+                    var priced = await _context.Pricings
                         .Where(p =>
                             p.ProductID == productId &&
                             p.TintVariantID == tintVariantId &&
                             p.VehicleClassificationID == jobOrder.Vehicle.VehicleClassificationID &&
                             p.PanelID == panelId)
-                        .Select(p => (int?)p.PricingID)
+                        .Select(p => new { p.PricingID, p.Price })
                         .FirstOrDefaultAsync();
+
+                    if (priced != null)
+                    {
+                        pricingId = priced.PricingID;
+                        bookPrice = priced.Price;
+                    }
                 }
+
+                // Nothing in the matrix for this combination: fall back to
+                // what the catalogue says the thing costs on its own.
+                bookPrice ??= serviceId != null
+                    ? await _context.Services
+                        .Where(x => x.ServiceID == serviceId)
+                        .Select(x => (decimal?)x.DefaultPrice)
+                        .FirstOrDefaultAsync()
+                    : await _context.Products
+                        .Where(x => x.ProductID == productId)
+                        .Select(x => x.DefaultPrice)
+                        .FirstOrDefaultAsync();
+
+                // Staff quote from the book; administrators set what the book
+                // says. The form shows the price read-only to a staff member,
+                // but a form is only a suggestion - the posted figure is
+                // discarded here and the book's own price used, so typing over
+                // a disabled box or posting the form by hand changes nothing.
+                //
+                // A combination the book has no price for is the one case a
+                // staff member may still type: refusing it would mean a job
+                // nobody can raise until an administrator is found.
+                if (!AppRoles.CanEditCatalogPrices(User) && bookPrice is { } fromBook && fromBook > 0)
+                    unitPrice = fromBook;
 
                 // The variant and the shade say what was FITTED. They are not
                 // price drivers - the shade never was, and a variant only
