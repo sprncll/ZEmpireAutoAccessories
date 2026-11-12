@@ -20,6 +20,20 @@
 USE ZEmpire;   -- the hosted copy is db_ad034e_zempire; change this line there
 GO
 
+/* ---- which database is this, and is it the app's? ------------------ */
+--
+-- Printed first because the usual reason a script "does not work" is that
+-- it worked perfectly on a different database. The app connects to the
+-- server and database in appsettings.json - Server=.\SQLEXPRESS,
+-- Database=ZEmpire - and SSMS is often pointed somewhere else entirely.
+SELECT
+    @@SERVERNAME  AS ServerName,
+    DB_NAME()     AS DatabaseName,
+    CASE WHEN OBJECT_ID(N'sales.Quotation') IS NULL
+         THEN 'NO - sales.Quotation is not here, so this is not the app''s database'
+         ELSE 'yes - sales.Quotation is here' END AS LooksLikeTheAppsDatabase;
+GO
+
 /* ---- stock on hand, per product ------------------------------------ */
 IF OBJECT_ID(N'dbo.vw_StockOnHand', N'V') IS NULL
 BEGIN
@@ -35,7 +49,14 @@ BEGIN
     LEFT JOIN inv.InventoryTransaction t ON t.ProductID = p.ProductID
     GROUP BY p.ProductID, p.ProductName;');
 
-    PRINT 'Created dbo.vw_StockOnHand';
+    -- Asked of the catalogue rather than assumed: a CREATE VIEW that
+    -- fails inside EXEC - because a table it names is not in THIS
+    -- database - does not stop the batch, and this used to print
+    -- "Created" for a view that was never made.
+    IF OBJECT_ID(N'dbo.vw_StockOnHand', N'V') IS NULL
+        PRINT '*** dbo.vw_StockOnHand was NOT created - see the error above';
+    ELSE
+        PRINT 'Created dbo.vw_StockOnHand';
 END
 ELSE PRINT 'dbo.vw_StockOnHand already exists - left as it is';
 GO
@@ -62,7 +83,14 @@ BEGIN
     LEFT JOIN sales.PaymentMode pm ON pm.PaymentModeID = s.PaymentModeID
     LEFT JOIN asp.AspNetUsers u   ON u.Id = s.UserId;');
 
-    PRINT 'Created dbo.vw_SalesSummary';
+    -- Asked of the catalogue rather than assumed: a CREATE VIEW that
+    -- fails inside EXEC - because a table it names is not in THIS
+    -- database - does not stop the batch, and this used to print
+    -- "Created" for a view that was never made.
+    IF OBJECT_ID(N'dbo.vw_SalesSummary', N'V') IS NULL
+        PRINT '*** dbo.vw_SalesSummary was NOT created - see the error above';
+    ELSE
+        PRINT 'Created dbo.vw_SalesSummary';
 END
 ELSE PRINT 'dbo.vw_SalesSummary already exists - left as it is';
 GO
@@ -96,7 +124,14 @@ BEGIN
     LEFT JOIN asp.AspNetUsers u ON u.Id = j.UserId
     LEFT JOIN sec.Employee e    ON e.EmployeeID = j.AssignedEmployeeID;');
 
-    PRINT 'Created dbo.vw_JobOrderSummary';
+    -- Asked of the catalogue rather than assumed: a CREATE VIEW that
+    -- fails inside EXEC - because a table it names is not in THIS
+    -- database - does not stop the batch, and this used to print
+    -- "Created" for a view that was never made.
+    IF OBJECT_ID(N'dbo.vw_JobOrderSummary', N'V') IS NULL
+        PRINT '*** dbo.vw_JobOrderSummary was NOT created - see the error above';
+    ELSE
+        PRINT 'Created dbo.vw_JobOrderSummary';
 END
 ELSE PRINT 'dbo.vw_JobOrderSummary already exists - left as it is';
 GO
@@ -135,7 +170,14 @@ BEGIN
     LEFT JOIN sales.PaymentMode pm ON pm.PaymentModeID = i.PaymentModeID
     LEFT JOIN asp.AspNetUsers u    ON u.Id = i.UserId;');
 
-    PRINT 'Created dbo.vw_ServiceInvoiceSummary';
+    -- Asked of the catalogue rather than assumed: a CREATE VIEW that
+    -- fails inside EXEC - because a table it names is not in THIS
+    -- database - does not stop the batch, and this used to print
+    -- "Created" for a view that was never made.
+    IF OBJECT_ID(N'dbo.vw_ServiceInvoiceSummary', N'V') IS NULL
+        PRINT '*** dbo.vw_ServiceInvoiceSummary was NOT created - see the error above';
+    ELSE
+        PRINT 'Created dbo.vw_ServiceInvoiceSummary';
 END
 ELSE PRINT 'dbo.vw_ServiceInvoiceSummary already exists - left as it is';
 GO
@@ -175,7 +217,14 @@ BEGIN
     LEFT JOIN asp.AspNetUsers u ON u.Id = q.UserId
     LEFT JOIN ops.JobOrder j    ON j.QuotationID = q.QuotationID;');
 
-    PRINT 'Created dbo.vw_QuotationSummary';
+    -- Asked of the catalogue rather than assumed: a CREATE VIEW that
+    -- fails inside EXEC - because a table it names is not in THIS
+    -- database - does not stop the batch, and this used to print
+    -- "Created" for a view that was never made.
+    IF OBJECT_ID(N'dbo.vw_QuotationSummary', N'V') IS NULL
+        PRINT '*** dbo.vw_QuotationSummary was NOT created - see the error above';
+    ELSE
+        PRINT 'Created dbo.vw_QuotationSummary';
 END
 ELSE PRINT 'dbo.vw_QuotationSummary already exists - left as it is';
 GO
