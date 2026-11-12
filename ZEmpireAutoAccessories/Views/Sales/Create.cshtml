@@ -141,14 +141,14 @@
 
         <h6 class="mt-4 mb-2">Line Items</h6>
         <p class="zx-page-sub mb-2">
-            Film and tint are priced by panel: on the line, say which class of car and the price and the
-            length follow by themselves. Leave the class on <strong>By the metre</strong> to sell film off
-            the roll instead. Everything else is counted as usual.
+            Film and tint are priced by panel: on the line, say which class of car, then the tint variant,
+            the shade and the panel. The price and the length off the roll follow by themselves - there is
+            no quantity to type. Everything else is counted as usual.
         </p>
         <div id="priceBlocked" class="alert alert-danger py-2 px-3" style="display:none; font-size:13px;">
-            A line has no price yet. For a product priced by panel, pick the Tint Variant and Panel so the
-            price can be looked up - if there is no price for that combination, an administrator sets one
-            under Pricing.
+            A line has no price yet. For film and tint, say which class of car and pick the tint variant,
+            the shade and the panel - the price comes from those. If the price list has nothing for that
+            combination, an administrator sets one under Pricing.
         </div>
         <div id="stockBlocked" class="alert alert-danger py-2 px-3" style="display:none; font-size:13px;">
             One or more lines ask for more than there is in stock. Fix the highlighted quantities to continue.
@@ -214,7 +214,7 @@
                         @* Hidden on a non-film row, and posting its blank either way: this
                            column has to stay the same length as the ones beside it. *@
                         <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
-                            <option value="">-- By the metre --</option>
+                            <option value="">-- Select Vehicle Class --</option>
                             @foreach (var c in classifications)
                             {
                                 <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
@@ -277,7 +277,7 @@
                     @* Hidden on a non-film row, and posting its blank either way: this
                        column has to stay the same length as the ones beside it. *@
                     <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
-                        <option value="">-- By the metre --</option>
+                        <option value="">-- Select Vehicle Class --</option>
                         @foreach (var c in classifications)
                         {
                             <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
@@ -400,12 +400,21 @@
             // it - the ledger records a product and nothing finer.
             var shadeStock = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["ShadeStock"] ?? new List<object>()));
 
-            function shadesFor(productId) {
-                for (var i = 0; i < shadeStock.length; i++) {
-                    if (String(shadeStock[i].productId) === String(productId)) { return shadeStock[i]; }
-                }
-                return null;
-            }
+            // Every tint variant a product has, and the shades under each,
+            // from the catalogue. The price list only knows the combinations
+            // somebody has priced for a class of car; what a film IS does not
+            // depend on which car is in front of it.
+            var variantsByProduct = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["VariantsByProduct"] ?? new List<object>()));
+            var shadesByVariant = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["ShadesByVariant"] ?? new List<object>()));
+
+            // What is left of each shade, by shade, for the figures beside
+            // the names.
+            var shadeFigures = {};
+            $.each(shadeStock, function (i, product) {
+                $.each(product.shades || [], function (j, sh) {
+                    shadeFigures[String(sh.shadeId)] = sh;
+                });
+            });
 
             function metres(centimetres) {
                 return centimetres >= 100
@@ -414,23 +423,30 @@
             }
 
             // Which shade is leaving the rack, and how much of each there is
-            // to leave. A customer buying tint asks what shades there are
-            // before they ask anything else, and "92.61 m in stock" cannot
-            // answer it - the ledger records a product and nothing finer.
+            // to leave.
             //
-            // The figures come from the last stock count and the lines since,
-            // so they are an estimate. A shade with nothing left is still
-            // offered, struck through in words rather than hidden: the count
-            // can be wrong, and a roll nobody counted is still a roll.
+            // A shade belongs to a tint variant, so there is nothing to ask
+            // until the variant is known - the box stays a dash until then,
+            // rather than offering Freeze's shades beside a line that says
+            // Play. The figures come from the last stock count and the lines
+            // since, so they are an estimate; a shade with nothing left is
+            // still offered, marked, because a roll nobody counted is still
+            // a roll.
             function fillShades($row) {
                 var $shade = $row.find('.shade-select');
                 var $cell = $shade.closest('td');
-                var productId = $row.find('.product-select').val();
-                var product = productId ? shadesFor(productId) : null;
+                var $variant = $row.find('.tint-variant-select');
+                var variantId = $variant.prop('disabled') ? '' : ($variant.val() || '');
 
                 $shade.empty();
 
-                if (!product || !product.shades || product.shades.length === 0) {
+                var shades = variantId
+                    ? $.grep(shadesByVariant, function (sh) {
+                          return String(sh.tintVariantId) === String(variantId);
+                      })
+                    : [];
+
+                if (shades.length === 0) {
                     // Nothing to pick, but the box still posts its blank: the
                     // columns have to stay the same length.
                     $shade.append($('<option></option>').val('').text('-- N/A --'));
@@ -440,15 +456,18 @@
 
                 $shade.append($('<option></option>').val('').text('-- Select Shade --'));
 
-                $.each(product.shades, function (i, sh) {
-                    var text = sh.label;
+                $.each(shades, function (i, sh) {
+                    var figure = shadeFigures[String(sh.shadeId)];
+                    var text = sh.shadeName;
 
-                    if (sh.left === null || sh.left === undefined) {
-                        text += ' - not counted';
-                    } else if (sh.left <= 0) {
-                        text += ' - none left';
-                    } else {
-                        text += ' - ' + metres(sh.left);
+                    if (figure) {
+                        if (figure.left === null || figure.left === undefined) {
+                            text += ' - not counted';
+                        } else if (figure.left <= 0) {
+                            text += ' - none left';
+                        } else {
+                            text += ' - ' + metres(figure.left);
+                        }
                     }
 
                     $shade.append($('<option></option>').val(sh.shadeId).text(text));
@@ -456,10 +475,10 @@
 
                 $cell.removeClass('line-na');
 
-                // Only one shade on file for this film - skip making the user
+                // Only one shade under this variant - skip making the user
                 // pick it themselves.
-                if (product.shades.length === 1) {
-                    $shade.val(product.shades[0].shadeId);
+                if (shades.length === 1) {
+                    $shade.val(shades[0].shadeId);
                 }
             }
 
@@ -607,20 +626,23 @@
             function refreshTintVariants($row) {
                 var productId = $row.find('.product-select').val();
                 var $tint = $row.find('.tint-variant-select');
-                var rows = rowsForProduct(productId, classOf($row));
 
-                var variants = [];
-                var seen = {};
-                $.each(rows, function (i, r) {
-                    if (r.tintVariantId && !seen[r.tintVariantId]) {
-                        seen[r.tintVariantId] = true;
-                        variants.push({ id: r.tintVariantId, name: r.tintVariantName });
-                    }
+                // From the CATALOGUE, not the price list. Read off the price
+                // list, a film with no priced row for the class in front of
+                // it offered no variant at all - the box went empty exactly
+                // when somebody needed to say what they were selling. What a
+                // film is does not depend on which car is in front of it;
+                // only the panel and the price do.
+                var variants = $.grep(variantsByProduct, function (v) {
+                    return String(v.productId) === String(productId);
+                }).map(function (v) {
+                    return { id: v.tintVariantId, name: v.tintVariantName };
                 });
 
                 if (variants.length === 0) {
-                    // No tint-variant split for this product - go straight to panels.
+                    // This product genuinely has no variants - most do not.
                     resetSelect($tint, '-- N/A --');
+                    fillShades($row);
                     refreshPanels($row, null);
                     return;
                 }
@@ -634,6 +656,9 @@
 
                 if (variants.length === 1) {
                     $tint.val(variants[0].id).trigger('change');
+                } else {
+                    // Nothing picked yet, so there is no shade to offer.
+                    fillShades($row);
                 }
             }
 
@@ -669,14 +694,18 @@
 
                 var rows = rowsForProduct(productId, classId);
 
-                if (rows.length > 0) {
-                    // Matrix-priced product - needs Tint Variant/Panel picked
-                    // to resolve an exact price, so clear any stale value.
+                if (isFilm || rows.length > 0) {
+                    // Film goes through the pickers whatever the price list
+                    // holds: the variant and the shade say what is being
+                    // sold, and the panel and the class give the price and
+                    // the length. Any stale price is cleared, since the panel
+                    // is what will fill it.
                     $row.find('.unit-price').val('');
                     refreshTintVariants($row);
                 } else {
                     resetSelect($row.find('.tint-variant-select'), '-- N/A --');
                     resetSelect($row.find('.panel-select'), '-- N/A --');
+                    fillShades($row);
 
                     var price = $product.find(':selected').data('price');
                     if (price !== undefined && price !== '') {
@@ -713,20 +742,34 @@
                 var $note = $row.find('.cut-note');
                 var cut = parseFloat($selected.attr('data-cut'));
 
-                // One control at a time. A row priced by panel has nothing to
-                // count - the length is the cut size - so the Qty box goes
-                // away the moment a class of car is named, and comes back if
-                // the row goes back to being sold by the metre.
-                var byPanel = $row.find('.classification-select').closest('td').hasClass('asks-class')
-                    && !!classOf($row);
+                // Film has no quantity box at all. How many is not the
+                // question anybody asks about tint: what is bought is a panel
+                // on a class of car, and how much film that takes is the cut
+                // size, which nobody types. The box stays in the form holding
+                // a 1, because the columns have to post the same number of
+                // values, but it is not on screen to be answered.
+                var isFilm = $row.find('.classification-select').closest('td').hasClass('asks-class');
+                var classChosen = !!classOf($row);
+                var hasPanels = !$row.find('.panel-select').prop('disabled') || !!panelId;
 
-                $qty.toggle(!byPanel);
-                if (byPanel) { $qty.val(1); }
+                // The one case film still goes by the metre: a class of car
+                // the price list has nothing for. Refusing the sale there
+                // would mean a customer turned away over a gap in a table, so
+                // the Qty box comes back and the price is typed - but only
+                // after somebody has said which class and been told there is
+                // nothing for it.
+                var byLength = isFilm && classChosen && !hasPanels;
+
+                $qty.toggle(!isFilm || byLength);
+                if (isFilm && !byLength) { $qty.val(1); }
 
                 if (!panelId) {
                     $note.toggleClass('missing', false)
-                         .text(byPanel ? 'Pick a panel - the length comes from it' : '')
-                         .toggle(byPanel);
+                         .text(!isFilm ? ''
+                             : byLength ? 'No panel prices for this class - sold by the metre'
+                             : classChosen ? 'Pick a panel - the length comes from it'
+                             : 'Say which class of car, then the panel')
+                         .toggle(isFilm);
                     return;
                 }
 
@@ -1056,7 +1099,13 @@
             });
 
             $(document).on('change', '.tint-variant-select', function () {
-                refreshPanels($(this).closest('tr'), $(this).val());
+                var $row = $(this).closest('tr');
+
+                // The shades on offer are this variant's, not the film's as a
+                // whole - Freeze's shades beside a line that says Play is a
+                // line nobody can read.
+                fillShades($row);
+                refreshPanels($row, $(this).val());
                 recalcTotal();
                 refreshStockState();
             });
@@ -1093,9 +1142,6 @@
 
             $(document).on('change', '.product-select', refreshStockState);
             $(document).on('change', '.product-select', showDuplicates);
-            $(document).on('change', '.product-select', function () {
-                fillShades($(this).closest('tr'));
-            });
 
             $('#addRow').on('click', function () {
                 // Clone from the inert <template>, not the live first row -

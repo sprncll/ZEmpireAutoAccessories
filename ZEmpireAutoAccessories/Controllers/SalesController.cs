@@ -676,6 +676,35 @@ namespace ZEmpireAutoAccessories.Controllers
             // counter sale of film still comes off the product as a whole.
             // Telling the customer what is there is worth doing anyway, and is
             // the half that needs no table to change.
+            // Every tint variant each product has, and the shades under
+            // each variant, from the CATALOGUE rather than from the price
+            // list - the same source the job order and the invoice use.
+            //
+            // Taken from the price list, a film with no price row for the
+            // class in front of it offered no variant at all, and so no
+            // shade either: the boxes went empty exactly when somebody needed
+            // to say what they were selling. A variant says what the film IS;
+            // only the panel and the price depend on the class of car.
+            ViewData["VariantsByProduct"] = await _context.TintVariants
+                .OrderBy(v => v.VariantName)
+                .Select(v => new
+                {
+                    productId = v.ProductID,
+                    tintVariantId = v.TintVariantID,
+                    tintVariantName = v.VariantName
+                })
+                .ToListAsync();
+
+            ViewData["ShadesByVariant"] = await _context.Shades
+                .OrderBy(sh => sh.ShadeName)
+                .Select(sh => new
+                {
+                    tintVariantId = sh.TintVariantID,
+                    shadeId = sh.ShadeID,
+                    shadeName = sh.ShadeName
+                })
+                .ToListAsync();
+
             // The classes of car the price list is keyed by, so a film line
             // can name one without a vehicle on the sale.
             ViewData["Classifications"] = await _context.VehicleClassifications
