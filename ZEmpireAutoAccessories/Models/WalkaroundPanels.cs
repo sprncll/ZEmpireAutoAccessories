@@ -21,10 +21,14 @@ namespace ZEmpireAutoAccessories.Models
     public static class WalkaroundPanels
     {
         /// <summary>
-        /// Front to back, the way someone actually walks around a car:
-        /// windshield, front doors, rear doors, quarter glass, rear screen,
-        /// then the roof. Alphabetical order put "2FWS" first and the
-        /// windshield third, which matches nothing anyone does.
+        /// The order somebody actually walks a car: the glass front to back,
+        /// then the bodywork, then inside. Alphabetical order put "2FWS"
+        /// first and the windshield third, which matches nothing anyone does,
+        /// and left the dashboard between the doors.
+        ///
+        /// A panel the shop adds that is not listed here still appears - it
+        /// sorts after everything that is, by name - so nothing is lost by
+        /// this list being incomplete.
         /// </summary>
         /// <summary>
         /// The name FIRST in each group is the one the price scripts create,
@@ -42,7 +46,21 @@ namespace ZEmpireAutoAccessories.Models
             new[] { "2RWS", "2 RWS", "Rear Windows", "2 Rear Windows", "2nd Row" },
             new[] { "Qtr Window", "Quarter Window", "Qtr Glass", "Quarter Glass" },
             new[] { "Rear WS", "Rear Windshield" },
-            new[] { "Sunroof", "Moonroof" }
+            new[] { "Sunroof", "Moonroof" },
+
+            // Then the bodywork, front to back, the same walk continued.
+            new[] { "Front Doors" },
+            new[] { "Rear Doors" },
+            new[] { "Sidings" },
+
+            // Then inside, which is a second pass: the car is handed over
+            // whole, and a mark on a seat afterwards is an argument the shop
+            // has no way to answer unless somebody looked first.
+            new[] { "Dashboard" },
+            new[] { "Seats", "Front Seats", "Rear Seats" },
+            new[] { "Headliner", "Roof Lining" },
+            new[] { "Door Panels", "Door Cards" },
+            new[] { "Carpet", "Flooring", "Floor Mats" }
         };
 
         /// <summary>A price for several panels at once, not a piece of glass.</summary>

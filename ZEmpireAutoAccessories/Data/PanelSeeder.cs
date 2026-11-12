@@ -30,7 +30,32 @@ namespace ZEmpireAutoAccessories.Data
         /// main panels added up. A sunroof is priced on its own, and adding
         /// it to the wrap would deduct it twice.
         /// </summary>
-        private static readonly string[] Panels = { "Sunroof" };
+        private static readonly string[] Glass = { "Sunroof" };
+
+        /// <summary>
+        /// The inside of the car, for the walkaround only.
+        ///
+        /// A tint job is work on glass, but the car is handed over whole: the
+        /// customer leaves a dashboard, seats and a headliner behind as well,
+        /// and a mark on any of them afterwards is an argument the shop has no
+        /// way to answer. The walkaround is where that is settled, so these
+        /// are on the sheet.
+        ///
+        /// They carry no price and are not meant to. The quotation, job order
+        /// and invoice forms build their panel lists from cat.Pricing, so a
+        /// panel with no price never appears on a document - which is exactly
+        /// right here. Nobody tints a carpet.
+        /// </summary>
+        private static readonly string[] Interior =
+        {
+            "Dashboard",
+            "Seats",
+            "Headliner",
+            "Door Panels",
+            "Carpet"
+        };
+
+        private static readonly string[] Panels = Glass.Concat(Interior).ToArray();
 
         public static async Task SeedAsync(IServiceProvider services, ILogger logger)
         {
@@ -55,10 +80,19 @@ namespace ZEmpireAutoAccessories.Data
             // their panel list from cat.Pricing, so a panel with no price does
             // not appear on a document yet. The row has to exist before a
             // price can be set against it, which is what this seeder is for.
-            logger.LogInformation(
-                "Added panel(s): {Panels}. Set a price for each under Pricing " +
-                "before they appear on the quotation, job order and invoice forms.",
-                string.Join(", ", added));
+            //
+            // The interior rows are the exception - they are walkaround rows
+            // and nothing is sold against them - so they are not listed as
+            // waiting for a price they will never have.
+            var needPricing = added.Except(Interior, StringComparer.OrdinalIgnoreCase).ToList();
+
+            logger.LogInformation("Added panel(s): {Panels}.", string.Join(", ", added));
+
+            if (needPricing.Count > 0)
+                logger.LogInformation(
+                    "Set a price for {Panels} under Pricing before they appear on the " +
+                    "quotation, job order and invoice forms.",
+                    string.Join(", ", needPricing));
         }
     }
 }
