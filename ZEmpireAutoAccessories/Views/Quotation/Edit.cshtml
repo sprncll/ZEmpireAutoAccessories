@@ -41,7 +41,13 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label asp-for="ValidUntil" class="form-label">Valid Until</label>
-                <input asp-for="ValidUntil" type="date" class="form-control" />
+                @* A quotation valid until a date that has gone is not valid.
+                   An expired one keeps its own date so it can still be opened
+                   and read. *@
+                <input asp-for="ValidUntil" type="date" class="form-control"
+                       min="@(Model.ValidUntil is { } v && v < DateOnly.FromDateTime(DateTime.Today)
+                              ? v.ToString("yyyy-MM-dd")
+                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="ValidUntil" class="text-danger"></span>
             </div>
         </div>

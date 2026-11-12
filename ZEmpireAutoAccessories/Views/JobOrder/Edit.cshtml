@@ -50,7 +50,14 @@
         <div class="row">
             <div class="col-md-12 mb-3">
                 <label asp-for="InstallationDate" class="form-label">Installation Date</label>
-                <input asp-for="InstallationDate" type="date" class="form-control" />
+                @* Forward-looking: a car is installed today or later, never
+                   last week. An existing date that has since passed is still
+                   honoured, or editing a complaint would be refused over a
+                   date nobody touched. *@
+                <input asp-for="InstallationDate" type="date" class="form-control"
+                       min="@(Model.InstallationDate is { } d && d.Date < DateTime.Today
+                              ? d.ToString("yyyy-MM-dd")
+                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
             </div>
         </div>
 

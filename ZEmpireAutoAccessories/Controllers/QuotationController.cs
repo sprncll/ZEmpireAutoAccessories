@@ -207,6 +207,23 @@ namespace ZEmpireAutoAccessories.Controllers
             ModelState.Remove(nameof(Quotation.Vehicle));
             ModelState.Remove(nameof(Quotation.User));
 
+            // A quotation valid until a date that has gone is not valid. An
+            // already-expired one keeps its own date, so it can still be
+            // opened and saved without the form refusing over a date nobody
+            // touched.
+            var storedValidUntil = await _context.Quotations
+                .AsNoTracking()
+                .Where(q => q.QuotationID == id)
+                .Select(q => q.ValidUntil)
+                .FirstOrDefaultAsync();
+
+            if (quotation.ValidUntil < DateOnly.FromDateTime(DateTime.Today)
+                && quotation.ValidUntil != storedValidUntil)
+            {
+                ModelState.AddModelError(nameof(Quotation.ValidUntil),
+                    "A quotation can't be set to expire on a date that has already passed.");
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadHeaderDropdowns(quotation);

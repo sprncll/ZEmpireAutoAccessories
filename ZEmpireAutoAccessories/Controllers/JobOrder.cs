@@ -209,6 +209,14 @@ namespace ZEmpireAutoAccessories.Controllers
                     "Choose the vehicle. A job order is work on a particular car, and its class is what prices the work.");
             }
 
+            // The picker will not offer a day that has gone, but that is the
+            // browser's doing and a posted form need not have come from it.
+            if (jobOrder.InstallationDate is { } installOn && installOn.Date < DateTime.Today)
+            {
+                ModelState.AddModelError(nameof(JobOrder.InstallationDate),
+                    "Installation can't be dated before today.");
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadHeaderDropdowns(jobOrder);
@@ -278,6 +286,24 @@ namespace ZEmpireAutoAccessories.Controllers
             ModelState.Remove(nameof(JobOrder.Customer));
             ModelState.Remove(nameof(JobOrder.Vehicle));
             ModelState.Remove(nameof(JobOrder.User));
+
+            // A job order installed last month keeps the date it was
+            // installed on; what is refused is moving one INTO the past, so
+            // correcting a complaint on an old order is not blocked by a date
+            // nobody touched.
+            var storedInstall = await _context.JobOrders
+                .AsNoTracking()
+                .Where(j => j.JobOrderID == id)
+                .Select(j => j.InstallationDate)
+                .FirstOrDefaultAsync();
+
+            if (jobOrder.InstallationDate is { } movedTo
+                && movedTo.Date < DateTime.Today
+                && movedTo != storedInstall)
+            {
+                ModelState.AddModelError(nameof(JobOrder.InstallationDate),
+                    "Installation can't be moved to a date before today.");
+            }
 
             if (!ModelState.IsValid)
             {
