@@ -91,7 +91,9 @@
     min-width: 200px;
 }
 
-.table td > .form-select,
-.table td > select.form-control {
+/* Not the unit pickers (cm / m / pcs) on the stock count: three letters
+   need no more room than they have. */
+.table td > .form-select:not(.unit-select),
+.table td > select.form-control:not(.unit-select) {
     min-width: 140px;
 }
