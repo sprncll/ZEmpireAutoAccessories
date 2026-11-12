@@ -10,11 +10,6 @@
 
     // Film and PPF lines are written in metres; data-stock is published in
     // metres to match, so the per-row stock warning compares like with like.
-    // Staff sell at the price in the book; administrators set what the book
-    // says. The controller refuses a line at any other price, so this box
-    // being read-only is a courtesy and not the rule.
-    var canEditPrice = AppRoles.CanEditCatalogPrices(User);
-
     // The classes of car the price list is keyed by. A film line names one
     // instead of naming a quantity - see the Qty column.
     var classifications = ViewData["Classifications"] as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
@@ -40,10 +35,6 @@
        changed, rather than discovered on the receipt. */
     .price-note { font-size:11.5px; color:#8a6d1f; margin-top:3px; line-height:1.4; }
 
-    /* A film row asks which class of car; every other row does not. */
-    td .classification-select { display:none; }
-    td.asks-class .classification-select { display:block; }
-    td.asks-class .classification-select { margin-top:0; }
     .qty-label { font-size:11px; font-weight:600; color:#7b8290; text-transform:uppercase;
                  letter-spacing:.3px; margin-bottom:2px; }
     .cut-note { font-size:11.5px; color:#2f7a3e; margin-top:4px; line-height:1.4; font-weight:600; }
@@ -162,22 +153,21 @@
         <table class="table zx-table" id="linesTable">
             <thead>
                 <tr>
-                    @* Percentages for the three that hold names, so they
+                    @* Percentages for the columns that hold names, so they
                        share the extra width instead of the table leaving a
-                       gap; fixed widths only for the numeric columns. *@
-                    <th style="width:28%;">Product</th>
-                    <th style="width:16%;">Tint Variant</th>
-                    @* Which shade left the rack. It is recorded on the line,
-                       not just shown: sales.SalesDetail.ShadeID. *@
-                    <th style="width:18%;">Shade</th>
-                    <th style="width:16%;">Panel</th>
-                    @* For film the quantity is not the question - a panel
-                       is a panel, and what leaves the roll is the cut size
-                       for that panel on that class of car. So this column
-                       asks which class instead, and says the length. *@
-                    <th style="width:150px;">Qty / Vehicle class</th>
-                    <th style="width:130px;">Unit Price</th>
-                    <th style="width:52px;"></th>
+                       gap; fixed widths only for the numeric ones. *@
+                    <th style="width:22%;">Product</th>
+                    @* The four that only film and tint answer. A panel price
+                       is keyed to a class of car, and the variant and shade
+                       say which film it is. *@
+                    <th style="width:13%;">Vehicle Class</th>
+                    <th style="width:14%;">Tint Variant</th>
+                    <th style="width:16%;">Shade</th>
+                    <th style="width:15%;">Panel</th>
+                    @* And the one that everything except film answers. *@
+                    <th style="width:80px;">Qty</th>
+                    <th style="width:120px;">Unit Price</th>
+                    <th style="width:44px;"></th>
                 </tr>
             </thead>
             <tbody>
@@ -191,17 +181,28 @@
                             }
                         </select>
                     </td>
+                    @* Film and tint are priced by the class of car. Everything else has
+                       no class to be priced for, and reads as a dash. The select is
+                       hidden rather than removed on those rows: every row has to post a
+                       value in every column or the columns stop lining up, and the
+                       panels start belonging to the wrong lines. *@
+                    <td class="line-na">
+                        <select name="classificationId" class="form-select classification-select" data-searchable="false">
+                            <option value="">-- Select Vehicle Class --</option>
+                            @foreach (var c in classifications)
+                            {
+                                <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
+                            }
+                        </select>
+                    </td>
                     <td class="line-na">
                         <select class="form-select tint-variant-select" disabled>
                             <option value="">-- N/A --</option>
                         </select>
                     </td>
+                    @* Which shade left the rack. Recorded on the line, not just shown:
+                       sales.SalesDetail.ShadeID. *@
                     <td class="line-na">
-                        @* Never disabled, and hidden rather than removed
-                           when it says nothing: this column has to post a
-                           value on every row or it stops lining up with
-                           the three beside it, and the shades start
-                           belonging to the wrong lines. *@
                         <select name="shadeId" class="form-select shade-select" data-searchable="false">
                             <option value="">-- N/A --</option>
                         </select>
@@ -210,39 +211,38 @@
                         <select class="form-select panel-select" disabled>
                             <option value="">-- N/A --</option>
                         </select>
-                    </td>
-                    <td>
-                        <input type="number" name="quantity" class="form-control" value="1" min="1" required
-                           title="How many - metres, where film is sold off the roll" />
-                        @* Hidden on a non-film row, and posting its blank either way: this
-                           column has to stay the same length as the ones beside it. *@
-                        <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
-                            <option value="">-- Select Vehicle Class --</option>
-                            @foreach (var c in classifications)
-                            {
-                                <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
-                            }
-                        </select>
-                        @* What the panel takes off the roll. *@
+                        @* What that panel takes off the roll, under the panel it comes
+                           from. *@
                         <div class="cut-note" style="display:none;"></div>
-                        @* The panel the row is priced for. A disabled select posts nothing,
-                           so the id travels in here instead. *@
+                        @* A disabled select posts nothing, so the panel's id travels in
+                           here instead. *@
                         <input type="hidden" name="panelId" class="panel-id" value="" />
                     </td>
-                    <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
-                               readonly="@(canEditPrice ? null : "readonly")"
-                               tabindex="@(canEditPrice ? null : "-1")" /></td>
+                    @* Counted goods only. A panel of film is a panel - what leaves the
+                       roll is its cut size, and nobody types that. *@
+                    <td>
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required
+                               title="How many - metres, where film is sold off the roll" />
+                    </td>
+                    @* The price list decides. Read-only to everybody: an administrator
+                       changes what the list says, under Pricing, not what one line
+                       charges. The exception is a product the list holds no price for
+                       at all, which the form unlocks and says so - see the script. *@
+                    <td>
+                        <input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
+                               readonly tabindex="-1" />
+                    </td>
                     <td><button type="button" class="btn btn-sm btn-outline-danger remove-row">&times;</button></td>
-                </tr>
+            </tr>
             </tbody>
         </table>
         </div>
         <div id="duplicateLines"></div>
         <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="addRow">+ Add Item</button>
-        @if (!canEditPrice)
-        {
-            <div class="form-text mb-3">Prices come from the price list. An administrator sets what it says.</div>
-        }
+        <div class="form-text mb-3">
+            Prices come from the price list and are not typed here. An administrator sets what the list
+            says, under Pricing.
+        </div>
 
         <template id="lineRowTemplate">
             <tr class="line-row">
@@ -255,17 +255,28 @@
                         }
                     </select>
                 </td>
+                @* Film and tint are priced by the class of car. Everything else has
+                   no class to be priced for, and reads as a dash. The select is
+                   hidden rather than removed on those rows: every row has to post a
+                   value in every column or the columns stop lining up, and the
+                   panels start belonging to the wrong lines. *@
+                <td class="line-na">
+                    <select name="classificationId" class="form-select classification-select" data-searchable="false">
+                        <option value="">-- Select Vehicle Class --</option>
+                        @foreach (var c in classifications)
+                        {
+                            <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
+                        }
+                    </select>
+                </td>
                 <td class="line-na">
                     <select class="form-select tint-variant-select" disabled>
                         <option value="">-- N/A --</option>
                     </select>
                 </td>
+                @* Which shade left the rack. Recorded on the line, not just shown:
+                   sales.SalesDetail.ShadeID. *@
                 <td class="line-na">
-                    @* Never disabled, and hidden rather than removed
-                       when it says nothing: this column has to post a
-                       value on every row or it stops lining up with
-                       the three beside it, and the shades start
-                       belonging to the wrong lines. *@
                     <select name="shadeId" class="form-select shade-select" data-searchable="false">
                         <option value="">-- N/A --</option>
                     </select>
@@ -274,30 +285,29 @@
                     <select class="form-select panel-select" disabled>
                         <option value="">-- N/A --</option>
                     </select>
+                    @* What that panel takes off the roll, under the panel it comes
+                       from. *@
+                    <div class="cut-note" style="display:none;"></div>
+                    @* A disabled select posts nothing, so the panel's id travels in
+                       here instead. *@
+                    <input type="hidden" name="panelId" class="panel-id" value="" />
                 </td>
+                @* Counted goods only. A panel of film is a panel - what leaves the
+                   roll is its cut size, and nobody types that. *@
                 <td>
                     <input type="number" name="quantity" class="form-control" value="1" min="1" required
                            title="How many - metres, where film is sold off the roll" />
-                    @* Hidden on a non-film row, and posting its blank either way: this
-                       column has to stay the same length as the ones beside it. *@
-                    <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
-                        <option value="">-- Select Vehicle Class --</option>
-                        @foreach (var c in classifications)
-                        {
-                            <option value="@c.VehicleClassificationID">@c.ClassificationName</option>
-                        }
-                    </select>
-                    @* What the panel takes off the roll. *@
-                    <div class="cut-note" style="display:none;"></div>
-                    @* The panel the row is priced for. A disabled select posts nothing,
-                       so the id travels in here instead. *@
-                    <input type="hidden" name="panelId" class="panel-id" value="" />
                 </td>
-                <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
-                           readonly="@(canEditPrice ? null : "readonly")"
-                           tabindex="@(canEditPrice ? null : "-1")" /></td>
+                @* The price list decides. Read-only to everybody: an administrator
+                   changes what the list says, under Pricing, not what one line
+                   charges. The exception is a product the list holds no price for
+                   at all, which the form unlocks and says so - see the script. *@
+                <td>
+                    <input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
+                           readonly tabindex="-1" />
+                </td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger remove-row">&times;</button></td>
-            </tr>
+        </tr>
         </template>
 
         <div class="text-end mb-3">
@@ -676,7 +686,8 @@
                 var isFilm = $product.find(':selected').data('roll') === true;
                 var $class = $row.find('.classification-select');
 
-                $class.closest('td').toggleClass('asks-class', isFilm);
+                // The class cell is a dash on anything that is not film.
+                $class.closest('td').toggleClass('line-na', !isFilm);
 
                 // The car on the sale is a sensible first answer, but only
                 // until somebody answers for themselves: picking "By the
@@ -752,7 +763,7 @@
                 // size, which nobody types. The box stays in the form holding
                 // a 1, because the columns have to post the same number of
                 // values, but it is not on screen to be answered.
-                var isFilm = $row.find('.classification-select').closest('td').hasClass('asks-class');
+                var isFilm = $row.find('.product-select :selected').data('roll') === true;
                 var classChosen = !!classOf($row);
 
                 // Whether the price list holds anything at all for this film
@@ -775,8 +786,11 @@
                 // nothing for it.
                 var byLength = isFilm && classChosen && !priced;
 
-                $qty.toggle(!isFilm || byLength);
-                if (isFilm && !byLength) { $qty.val(1); }
+                var counted = !isFilm || byLength;
+
+                $qty.toggle(counted);
+                $qty.closest('td').toggleClass('line-na', !counted);
+                if (!counted) { $qty.val(1); }
 
                 // Where the box IS the answer on a film row, it is counting
                 // metres off the roll - and a bare "1" in a column headed Qty
@@ -796,9 +810,9 @@
                     $note.toggleClass('missing', false)
                          .text(!isFilm ? ''
                              : byLength ? 'No panel prices for this class - sold by the metre'
-                             : waitingForVariant ? 'Pick a tint variant, then the panel'
-                             : classChosen ? 'Pick a panel - the length comes from it'
-                             : 'Say which class of car, then the panel')
+                             : waitingForVariant ? 'Pick a tint variant first'
+                             : classChosen ? 'The length comes from the panel'
+                             : 'Say which class of car first')
                          .toggle(isFilm);
                     return;
                 }
@@ -810,27 +824,27 @@
                      .show();
             }
 
-            // The price box is read-only to staff because the price comes
-            // from the book. A product the book has no price for at all is
-            // the one case they may still name one: a locked empty box there
-            // means nobody can ring the sale up until an administrator is
-            // found, with the customer at the counter. The same carve-out the
-            // job order has, and the server keeps the same line - it accepts
-            // a typed price only where it finds no price of its own.
+            // The price is the price list's, and the box is read-only to
+            // everybody: an administrator changes what the list says, under
+            // Pricing, not what one line at the counter charges.
+            //
+            // One exception, and the server keeps the same line - it accepts
+            // a typed price only where it finds no price of its own. A
+            // product the list holds nothing for would otherwise be a locked
+            // empty box: nobody could ring the sale up, with the customer
+            // standing at the counter. The job order has the same carve-out.
             function allowTypedPriceWhereThereIsNone($row) {
                 var $price = $row.find('.unit-price');
-                if (!$price.prop('readonly') && !$price.data('locked')) { return; }
-
                 var productId = $row.find('.product-select').val();
                 var flat = parseFloat($row.find('.product-select :selected').data('price'));
                 var hasBookPrice = rowsForProduct(productId, classOf($row)).length > 0
                     || (!isNaN(flat) && flat > 0);
 
                 if (hasBookPrice) {
-                    $price.prop('readonly', true).data('locked', true).removeAttr('placeholder');
+                    $price.prop('readonly', true).attr('tabindex', '-1').removeAttr('placeholder');
                     $row.find('.price-note').remove();
                 } else {
-                    $price.prop('readonly', false).data('locked', true)
+                    $price.prop('readonly', false).removeAttr('tabindex')
                           .attr('placeholder', 'No price on file');
 
                     if ($row.find('.price-note').length === 0) {
