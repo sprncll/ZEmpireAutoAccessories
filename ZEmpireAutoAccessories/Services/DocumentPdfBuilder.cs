@@ -113,7 +113,15 @@ namespace ZEmpireAutoAccessories.Services
                             Description = d.Product.ProductName,
                             // A sale naming a vehicle is film going onto that
                             // car; one without is goods over the counter.
-                            Note = LineNote(d.Product, fitted: sale.Vehicle != null),
+                            Note = LineNote(
+                                d.Product,
+                                fitted: sale.Vehicle != null,
+                                // Which film left the rack, where the line
+                                // recorded it: a customer who comes back for
+                                // another metre of the same shade has the
+                                // receipt that says which one it was.
+                                tintVariant: d.Shade?.TintVariant?.VariantName,
+                                shade: d.Shade?.ShadeName),
                             Qty = d.Quantity,
                             // A counter sale has no panel, so film is the
                             // length that was written - in metres.

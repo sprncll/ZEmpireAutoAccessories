@@ -235,7 +235,13 @@ namespace ZEmpireAutoAccessories.Controllers
             List<int> productId,
             List<int> quantity,
             List<decimal> unitPrice,
-            decimal? amountTendered = null)
+            decimal? amountTendered = null,
+
+            // Posted as strings rather than as int?, because this column has
+            // to stay the same length as the three beside it: a blank in a
+            // List<int?> is dropped by the binder, every shade after it slides
+            // up a row, and the lines quietly belong to the wrong film.
+            List<string>? shadeId = null)
         {
             productId ??= new List<int>();
             quantity ??= new List<int>();
@@ -265,16 +271,43 @@ namespace ZEmpireAutoAccessories.Controllers
                 return View();
             }
 
+            // Which shade of film each line is taking off the roll, where
+            // the line is film. A shade belongs to exactly one tint variant
+            // and a variant to one product, so a shade that does not belong
+            // to the product on its row is not a shade for that line - it is
+            // dropped rather than stored, since a wrong shade is subtracted
+            // from a real rack.
+            var postedShades = (shadeId ?? new List<string>())
+                .Select(v => int.TryParse(v, out var parsed) ? parsed : (int?)null)
+                .ToList();
+
+            var shadeOwners = postedShades.Any(v => v != null)
+                ? await _context.Shades
+                    .Where(sh => postedShades.Contains(sh.ShadeID))
+                    .Select(sh => new { sh.ShadeID, sh.TintVariant.ProductID })
+                    .ToDictionaryAsync(x => x.ShadeID, x => x.ProductID)
+                : new Dictionary<int, int>();
+
             var items = new List<SaleLineRequest>();
             for (int i = 0; i < productId.Count; i++)
             {
                 if (productId[i] > 0 && quantity[i] > 0)
                 {
+                    var shade = i < postedShades.Count ? postedShades[i] : null;
+
+                    if (shade is { } picked
+                        && (!shadeOwners.TryGetValue(picked, out var owner)
+                            || owner != productId[i]))
+                    {
+                        shade = null;
+                    }
+
                     items.Add(new SaleLineRequest
                     {
                         ProductID = productId[i],
                         Quantity = quantity[i],
-                        UnitPrice = unitPrice[i]
+                        UnitPrice = unitPrice[i],
+                        ShadeID = shade
                     });
                 }
             }
@@ -290,12 +323,16 @@ namespace ZEmpireAutoAccessories.Controllers
             // price is a different deal and stays its own line. The first
             // appearance keeps its place in the list, so the receipt reads in
             // the order the counter wrote it.
+            //
+            // Two shades of one film are two different things and stay two
+            // lines, which is why the shade is part of what has to match.
             items = items
-                .GroupBy(i => new { i.ProductID, i.UnitPrice })
+                .GroupBy(i => new { i.ProductID, i.UnitPrice, i.ShadeID })
                 .Select(g => new SaleLineRequest
                 {
                     ProductID = g.Key.ProductID,
                     UnitPrice = g.Key.UnitPrice,
+                    ShadeID = g.Key.ShadeID,
                     Quantity = g.Sum(x => x.Quantity)
                 })
                 .ToList();
@@ -574,6 +611,7 @@ namespace ZEmpireAutoAccessories.Controllers
                         .ThenBy(sh => sh.Label)
                         .Select(sh => new
                         {
+                            shadeId = sh.ShadeID,
                             label = sh.Label,
                             left = sh.Left,
                             exhausted = sh.Exhausted

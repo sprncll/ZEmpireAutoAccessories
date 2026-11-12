@@ -91,7 +91,19 @@
             @foreach (var line in Model.SaleDetails)
             {
                 <tr>
-                    <td>@line.Product.ProductName</td>
+                    <td>
+                        @line.Product.ProductName
+                        @* Which shade left the rack, where the line records
+                           one - the same line the job order and the invoice
+                           print under a film. *@
+                        @if (line.Shade != null)
+                        {
+                            <div class="text-muted small">
+                                @string.Join(" · ", new[] { line.Shade.TintVariant?.VariantName, line.Shade.ShadeName }
+                                    .Where(x => !string.IsNullOrWhiteSpace(x)))
+                            </div>
+                        }
+                    </td>
                     <td>@line.Quantity</td>
                     <td>@Money.Peso(line.UnitPrice)</td>
                     <td>@Money.Peso(line.SubTotal)</td>

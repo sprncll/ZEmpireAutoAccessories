@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
 using ZEmpireAutoAccessories.Services.Interfaces;
@@ -191,6 +191,30 @@ namespace ZEmpireAutoAccessories.Services
                         ? d.ServiceInvoice.Vehicle.VehicleClassificationID
                         : (int?)null,
                     On = d.ServiceInvoice.InvoiceDate
+                })
+                .ToListAsync());
+
+            // And the counter. A sale takes film off the roll like any
+            // other line, and until sales.SalesDetail carried a shade there
+            // was nothing to subtract it from: the product's figure went down
+            // and every shade's figure stayed where it was, which showed up
+            // as a mystery at the next count. A sale is money taken, so there
+            // is no status to wait for - it counts from the moment it exists.
+            //
+            // Every product in this set is roll goods (Build seeds from the
+            // films that have shades on file) and a sales line of "3" means
+            // 3 m of film, which is what CreateSale took off stock.
+            lines.AddRange(await _context.SalesDetails
+                .Where(d => products.Contains(d.ProductID))
+                .Select(d => new UsedLine
+                {
+                    ProductID = d.ProductID,
+                    ShadeID = d.ShadeID,
+                    PanelID = null,
+                    Quantity = d.Quantity,
+                    Unit = UnitOfMeasure.Meter,
+                    ClassificationID = null,
+                    On = d.Sale.SalesDate
                 })
                 .ToListAsync());
 

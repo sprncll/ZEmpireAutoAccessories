@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ZEmpireAutoAccessories.Models
@@ -56,11 +56,29 @@ namespace ZEmpireAutoAccessories.Models
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
 
+        /// <summary>
+        /// Which shade of the film this line took off the roll, where the
+        /// line is film at all.
+        ///
+        /// Nullable, and null for most of the catalogue: a bolt and a step
+        /// board have no shade. Null also on every sale written before the
+        /// column existed - nobody knows which shade those took, and a guess
+        /// would be worse than a blank.
+        ///
+        /// The variant is not stored beside it. A shade belongs to exactly
+        /// one tint variant, so Shade.TintVariant is the answer and a second
+        /// column would be a second place for it to be wrong.
+        ///
+        /// Database/AddShadeToSalesDetail.sql adds the column.
+        /// </summary>
+        public int? ShadeID { get; set; }
+
         // Persisted computed column (Quantity * UnitPrice)
         public decimal SubTotal { get; private set; }
 
         public Sale Sale { get; set; } = null!;
         public Product Product { get; set; } = null!;
+        public Shade? Shade { get; set; }
     }
 
     [Table("ServiceInvoice", Schema = "sales")]

@@ -34,10 +34,7 @@
 
     /* The same product written on two rows. Said while it can still be
        changed, rather than discovered on the receipt. */
-    /* What is on the rack, shade by shade, under the film it belongs to. */
-    .shade-note { font-size:12px; color:#5a6472; margin-top:4px; line-height:1.5; }
     .price-note { font-size:11.5px; color:#8a6d1f; margin-top:3px; line-height:1.4; }
-    .shade-note s { color:#aab0ba; }
 
     #duplicateLines { font-size:12.5px; color:#8a6d1f; background:#fdf6e3;
                       border:1px solid #f0e3bd; border-radius:6px;
@@ -151,11 +148,14 @@
                     @* Percentages for the three that hold names, so they
                        share the extra width instead of the table leaving a
                        gap; fixed widths only for the numeric columns. *@
-                    <th style="width:34%;">Product</th>
-                    <th style="width:22%;">Tint Variant</th>
-                    <th style="width:22%;">Panel</th>
-                    <th style="width:90px;">Qty</th>
-                    <th style="width:140px;">Unit Price</th>
+                    <th style="width:28%;">Product</th>
+                    <th style="width:16%;">Tint Variant</th>
+                    @* Which shade left the rack. It is recorded on the line,
+                       not just shown: sales.SalesDetail.ShadeID. *@
+                    <th style="width:18%;">Shade</th>
+                    <th style="width:16%;">Panel</th>
+                    <th style="width:84px;">Qty</th>
+                    <th style="width:130px;">Unit Price</th>
                     <th style="width:52px;"></th>
                 </tr>
             </thead>
@@ -172,6 +172,16 @@
                     </td>
                     <td class="line-na">
                         <select class="form-select tint-variant-select" disabled>
+                            <option value="">-- N/A --</option>
+                        </select>
+                    </td>
+                    <td class="line-na">
+                        @* Never disabled, and hidden rather than removed
+                           when it says nothing: this column has to post a
+                           value on every row or it stops lining up with
+                           the three beside it, and the shades start
+                           belonging to the wrong lines. *@
+                        <select name="shadeId" class="form-select shade-select" data-searchable="false">
                             <option value="">-- N/A --</option>
                         </select>
                     </td>
@@ -209,6 +219,16 @@
                 </td>
                 <td class="line-na">
                     <select class="form-select tint-variant-select" disabled>
+                        <option value="">-- N/A --</option>
+                    </select>
+                </td>
+                <td class="line-na">
+                    @* Never disabled, and hidden rather than removed
+                       when it says nothing: this column has to post a
+                       value on every row or it stops lining up with
+                       the three beside it, and the shades start
+                       belonging to the wrong lines. *@
+                    <select name="shadeId" class="form-select shade-select" data-searchable="false">
                         <option value="">-- N/A --</option>
                     </select>
                 </td>
@@ -305,38 +325,54 @@
                     : centimetres.toFixed(1) + ' cm';
             }
 
-            // Under the product, in the row it belongs to: what the shop has
-            // of this film, shade by shade. Worked out from the last stock
-            // count and the lines since, so it is an estimate and says which
-            // ones have run out rather than hiding them - "we have none of
-            // that" is an answer a customer needs too.
-            function showShades($row) {
-                $row.find('.shade-note').remove();
+            // Which shade is leaving the rack, and how much of each there is
+            // to leave. A customer buying tint asks what shades there are
+            // before they ask anything else, and "92.61 m in stock" cannot
+            // answer it - the ledger records a product and nothing finer.
+            //
+            // The figures come from the last stock count and the lines since,
+            // so they are an estimate. A shade with nothing left is still
+            // offered, struck through in words rather than hidden: the count
+            // can be wrong, and a roll nobody counted is still a roll.
+            function fillShades($row) {
+                var $shade = $row.find('.shade-select');
+                var $cell = $shade.closest('td');
+                var productId = $row.find('.product-select').val();
+                var product = productId ? shadesFor(productId) : null;
 
-                var $product = $row.find('.product-select');
-                var productId = $product.val();
-                if (!productId) { return; }
+                $shade.empty();
 
-                var product = shadesFor(productId);
-                if (!product || !product.shades || product.shades.length === 0) { return; }
-
-                var note;
-                if (!product.counted) {
-                    note = 'Shades on file: '
-                         + product.shades.map(function (sh) { return sh.label; }).join(' &middot; ')
-                         + ' &mdash; none counted yet, so there is no figure per shade.';
-                } else {
-                    note = 'On the rack: ' + product.shades.map(function (sh) {
-                        if (sh.left === null || sh.left === undefined) {
-                            return sh.label + ' (not counted)';
-                        }
-                        return sh.left <= 0
-                            ? '<s>' + sh.label + '</s>'
-                            : sh.label + ' ' + metres(sh.left);
-                    }).join(' &middot; ');
+                if (!product || !product.shades || product.shades.length === 0) {
+                    // Nothing to pick, but the box still posts its blank: the
+                    // columns have to stay the same length.
+                    $shade.append($('<option></option>').val('').text('-- N/A --'));
+                    $cell.addClass('line-na');
+                    return;
                 }
 
-                $product.closest('td').append('<div class="shade-note">' + note + '</div>');
+                $shade.append($('<option></option>').val('').text('-- Select Shade --'));
+
+                $.each(product.shades, function (i, sh) {
+                    var text = sh.label;
+
+                    if (sh.left === null || sh.left === undefined) {
+                        text += ' - not counted';
+                    } else if (sh.left <= 0) {
+                        text += ' - none left';
+                    } else {
+                        text += ' - ' + metres(sh.left);
+                    }
+
+                    $shade.append($('<option></option>').val(sh.shadeId).text(text));
+                });
+
+                $cell.removeClass('line-na');
+
+                // Only one shade on file for this film - skip making the user
+                // pick it themselves.
+                if (product.shades.length === 1) {
+                    $shade.val(product.shades[0].shadeId);
+                }
             }
 
             function loadVehicles(customerId) {
@@ -752,10 +788,20 @@
                 var productId = $product.val();
                 if (!productId) { return false; }
 
+                // The shade is part of what has to match. Two shades of
+                // one film are two different things, and merging them would
+                // put a quantity against a shade nobody sold.
+                var shade = $row.find('.shade-select').val() || '';
+
                 var $match = null;
                 $('#linesTable tbody .line-row').each(function () {
                     if ($match || this === $row[0]) { return; }
-                    if ($(this).find('.product-select').val() === productId) { $match = $(this); }
+
+                    var $other = $(this);
+                    if ($other.find('.product-select').val() === productId
+                        && ($other.find('.shade-select').val() || '') === shade) {
+                        $match = $other;
+                    }
                 });
 
                 if (!$match) { return false; }
@@ -775,7 +821,6 @@
                     .html(name + ' is already on this sale &mdash; that line now reads ' + now + '.')
                     .show();
 
-                showShades($match);
                 recalcTotal();
                 refreshStockState();
                 return true;
@@ -786,6 +831,12 @@
                     // The row is gone; nothing after this has one to work on.
                     e.stopImmediatePropagation();
                 }
+            });
+
+            // Picking a shade can be the thing that makes two rows the same
+            // line - the film was already there, waiting to be told which.
+            $(document).on('change', '.shade-select', function () {
+                mergeIfAlreadyOnSale($(this).closest('tr'));
             });
 
             $(document).on('change', '.product-select', function () {
@@ -817,7 +868,7 @@
             $(document).on('change', '.product-select', refreshStockState);
             $(document).on('change', '.product-select', showDuplicates);
             $(document).on('change', '.product-select', function () {
-                showShades($(this).closest('tr'));
+                fillShades($(this).closest('tr'));
             });
 
             $('#addRow').on('click', function () {

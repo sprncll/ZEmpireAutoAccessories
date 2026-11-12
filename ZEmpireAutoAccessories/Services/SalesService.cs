@@ -32,6 +32,12 @@ namespace ZEmpireAutoAccessories.Services
                     // DocumentPdfBuilder.
                     .ThenInclude(sd => sd.Product)
                         .ThenInclude(p => p.Category)
+                .Include(s => s.SaleDetails)
+                    // Which shade the line took off the roll, and the variant
+                    // it belongs to. Without this the shade reads as null and
+                    // both the screen and the receipt quietly omit it.
+                    .ThenInclude(sd => sd.Shade)
+                        .ThenInclude(sh => sh!.TintVariant)
                 .FirstOrDefaultAsync(s => s.SalesID == saleId);
         }
 
@@ -165,7 +171,14 @@ namespace ZEmpireAutoAccessories.Services
                         SalesID = sale.SalesID,
                         ProductID = item.ProductID,
                         Quantity = item.Quantity,
-                        UnitPrice = item.UnitPrice
+                        UnitPrice = item.UnitPrice,
+
+                        // Which shade left the rack. The movement below still
+                        // takes it off the PRODUCT - inv.InventoryTransaction
+                        // records nothing finer - but the line now says which
+                        // shade it was, so the breakdown on Inventory > Shades
+                        // can subtract a counter sale like any other line.
+                        ShadeID = item.ShadeID
                         // SubTotal is a computed column in the database
                     });
 
