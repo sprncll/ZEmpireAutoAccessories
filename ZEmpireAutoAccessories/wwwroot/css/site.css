@@ -1,5 +1,22 @@
-﻿html {
+/* Design tokens. Every screen's own <style> block reads --zx-red and
+   --zx-red2, so they have to exist before any of them is parsed. */
+:root {
+  --zx-red: #e5464d;
+  --zx-red2: #b01822;
+  --zx-ink: #0b0b0c;
+  --zx-line: #e8ebf0;
+  --zx-muted: #7b8290;
+  --zx-bg: #f4f5f7;
+  --zx-ring: rgba(229, 70, 77, .28);
+  --zx-side-w: 252px;
+  --zx-rail-w: 68px;
+  --zx-top-h: 58px;
+}
+
+html {
   font-size: 14px;
+  position: relative;
+  min-height: 100%;
 }
 
 @media (min-width: 768px) {
@@ -8,18 +25,62 @@
   }
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
-}
-
-html {
-  position: relative;
-  min-height: 100%;
-}
-
 body {
-  margin-bottom: 60px;
+  background: var(--zx-bg);
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* One focus ring, in the brand colour, on everything you can tab to. It
+   was Bootstrap's blue on some controls and the template's blue on others,
+   and neither belonged to this app. :focus-visible keeps it for the
+   keyboard - a mouse click on a button does not leave a ring behind. */
+.btn:focus-visible,
+.form-check-input:focus,
+a:focus-visible,
+button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 .2rem var(--zx-ring);
+}
+
+.btn:focus:not(:focus-visible) { box-shadow: none; }
+
+.form-control,
+.form-select {
+  border-color: #dfe3ea;
+  border-radius: 10px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--zx-red);
+  box-shadow: 0 0 0 .2rem var(--zx-ring);
+}
+
+.form-check-input:checked {
+  background-color: var(--zx-red);
+  border-color: var(--zx-red);
+}
+
+.form-label { font-size: 13px; font-weight: 600; color: #39404e; margin-bottom: 6px; }
+
+.btn { border-radius: 10px; }
+.btn-sm { border-radius: 8px; }
+
+/* Messages after a save or a refusal. The default alert is a tall block
+   of pastel; these are the same colours with a firm left edge, so a green
+   one and a red one can be told apart from across the counter. */
+.alert {
+  border-radius: 12px;
+  border-width: 1px 1px 1px 4px;
+  font-size: 14px;
+  padding: 12px 16px;
+}
+
+.alert-success { background: #f0faf4; border-color: #cfe9d9 #cfe9d9 #cfe9d9 #15803d; color: #14532d; }
+.alert-danger  { background: #fef3f3; border-color: #f6d2d4 #f6d2d4 #f6d2d4 #dc2626; color: #7f1d1d; }
+.alert-warning { background: #fff8eb; border-color: #f5e0b8 #f5e0b8 #f5e0b8 #d97706; color: #78350f; }
+.alert-info    { background: #f1f6fe; border-color: #cfdffa #cfdffa #cfdffa #2563eb; color: #1e3a8a; }
 
 /* Every page's .zx-page-head (title + action buttons) is declared per-view
    with `display:flex; justify-content:space-between` and no wrap, so a
@@ -174,29 +235,6 @@ body {
 
 .link-context .link-back:hover {
   text-decoration: underline;
-}
-
-/* ---- page width ----------------------------------------------------
-   Bootstrap's .container tops out at 1320px, so on a wide monitor every
-   screen sits in the middle with a lot of dead screen either side. Take
-   the full width from the desktop breakpoint up, with a gutter that
-   grows with the viewport and stops at 1in so nothing runs into the
-   edge on a big monitor. */
-@media (min-width: 1200px) {
-  .container {
-    max-width: none;
-    padding-left: 44px;
-    padding-right: 44px;
-  }
-}
-
-/* A full inch either side once there is room for it, which is the gutter
-   the screens were designed around. */
-@media (min-width: 1500px) {
-  .container {
-    padding-left: 1in;
-    padding-right: 1in;
-  }
 }
 
 /* Each page sets its own .zx-card max-width in an inline <style> that
@@ -356,11 +394,6 @@ body {
    spacing and let things stack - no page's own colours or layout intent
    is touched. */
 @media (max-width: 575.98px) {
-  .container {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-
   .zx-card {
     padding: 16px !important;
     border-radius: 12px;
@@ -584,17 +617,24 @@ body {
 /* ---- tables ------------------------------------------------------- */
 .zx-table { margin-bottom: 0; }
 
-.zx-table thead { background: #0b0b0c; color: #fff; }
+/* A quiet header. It used to be solid black, which was the heaviest thing
+   on every list screen and sat right beside a black menu; the column
+   names are labels, and the rows are what you came to read. */
+.zx-table thead { background: #f7f8fa; color: #5d6472; }
 
 .zx-table thead th {
-  border-bottom: none;
-  font-weight: 600;
-  font-size: 12px;
+  border-bottom: 1px solid var(--zx-line);
+  font-weight: 700;
+  font-size: 11.5px;
   text-transform: uppercase;
   letter-spacing: .4px;
   padding: 11px 14px;
   white-space: nowrap;
 }
+
+/* Bootstrap 5.1 rules off the body from the head with 2px of the text
+   colour, which the black header used to hide. */
+.zx-table > :not(:first-child) { border-top: 0; }
 
 .zx-table td, .zx-table th { vertical-align: middle; }
 
@@ -793,3 +833,393 @@ body {
   color: #7b8290;
   margin: 0 2px 8px;
 }
+/* ====================================================================
+   THE APP SHELL
+   ====================================================================
+   A menu down the left and a slim bar across the top.
+
+   The menu used to be one "Modules" dropdown holding every screen in
+   alphabetical order: reaching any of them was two clicks and a read
+   through twenty names, with Cashiering nowhere near Sales. Nothing
+   showed which screen you were on either - "Dashboard" was lit on every
+   page.
+
+   Now every screen is one click away and always in the same place,
+   grouped the way the dashboard groups them, with the current one lit.
+   On a counter PC the menu can fold to icons to give a wide table the
+   room; on a phone it is a drawer.
+   ==================================================================== */
+
+.zx-skip {
+  position: absolute;
+  left: 12px;
+  top: -60px;
+  z-index: 1100;
+  background: #fff;
+  color: var(--zx-ink);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
+.zx-skip:focus { top: 10px; }
+
+/* ---- the menu ------------------------------------------------------ */
+.zx-side {
+  position: fixed;
+  inset: 0 auto 0 0;
+  z-index: 1040;
+  width: var(--zx-side-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--zx-ink);
+  color: #c7ccd6;
+  border-right: 1px solid #1d1d23;
+  transition: transform .2s ease, width .18s ease;
+}
+
+.zx-brand {
+  flex: none;
+  height: var(--zx-top-h);
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0 18px;
+  text-decoration: none;
+  border-bottom: 1px solid #1d1d23;
+}
+
+.zx-brand img { width: 32px; height: 32px; flex: none; }
+
+.zx-brand .wm {
+  font-family: 'Oswald', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.zx-brand .wm b { color: var(--zx-red); }
+
+.zx-side-find {
+  flex: none;
+  position: relative;
+  margin: 14px 12px 6px;
+}
+
+.zx-side-find svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.zx-side-find input {
+  width: 100%;
+  height: 36px;
+  padding: 0 54px 0 33px;
+  border-radius: 10px;
+  border: 1px solid #26262e;
+  background: #15151a;
+  color: #eef1f6;
+  font-size: 13.5px;
+}
+
+.zx-side-find input::placeholder { color: #6b7280; }
+
+.zx-side-find input:focus {
+  outline: none;
+  border-color: var(--zx-red);
+  box-shadow: 0 0 0 3px var(--zx-ring);
+}
+
+.zx-side-find input::-webkit-search-cancel-button { display: none; }
+
+.zx-side-find kbd {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #8b93a1;
+  background: #22222a;
+  border-radius: 6px;
+  padding: 2px 6px;
+  pointer-events: none;
+}
+
+.zx-side-find input:focus + kbd { display: none; }
+
+.zx-side-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 12px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #2c2c35 transparent;
+}
+
+.zx-side-group { margin-top: 16px; }
+
+.zx-side-head {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+  color: #6b7280;
+  padding: 0 10px 6px;
+  white-space: nowrap;
+}
+
+.zx-side-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 38px;
+  padding: 0 10px;
+  border-radius: 9px;
+  color: #c7ccd6;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background .12s ease, color .12s ease;
+}
+
+.zx-side-link + .zx-side-link { margin-top: 2px; }
+
+.zx-side-link svg { flex: none; color: #8b93a1; transition: color .12s ease; }
+
+.zx-side-link:hover { background: rgba(255, 255, 255, .07); color: #fff; }
+.zx-side-link:hover svg { color: #fff; }
+
+.zx-side-link:focus-visible { box-shadow: 0 0 0 2px var(--zx-red); }
+
+/* The screen you are on: a tinted row and a red bar at the edge, so it
+   reads without relying on the colour of the text alone. */
+.zx-side-link.is-active { background: rgba(229, 70, 77, .16); color: #fff; font-weight: 600; }
+.zx-side-link.is-active svg { color: #ff8a8f; }
+
+.zx-side-link.is-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--zx-red);
+}
+
+.zx-side-none { color: #8b93a1; font-size: 13px; padding: 14px 10px; }
+
+.zx-backdrop { display: none; }
+
+/* ---- the top bar --------------------------------------------------- */
+.zx-top {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  height: var(--zx-top-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: saturate(160%) blur(8px);
+  border-bottom: 1px solid var(--zx-line);
+}
+
+.zx-top-btn {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 10px;
+  border: 1px solid var(--zx-line);
+  background: #fff;
+  color: #4b5563;
+  transition: all .15s ease;
+}
+
+.zx-top-btn:hover { border-color: #cfd5de; color: var(--zx-ink); }
+
+.zx-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--zx-muted);
+}
+
+.zx-crumbs svg { flex: none; color: #b6bcc7; }
+
+.zx-crumbs a,
+.zx-crumb-here {
+  color: var(--zx-ink);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zx-crumbs a:hover { color: var(--zx-red); }
+
+.zx-crumb-group { white-space: nowrap; }
+
+.zx-userbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 4px 5px;
+  border-radius: 12px;
+  border: 1px solid var(--zx-line);
+  background: #fff;
+  color: var(--zx-ink);
+  transition: all .15s ease;
+}
+
+.zx-userbtn:hover { border-color: #cfd5de; }
+
+.zx-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--zx-red), var(--zx-red2));
+}
+
+.zx-user-name { display: block; font-size: 13px; font-weight: 600; line-height: 1.2; color: var(--zx-ink); }
+
+.zx-role {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--zx-red2);
+}
+
+.zx-user-menu {
+  border: 1px solid var(--zx-line);
+  border-radius: 12px;
+  box-shadow: 0 18px 40px -22px rgba(11, 11, 12, .45);
+  padding: 6px;
+  min-width: 210px;
+}
+
+.zx-user-menu .dropdown-item { border-radius: 8px; font-size: 14px; padding: 7px 10px; }
+.zx-user-menu .dropdown-item:active { background: #f1f3f7; color: inherit; }
+
+/* ---- the page ------------------------------------------------------ */
+/* Bootstrap sizes .container from the width of the window, which is no
+   longer the width of the space it sits in - at 1000px wide it would ask
+   for 960 inside a 750px column. The page runs the width it is given
+   instead, with a gutter that grows as there is room for it. */
+.zx-shell > .container {
+  max-width: none;
+  padding: 22px 16px 40px;
+}
+
+@media (min-width: 576px) {
+  .zx-shell > .container { padding-left: 24px; padding-right: 24px; }
+}
+
+@media (min-width: 1400px) {
+  .zx-shell > .container { padding: 26px 36px 48px; }
+}
+
+@media (min-width: 1800px) {
+  .zx-shell > .container { padding-left: 56px; padding-right: 56px; }
+}
+
+/* ---- desktop: the menu is always there, and can fold to icons ------- */
+@media (min-width: 992px) {
+  .zx-app .zx-shell { margin-left: var(--zx-side-w); transition: margin-left .18s ease; }
+
+  .zx-rail .zx-app .zx-side { width: var(--zx-rail-w); }
+  .zx-rail .zx-app .zx-shell { margin-left: var(--zx-rail-w); }
+
+  .zx-rail .zx-brand { padding: 0; justify-content: center; }
+  .zx-rail .zx-brand .wm,
+  .zx-rail .zx-side-find,
+  .zx-rail .zx-side-head,
+  .zx-rail .zx-side-link span { display: none; }
+
+  .zx-rail .zx-side-nav { padding-top: 14px; }
+
+  /* The group names go, so a hairline keeps the groups apart. */
+  .zx-rail .zx-side-group {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #1d1d23;
+  }
+
+  .zx-rail .zx-side-link { justify-content: center; padding: 0; }
+}
+
+/* ---- phone and tablet: the menu is a drawer -------------------------- */
+@media (max-width: 991.98px) {
+  .zx-side {
+    width: min(86vw, 300px);
+    transform: translateX(-100%);
+    box-shadow: none;
+  }
+
+  .zx-nav-open .zx-side { transform: none; box-shadow: 0 0 60px rgba(0, 0, 0, .5); }
+
+  .zx-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1035;
+    background: rgba(11, 11, 12, .5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s ease;
+  }
+
+  .zx-nav-open .zx-backdrop { opacity: 1; pointer-events: auto; }
+
+  /* The page behind an open drawer should not scroll with it. */
+  .zx-nav-open body { overflow: hidden; }
+
+  .zx-top { padding: 0 14px; }
+  .zx-side-find kbd { display: none; }
+  .zx-side-find input { padding-right: 12px; }
+
+  /* Fingers, not a mouse pointer. */
+  .zx-side-link { min-height: 44px; font-size: 15px; }
+  .zx-crumb-group, .zx-crumb-group + svg { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zx-side, .zx-shell, .zx-backdrop { transition: none !important; }
+}
+
+/* Ctrl+P on a list should print the list, not the menu around it. */
+@media print {
+  .zx-side, .zx-top, .zx-backdrop, .zx-skip { display: none !important; }
+  .zx-app .zx-shell { margin-left: 0 !important; }
+  body { background: #fff; }
+}
+
+/* The links are display:flex, which outranks the browser's own rule for
+   [hidden] - without this, "find a screen" would hide nothing. */
+.zx-side-link[hidden] { display: none; }

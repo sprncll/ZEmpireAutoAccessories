@@ -1,4 +1,6 @@
-﻿@{
+@{
+    var signedIn = User.Identity?.IsAuthenticated == true;
+
     var fullName = User.FindFirst(AppClaims.FullName)?.Value
                    ?? User.Identity?.Name ?? "User";
     var role = User.FindFirst(ClaimTypes.Role)?.Value ?? "";
@@ -6,23 +8,14 @@
                         .Take(2).Select(p => char.ToUpper(p[0])));
     if (string.IsNullOrEmpty(initials)) { initials = "U"; }
 
-    var myModules = User.FindAll(AppClaims.ModuleAccess).Select(c => c.Value)
-                        .Where(m => m != "Dashboard").ToList();
+    // The menu, already narrowed to what this user may open - see AppNav.
+    var navGroups = signedIn ? AppNav.For(User) : Array.Empty<NavGroup>();
 
-    // Cashiering needs no row in sec.Module: it only combines Sales and
-    // Service Invoices, so holding either one is what opens it
-    // (CashieringController is gated the same way). Added here so it works
-    // with no database change - but skipped when a Cashiering row does
-    // exist and has already come through as a claim, or the menu would
-    // list it twice.
-    if ((myModules.Contains("Sales", StringComparer.OrdinalIgnoreCase) ||
-         myModules.Contains("Service Invoices", StringComparer.OrdinalIgnoreCase)) &&
-        !myModules.Contains("Cashiering", StringComparer.OrdinalIgnoreCase))
-    {
-        myModules.Add("Cashiering");
-    }
-
-    myModules = myModules.OrderBy(m => m).ToList();
+    // Which screen this is, so its link can be lit and the top bar can say
+    // where you are. Null on the dashboard and on Change Password.
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString();
+    var onDashboard = string.Equals(controller, "Home", StringComparison.OrdinalIgnoreCase);
+    var here = AppNav.Locate(controller);
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -32,193 +25,120 @@
     <title>@ViewData["Title"] · ZEmpire</title>
     <link rel="icon" href="~/images/ZEmpireLogo.png" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/searchable-select.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/ZEmpireAutoAccessories.styles.css" asp-append-version="true" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@600;700&display=swap" rel="stylesheet">
-    <style>
-        :root { --zx-red:#e5464d; --zx-red2:#b01822; --zx-ink:#0b0b0c; }
-        body { background:#f4f5f7; }
-        .zx-nav { background:#0b0b0c; border-bottom:2px solid var(--zx-red); box-shadow:0 2px 10px rgba(0,0,0,.25); }
-        .zx-brand { display:inline-flex; align-items:center; gap:11px; text-decoration:none; }
-        .zx-brand img { width:36px; height:36px; }
-        .zx-brand .wm { font-family:'Oswald',system-ui,sans-serif; font-weight:700; font-size:19px; letter-spacing:1px; color:#fff; }
-        .zx-brand .wm b { color:var(--zx-red); }
-        .zx-nav .nav-link { color:#c7ccd6; font-weight:500; border-radius:8px; padding:.4rem .75rem; }
-        .zx-nav .nav-link:hover { color:#fff; background:rgba(255,255,255,.07); }
-        .zx-nav .nav-link.active { color:#fff; background:rgba(229,70,77,.18); }
-        .zx-nav .dropdown-menu { background:#141418; border:1px solid #2a2a33; }
-        .zx-nav .dropdown-item { color:#c7ccd6; }
-        .zx-nav .dropdown-item.disabled { color:#7b8290; }
-        .zx-nav .dropdown-item:hover { background:rgba(255,255,255,.06); color:#fff; }
-        .zx-nav .dropdown-item-text { color:#7b8290; }
-        .zx-avatar { width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;
-                     background:linear-gradient(135deg,var(--zx-red),var(--zx-red2)); }
-        .zx-role { font-size:11px;color:#e5464d;text-transform:uppercase;letter-spacing:.4px;font-weight:600; }
-        .zx-userbtn { border:1px solid #2a2a33; background:rgba(255,255,255,.04); border-radius:12px; padding:5px 8px; display:inline-flex; align-items:center; gap:10px; color:#eef1f6; }
-        .zx-userbtn:hover { background:rgba(255,255,255,.09); }
-        .zx-userbtn .fw-semibold { color:#fff !important; }
-        .zx-nav .navbar-toggler { border-color:rgba(255,255,255,.2); border-radius:8px; padding:.35rem .55rem; }
-        .zx-nav .navbar-toggler:hover { border-color:var(--zx-red); }
-        .zx-nav .navbar-toggler:focus { box-shadow:0 0 0 .2rem rgba(229,70,77,.35); }
-    </style>
+    @* Whether the menu was folded to icons last time. Applied before the
+       page paints, so it does not open wide and then snap shut on every
+       navigation. *@
+    <script>
+        try {
+            if (localStorage.getItem('zx-nav-rail') === '1') {
+                document.documentElement.classList.add('zx-rail');
+            }
+        } catch (e) { }
+    </script>
 </head>
-<body>
-    @if (User.Identity?.IsAuthenticated == true)
+<body class="@(signedIn ? "zx-app" : null)">
+    @if (signedIn)
     {
-        <header>
-            <nav class="zx-nav navbar navbar-expand-lg navbar-dark mb-4">
-                <div class="container-fluid px-lg-4">
-                    <a class="zx-brand navbar-brand" asp-controller="Home" asp-action="Index">
-                        <img src="~/images/ZEmpireLogo.png" alt="Z-Empire" />
-                        <span class="wm">Z<b>-</b>EMPIRE</span>
-                    </a>
-                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#zxNav" aria-controls="zxNav" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler-icon"></span>
-                    </button>
-                    <div class="collapse navbar-collapse" id="zxNav">
-                        <ul class="navbar-nav me-auto">
-                            <li class="nav-item">
-                                <a class="nav-link active" asp-controller="Home" asp-action="Index">Dashboard</a>
-                            </li>
-                            @if (myModules.Count > 0)
-                            {
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                        Modules <span class="badge ms-1" style="background:var(--zx-red);color:#fff;">@myModules.Count</span>
-                                    </a>
-                                    <ul class="dropdown-menu" style="max-height:60vh;overflow:auto;">
-                                        @foreach (var m in myModules)
-                                        {
-                                            @if (m == "Products")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Product" asp-action="Index">Products</a></li>
-                                            }
-                                            else if (m == "Vehicles")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Vehicle" asp-action="Index">Vehicles</a></li>
-                                            }
-                                            else if (m == "Customers")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Customer" asp-action="Index">Customers</a></li>
-                                            }
-                                            else if (m == "User Management")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Employee" asp-action="Index">User Management</a></li>
-                                            }
-                                            else if (m == "Job Types")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="JobType" asp-action="Index">Job Types</a></li>
-                                            }
-                                            else if (m == "Job Orders")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="JobOrder" asp-action="Index">Job Orders</a></li>
-                                            }
-                                            else if (m == "Pricing")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Pricing" asp-action="Index">Pricing</a></li>
-                                            }
-                                            else if (m == "Price History")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="PriceHistory" asp-action="Index">Price History</a></li>
-                                            }
-                                            else if (m == "Inventory")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Inventory" asp-action="Index">Inventory</a></li>
-                                                @* Stock counts share the Inventory module rather than
-                                                   owning a sec.Module row of their own. *@
-                                                <li><a class="dropdown-item" asp-controller="InventoryCheck" asp-action="Index">Stock Counts</a></li>
-                                                @* Cut sizes decide what a tint job takes off
-                                                   the roll, so they live with Inventory too. *@
-                                                <li><a class="dropdown-item" asp-controller="CutSize" asp-action="Index">Cut Sizes</a></li>
-                                            }
-                                            else if (m == "Sales")
-                                            {
-                                            <li><a class="dropdown-item" asp-controller="Sales" asp-action="Index">Sales</a></li>
-                                            }
-                                            else if (m == "Cashiering")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Cashiering" asp-action="Index">Cashiering</a></li>
-                                            }
-                                            else if (m == "Vehicle Checklist")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="VehicleChecklist" asp-action="Index">Vehicle Checklist</a></li>
-                                            }
-                                            else if (m == "Service Invoices")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="ServiceInvoice" asp-action="Index">Service Invoices</a></li>
-                                            }
-                                            else if (m == "Warranty")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Warranty" asp-action="Index">Warranty</a></li>
-                                            }
-                                            else if (m == "Reports")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Report" asp-action="Index">Reports</a></li>
-                                            }
-                                            else if (m == "Services")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Service" asp-action="Index">Services</a></li>
-                                            }
-                                            else if (m == "Roles")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Security" asp-action="Index">Roles</a></li>
-                                            }
-                                            else if (m == "Quotation")
-                                            {
-                                                <li><a class="dropdown-item" asp-controller="Quotation" asp-action="Index">Quotation</a></li>
-                                            }
-                                            else
-                                            {
-                                                <li><span class="dropdown-item disabled">@m</span></li>
-                                            }
-                                        }
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><span class="dropdown-item-text text-muted small">More module screens coming soon</span></li>
-                                    </ul>
-                                </li>
-                            }
-                            @if (User.IsInRole("Admin"))
-                            {
-                                <li class="nav-item">
-                                    <a class="nav-link" asp-controller="Security" asp-action="Index">Roles &amp; Permissions</a>
-                                </li>
-                            }
-                        </ul>
+        <a class="zx-skip" href="#zxMain">Skip to content</a>
 
-                        <div class="dropdown">
-                            <button class="zx-userbtn dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                <span class="zx-avatar">@initials</span>
-                                <span class="text-start d-none d-sm-block">
-                                    <span class="d-block fw-semibold" style="font-size:13.5px;color:#0f172a;">@fullName</span>
-                                    <span class="zx-role">@role</span>
-                                </span>
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><span class="dropdown-item-text small text-muted">Signed in as<br><strong>@User.Identity?.Name</strong></span></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Change Password</a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form asp-controller="Account" asp-action="Logout" method="post">
-                                        <button type="submit" class="dropdown-item text-danger">Sign out</button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </div>
+        <aside class="zx-side" id="zxSide" aria-label="Main navigation">
+            <a class="zx-brand" asp-controller="Home" asp-action="Index">
+                <img src="~/images/ZEmpireLogo.png" alt="" />
+                <span class="wm">Z<b>-</b>EMPIRE</span>
+            </a>
+
+            <div class="zx-side-find">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+                <input type="search" id="zxNavFind" placeholder="Find a screen" autocomplete="off" aria-label="Find a screen" />
+                <kbd>Ctrl K</kbd>
+            </div>
+
+            <nav class="zx-side-nav" id="zxNavList">
+                <a class="zx-side-link @(onDashboard ? "is-active" : null)" asp-controller="Home" asp-action="Index"
+                   title="Dashboard" data-nav-name="dashboard" aria-current="@(onDashboard ? "page" : null)">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">@Html.Raw(AppNav.DashboardIcon)</svg>
+                    <span>Dashboard</span>
+                </a>
+
+                @foreach (var group in navGroups)
+                {
+                    <div class="zx-side-group">
+                        <div class="zx-side-head">@group.Name</div>
+                        @foreach (var item in group.Items)
+                        {
+                            var active = item.Owns(controller);
+                            <a class="zx-side-link @(active ? "is-active" : null)" asp-controller="@item.Controller" asp-action="Index"
+                               title="@item.Label" data-nav-name="@item.Label.ToLowerInvariant()" aria-current="@(active ? "page" : null)">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">@Html.Raw(item.Icon)</svg>
+                                <span>@item.Label</span>
+                            </a>
+                        }
                     </div>
-                </div>
+                }
+
+                <div class="zx-side-none" id="zxNavNone" hidden>No screen matches.</div>
             </nav>
-        </header>
+        </aside>
+
+        <div class="zx-backdrop" id="zxBackdrop"></div>
     }
 
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+    <div class="zx-shell">
+        @if (signedIn)
+        {
+            <header class="zx-top">
+                <button type="button" class="zx-top-btn" id="zxNavToggle" aria-controls="zxSide" aria-expanded="false" aria-label="Toggle navigation">
+                    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /></svg>
+                </button>
+
+                <nav class="zx-crumbs" aria-label="You are here">
+                    @if (here is { } spot)
+                    {
+                        <span class="zx-crumb-group">@spot.Group.Name</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+                        <a asp-controller="@spot.Item.Controller" asp-action="Index">@spot.Item.Label</a>
+                    }
+                    else
+                    {
+                        <span class="zx-crumb-here">@(onDashboard ? "Dashboard" : ViewData["Title"])</span>
+                    }
+                </nav>
+
+                <div class="dropdown ms-auto">
+                    <button class="zx-userbtn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="zx-avatar">@initials</span>
+                        <span class="text-start d-none d-sm-block">
+                            <span class="zx-user-name">@fullName</span>
+                            <span class="zx-role">@role</span>
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end zx-user-menu">
+                        <li><span class="dropdown-item-text small text-muted">Signed in as<br><strong>@User.Identity?.Name</strong></span></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">Change Password</a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form asp-controller="Account" asp-action="Logout" method="post">
+                                <button type="submit" class="dropdown-item text-danger">Sign out</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </header>
+        }
+
+        <div class="container">
+            <main role="main" id="zxMain" class="pb-3">
+                @RenderBody()
+            </main>
+        </div>
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
