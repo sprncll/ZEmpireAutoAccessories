@@ -73,7 +73,7 @@
             @* The message names the screen; this is the door to it. *@
             <div class="mt-2">
                 <a class="btn btn-sm btn-outline-danger"
-                   asp-controller="CutSize" asp-action="Index">
+                   asp-controller="CutSize" asp-action="Index" zx-return>
                     Open Cut Sizes
                 </a>
             </div>
@@ -88,7 +88,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
             Generate PDF
         </a>
-        <a class="btn btn-outline-secondary" asp-action="Index">Back to list</a>
+        <a class="btn btn-outline-secondary" href="@BackLink.For(Context.Request, Url.Action("Index"))">@BackLink.Label(Context.Request, "Back to list")</a>
     </div>
 </div>
 
@@ -333,7 +333,7 @@
                             @if (warrantyByLine.TryGetValue(line.ServiceInvoiceDetailID, out var cover))
                             {
                                 <a class="warranty-chip @("status-" + (cover.WarrantyStatus ?? "none").ToLower())"
-                                   asp-controller="Warranty" asp-action="Details" asp-route-id="@cover.WarrantyID">
+                                   asp-controller="Warranty" asp-action="Details" asp-route-id="@cover.WarrantyID" zx-return>
                                     @(cover.WarrantyStatus ?? "Linked")
                                     @if (cover.WarrantyEndDate != null)
                                     {
@@ -345,7 +345,7 @@
                             {
                                 <a class="warranty-add"
                                    asp-controller="Warranty" asp-action="Create"
-                                   asp-route-serviceInvoiceDetailId="@line.ServiceInvoiceDetailID">+ Warranty</a>
+                                   asp-route-serviceInvoiceDetailId="@line.ServiceInvoiceDetailID" zx-return>+ Warranty</a>
                             }
                         </td>
                     }

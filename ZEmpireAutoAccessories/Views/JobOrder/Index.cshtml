@@ -78,7 +78,7 @@
                         @item.JobOrderNumber
                         @if (item.Quotation != null)
                         {
-                            <a asp-controller="Quotation" asp-action="Details" asp-route-id="@item.Quotation.QuotationID" class="quote-source">
+                            <a asp-controller="Quotation" asp-action="Details" asp-route-id="@item.Quotation.QuotationID" class="quote-source" zx-return>
                                 From @item.Quotation.QuotationNumber
                             </a>
                         }
@@ -87,7 +87,7 @@
                         }
                         @if (itemInvoice != null)
                         {
-                            <a asp-controller="ServiceInvoice" asp-action="Details" asp-route-id="@itemInvoice.ServiceInvoiceID" class="quote-source">
+                            <a asp-controller="ServiceInvoice" asp-action="Details" asp-route-id="@itemInvoice.ServiceInvoiceID" class="quote-source" zx-return>
                                 Invoiced as @itemInvoice.InvoiceNumber
                             </a>
                         }

@@ -66,7 +66,7 @@
 <div class="zx-page-head">
     <h1>Products</h1>
     <div>
-        <a class="btn btn-outline-secondary" asp-controller="ProductCategory" asp-action="Index">Categories</a>
+        <a class="btn btn-outline-secondary" asp-controller="ProductCategory" asp-action="Index" zx-return>Categories</a>
         @if (User.IsInRole("Admin"))
         {
             <a class="btn btn-zx" asp-action="Create">+ New Product</a>
@@ -157,7 +157,7 @@
                         @if (canPrice)
                         {
                             <a asp-controller="Pricing" asp-action="Create" asp-route-productId="@item.ProductID"
-                               class="icon-btn" title="Set price">
+                               class="icon-btn" title="Set price" zx-return>
                                 @* Peso, not dollar - the shop prices in PHP. Stem and bowl of a P with
                                    the two bars through it. *@
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16" /><path d="M8 4h5.5a4 4 0 0 1 0 8H8" /><path d="M4.5 8h13" /><path d="M4.5 12h13" /></svg>

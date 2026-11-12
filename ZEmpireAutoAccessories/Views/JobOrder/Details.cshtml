@@ -50,9 +50,9 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
             Generate PDF
         </a>
-        <a class="btn btn-outline-secondary" asp-action="Index">
+        <a class="btn btn-outline-secondary" href="@BackLink.For(Context.Request, Url.Action("Index"))">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-            Back to list
+            @BackLink.Label(Context.Request, "Back to list")
         </a>
     </div>
 </div>
@@ -74,7 +74,7 @@
             @* The message names the screen; this is the door to it. *@
             <div class="mt-2">
                 <a class="btn btn-sm btn-outline-danger"
-                   asp-controller="CutSize" asp-action="Index">
+                   asp-controller="CutSize" asp-action="Index" zx-return>
                     Open Cut Sizes
                 </a>
             </div>
@@ -122,7 +122,7 @@
         {
             <dt class="col-sm-3">Invoiced As</dt>
             <dd class="col-sm-9">
-                <a asp-controller="ServiceInvoice" asp-action="Details" asp-route-id="@invoice.ServiceInvoiceID">@invoice.InvoiceNumber</a>
+                <a asp-controller="ServiceInvoice" asp-action="Details" asp-route-id="@invoice.ServiceInvoiceID" zx-return>@invoice.InvoiceNumber</a>
             </dd>
         }
 
@@ -180,7 +180,7 @@
         }
         @if (invoice == null && Model.Status == "Completed")
         {
-            <a asp-controller="ServiceInvoice" asp-action="Create" asp-route-jobOrderId="@Model.JobOrderID" class="btn btn-sm btn-zx">
+            <a asp-controller="ServiceInvoice" asp-action="Create" asp-route-jobOrderId="@Model.JobOrderID" class="btn btn-sm btn-zx" zx-return>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
                 Create Invoice
             </a>

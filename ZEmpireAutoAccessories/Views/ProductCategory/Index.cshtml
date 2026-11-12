@@ -13,7 +13,7 @@
 <div class="zx-page-head">
     <h1>Product Categories</h1>
     <div>
-        <a class="btn btn-outline-secondary" asp-controller="Product" asp-action="Index">Products</a>
+        <a class="btn btn-outline-secondary" asp-controller="Product" asp-action="Index" zx-return>Products</a>
         @if (User.IsInRole("Admin"))
         {
             <a class="btn btn-zx" asp-action="Create">+ New Category</a>

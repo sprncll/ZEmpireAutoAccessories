@@ -20,7 +20,7 @@
                 @* Opened in a new tab rather than navigated to: anything already
                    typed on this form would be lost on the way back. *@
                 <a asp-controller="ProductCategory" asp-action="Create" target="_blank"
-                   class="measured-help text-decoration-none">+ Add a category</a>
+                   class="measured-help text-decoration-none" zx-return>+ Add a category</a>
             </div>
             <select asp-for="CategoryID" class="form-select" asp-items="ViewBag.CategoryID">
                 <option value="">-- Select Category --</option>

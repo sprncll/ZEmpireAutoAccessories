@@ -295,11 +295,11 @@
     <div class="d-flex gap-2">
         @if (canOpenSales)
         {
-            <a class="btn btn-outline-dark" asp-controller="Sales" asp-action="Create">+ New Sale</a>
+            <a class="btn btn-outline-dark" asp-controller="Sales" asp-action="Create" zx-return>+ New Sale</a>
         }
         @if (canOpenInvoices)
         {
-            <a class="btn btn-zx" asp-controller="ServiceInvoice" asp-action="Create">+ New Service Invoice</a>
+            <a class="btn btn-zx" asp-controller="ServiceInvoice" asp-action="Create" zx-return>+ New Service Invoice</a>
         }
         @* The other way round: this screen is today at the counter, the
            report is the same figures over a period, with a PDF to keep. *@

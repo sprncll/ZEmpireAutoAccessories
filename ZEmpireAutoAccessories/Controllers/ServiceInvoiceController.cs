@@ -321,7 +321,11 @@ namespace ZEmpireAutoAccessories.Controllers
                 }
             }
 
-            return RedirectToAction(nameof(Details), new { id = invoice.ServiceInvoiceID });
+            return RedirectToAction(nameof(Details), new
+            {
+                id = invoice.ServiceInvoiceID,
+                returnUrl = BackLink.Given(Request)
+            });
         }
 
         // GET: ServiceInvoice/Edit/5

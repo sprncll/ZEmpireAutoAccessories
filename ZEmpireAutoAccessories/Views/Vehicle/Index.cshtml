@@ -28,7 +28,7 @@
 <div class="zx-page-head">
     <h1>Vehicles</h1>
     <div>
-        <a class="btn btn-outline-secondary" asp-controller="VehicleClassification" asp-action="Index">Manage Classifications</a>
+        <a class="btn btn-outline-secondary" asp-controller="VehicleClassification" asp-action="Index" zx-return>Manage Classifications</a>
         <a class="btn btn-zx" asp-action="Create">+ New Vehicle</a>
     </div>
 </div>
@@ -83,7 +83,7 @@
                     <td>@(item.ManufacturingYear?.ToString() ?? "—")</td>
                     <td>@item.VehicleClassification.ClassificationName</td>
                     <td>
-                        <a asp-controller="Customer" asp-action="Details" asp-route-id="@item.CustomerID" class="owner-link">@item.Customer.FullName</a>
+                        <a asp-controller="Customer" asp-action="Details" asp-route-id="@item.CustomerID" class="owner-link" zx-return>@item.Customer.FullName</a>
                     </td>
                     <td class="text-end pe-3">
                         <a asp-action="Details" asp-route-id="@item.VehicleID" class="icon-btn" title="View details">

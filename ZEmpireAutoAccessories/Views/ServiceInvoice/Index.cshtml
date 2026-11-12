@@ -129,7 +129,7 @@
                         @item.InvoiceNumber
                         @if (item.JobOrder != null)
                         {
-                            <a asp-controller="JobOrder" asp-action="Details" asp-route-id="@item.JobOrder.JobOrderID" class="job-order-source">
+                            <a asp-controller="JobOrder" asp-action="Details" asp-route-id="@item.JobOrder.JobOrderID" class="job-order-source" zx-return>
                                 From @item.JobOrder.JobOrderNumber
                             </a>
                         }

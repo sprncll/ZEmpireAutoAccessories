@@ -20,6 +20,13 @@
 
 <div class="zx-card padded narrow">
     <form asp-action="Edit" method="post" class="zx-form">
+        @* Carried through the save, so a vehicle added from a customer's
+           page - or a warranty from an invoice - goes back to the page it
+           was started from rather than to a list. *@
+        @if (BackLink.Given(Context.Request) is string cameFrom)
+        {
+            <input type="hidden" name="returnUrl" value="@cameFrom" />
+        }
         <input type="hidden" asp-for="VehicleID" />
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 

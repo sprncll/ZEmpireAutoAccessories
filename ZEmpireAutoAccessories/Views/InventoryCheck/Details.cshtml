@@ -35,7 +35,7 @@
 
 <div class="zx-page-head">
     <h1>Stock Count — @Model.CheckDate.ToString("dd MMM yyyy")</h1>
-    <a class="btn btn-outline-secondary" asp-action="Index">Back to counts</a>
+    <a class="btn btn-outline-secondary" href="@BackLink.For(Context.Request, Url.Action("Index"))">@BackLink.Label(Context.Request, "Back to counts")</a>
 </div>
 <p class="zx-page-sub">
     Variance is against stock on hand right now, not when the count was saved.

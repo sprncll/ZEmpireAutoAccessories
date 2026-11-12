@@ -9,7 +9,7 @@
 <div class="zx-page-head">
     <h1>Stock Counts</h1>
     <div>
-        <a class="btn btn-outline-secondary" asp-controller="Inventory" asp-action="Index">Back to Inventory</a>
+        <a class="btn btn-outline-secondary" href="@BackLink.For(Context.Request, Url.Action("Index", "Inventory"))">@BackLink.Label(Context.Request, "Back to Inventory")</a>
         <a class="btn btn-zx" asp-action="Create">+ New Count</a>
     </div>
 </div>

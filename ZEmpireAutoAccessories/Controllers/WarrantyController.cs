@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
@@ -378,7 +378,13 @@ namespace ZEmpireAutoAccessories.Controllers
             _context.Warranties.Add(warranty);
             await _context.SaveChangesAsync();
 
-            return RedirectToAction(nameof(Details), new { id = warranty.WarrantyID });
+            // The new warranty, with where this was started from still in
+            // hand, so its Back goes to the invoice rather than the list.
+            return RedirectToAction(nameof(Details), new
+            {
+                id = warranty.WarrantyID,
+                returnUrl = BackLink.Given(Request)
+            });
         }
 
         // GET: Warranty/Edit/5

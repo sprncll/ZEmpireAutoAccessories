@@ -89,7 +89,7 @@
     <dl class="row mb-0 zx-dl tight">
         <dt class="col-sm-3">Job Order</dt>
         <dd class="col-sm-9">
-            <a asp-controller="JobOrder" asp-action="Details" asp-route-id="@Model.JobOrderID">@Model.JobOrder.JobOrderNumber</a>
+            <a asp-controller="JobOrder" asp-action="Details" asp-route-id="@Model.JobOrderID" zx-return>@Model.JobOrder.JobOrderNumber</a>
             @if (Model.JobOrder.JobType != null)
             {
                 <span class="text-muted"> &middot; @Model.JobOrder.JobType.JobTypeName</span>

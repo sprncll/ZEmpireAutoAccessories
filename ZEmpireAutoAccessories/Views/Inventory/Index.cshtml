@@ -162,12 +162,12 @@
     <div>
         @* Cut sizes decide what a tint or film job takes off a roll, so the
            screen that shows those rolls is where someone goes looking. *@
-        <a class="btn btn-outline-secondary" asp-controller="CutSize" asp-action="Index">Cut sizes</a>
+        <a class="btn btn-outline-secondary" asp-controller="CutSize" asp-action="Index" zx-return>Cut sizes</a>
         @* This list is per product, because the ledger is. Shade Stock is the
            breakdown behind it, worked out from the last count. *@
         <a class="btn btn-outline-secondary" asp-action="Shades">Shade stock</a>
-        <a class="btn btn-outline-secondary" asp-controller="InventoryCheck" asp-action="Index">Stock counts</a>
-        <a class="btn btn-zx" asp-controller="InventoryCheck" asp-action="Create">+ New stock count</a>
+        <a class="btn btn-outline-secondary" asp-controller="InventoryCheck" asp-action="Index" zx-return>Stock counts</a>
+        <a class="btn btn-zx" asp-controller="InventoryCheck" asp-action="Create" zx-return>+ New stock count</a>
     </div>
 </div>
 <p class="zx-page-sub">
@@ -297,7 +297,7 @@
                             @if (canSeeProduct)
                             {
                                 <a asp-controller="Product" asp-action="Details" asp-route-id="@item.ProductID"
-                                   class="icon-btn" title="Product details">
+                                   class="icon-btn" title="Product details" zx-return>
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>
                                 </a>
                             }
@@ -307,7 +307,7 @@
                                    and a product name matches it, so this lands on that product's
                                    rows - every variant, class and panel it is priced for. *@
                                 <a asp-controller="Pricing" asp-action="Index" asp-route-q="@item.ProductName"
-                                   class="icon-btn" title="Prices for this product">
+                                   class="icon-btn" title="Prices for this product" zx-return>
                                     @* Peso, not dollar - the shop prices in PHP. *@
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4v16" /><path d="M8 4h5.5a4 4 0 0 1 0 8H8" /><path d="M4.5 8h13" /><path d="M4.5 12h13" /></svg>
                                 </a>

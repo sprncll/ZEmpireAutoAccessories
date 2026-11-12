@@ -110,7 +110,10 @@ namespace ZEmpireAutoAccessories.Controllers
             _context.Vehicles.Add(vehicle);
             await _context.SaveChangesAsync();
 
-            return RedirectToAction(nameof(Index));
+            // Back where this was started from - a customer's page, usually -
+            // rather than to the vehicle list, which is not where anybody who
+            // pressed "Add vehicle" on a customer was.
+            return Redirect(BackLink.For(Request, Url.Action(nameof(Index))));
         }
 
         // GET: Vehicle/Edit/5
@@ -172,7 +175,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 throw;
             }
 
-            return RedirectToAction(nameof(Index));
+            return Redirect(BackLink.For(Request, Url.Action(nameof(Index))));
         }
 
         // GET: Vehicle/Delete/5

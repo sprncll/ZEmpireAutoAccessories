@@ -40,7 +40,7 @@
                         ? "No prices set for this product yet."
                         : $"{existingPrices} price{(existingPrices == 1 ? "" : "s")} already set.")
                 </div>
-                <a class="link-back" asp-controller="Product" asp-action="Index">Pick a different product</a>
+                <a class="link-back" asp-controller="Product" asp-action="Index" zx-return>Pick a different product</a>
             </div>
         }
         else
@@ -95,7 +95,7 @@
             </button>
             @if (locked)
             {
-                <a asp-controller="Product" asp-action="Index" class="btn btn-outline-secondary">Done</a>
+                <a asp-controller="Product" asp-action="Index" class="btn btn-outline-secondary" zx-return>Done</a>
             }
             else
             {

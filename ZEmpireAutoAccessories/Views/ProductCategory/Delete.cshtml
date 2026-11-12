@@ -39,7 +39,7 @@ else
 <div class="mt-3">
     @if (blocked)
     {
-        <a asp-action="Index" class="btn btn-outline-secondary">Back to list</a>
+        <a href="@BackLink.For(Context.Request, Url.Action("Index"))" class="btn btn-outline-secondary">@BackLink.Label(Context.Request, "Back to list")</a>
     }
     else
     {
