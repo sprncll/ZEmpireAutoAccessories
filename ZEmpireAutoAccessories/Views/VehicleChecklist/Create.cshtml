@@ -13,9 +13,12 @@
 <div class="zx-page-head">
     <h1>New Vehicle Checklist</h1>
     @{
-        var returnUrl = Context.Request.Query["returnUrl"].ToString();
-        var cameFromElsewhere = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl);
-        var backUrl = cameFromElsewhere ? returnUrl : Url.Action("Index");
+        // From the query string on the way in, and from the posted form when
+        // a save is refused and the sheet comes back - otherwise a mistake on
+        // the form would quietly forget the job order it was opened from.
+        var returnUrl = BackLink.Given(Context.Request);
+        var cameFromElsewhere = returnUrl != null;
+        var backUrl = BackLink.For(Context.Request, Url.Action("Index"));
 
         var maxPhotos = ViewData["MaxPhotos"] as int? ?? 5;
         var maxPhotoMb = ViewData["MaxPhotoMb"] as decimal? ?? 15m;
@@ -121,7 +124,7 @@ else if (available == 0)
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
             Save checklist
         </button>
-        <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+        <a href="@BackLink.For(Context.Request, Url.Action("Index"))" class="btn btn-outline-secondary">Cancel</a>
     </div>
 </form>
 

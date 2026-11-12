@@ -58,5 +58,5 @@
             Delete checklist
         </button>
     </form>
-    <a asp-action="Details" asp-route-id="@Model.ChecklistID" class="btn btn-outline-secondary">Cancel</a>
+    <a href="@BackLink.For(Context.Request, Url.Action("Details", new { id = Model.ChecklistID }))" class="btn btn-outline-secondary">Cancel</a>
 </div>

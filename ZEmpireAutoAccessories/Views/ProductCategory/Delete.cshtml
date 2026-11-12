@@ -46,7 +46,7 @@ else
         <form asp-action="Delete" method="post" class="d-inline">
             <input type="hidden" asp-for="CategoryID" />
             <button type="submit" class="btn btn-danger">Delete</button>
-            <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            <a href="@BackLink.For(Context.Request, Url.Action("Index"))" class="btn btn-outline-secondary">Cancel</a>
         </form>
     }
 </div>

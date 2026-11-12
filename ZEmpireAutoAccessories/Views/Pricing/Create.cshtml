@@ -99,7 +99,7 @@
             }
             else
             {
-                <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                <a href="@BackLink.For(Context.Request, Url.Action("Index"))" class="btn btn-outline-secondary">Cancel</a>
             }
         </div>
     </form>
