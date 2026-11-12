@@ -77,6 +77,8 @@
                        is at the counter now, and leaving this page would lose
                        whatever has already been typed into the sale. *@
                     <button type="button" id="newCustomerToggle"
+                            data-endpoint="@Url.Action("QuickCustomer")"
+                            data-customer-select="customerId"
                             class="btn btn-link btn-sm p-0 text-decoration-none">+ New customer</button>
                 </div>
                 <select id="customerId" name="customerId" class="form-select" asp-items="ViewBag.CustomerID" required>
@@ -103,8 +105,16 @@
                         <label for="newCustomerNumber" class="form-label mb-1" style="font-size:13px;">Contact number</label>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text">+63</span>
+                            @* No maxlength. The browser cuts a value to it as
+                               it arrives, so pasting 09121231231 - the same
+                               number in the form everybody writes it - was
+                               truncated to 0912123123 before the script could
+                               take the leading zero off, and a digit went
+                               missing in silence. The script trims to ten
+                               itself, after it has understood what was
+                               pasted. *@
                             <input type="text" id="newCustomerNumber" class="form-control"
-                                   inputmode="numeric" maxlength="10" placeholder="9121231231" />
+                                   inputmode="numeric" placeholder="9121231231" />
                         </div>
                     </div>
                     <div id="newCustomerError" class="text-danger mb-2" style="font-size:12.5px;display:none;"></div>
@@ -361,6 +371,8 @@
 </div>
 
 @section Scripts {
+    @* The + New customer panel above, shared with the quotation screen. *@
+    <script src="~/js/quick-customer.js" asp-append-version="true"></script>
     <script>
         $(function () {
             var $customer = $('#customerId');
@@ -1224,85 +1236,8 @@
             applyPaymentMode();
             refreshStockState();
 
-            // ---- adding a walk-in without leaving the sale ----------------
-            //
-            // Posted with fetch rather than by submitting, because this sits
-            // inside the sale's own form and a form cannot hold another: the
-            // button would submit the sale instead.
-            var $panel = $('#newCustomerPanel');
-            var $error = $('#newCustomerError');
-
-            function showError(message) {
-                $error.text(message).toggle(!!message);
-            }
-
-            $('#newCustomerToggle').on('click', function () {
-                var opening = $panel.is(':hidden');
-                $panel.toggle(opening);
-                showError('');
-                if (opening) { $('#newCustomerLast').trigger('focus'); }
-            });
-
-            $('#newCustomerCancel').on('click', function () {
-                $panel.hide();
-                showError('');
-            });
-
-            // The number is stored as +63 and ten digits, so the box beside
-            // the +63 holds the ten: whatever is pasted is reduced to them.
-            $('#newCustomerNumber').on('input paste', function () {
-                var field = this;
-                setTimeout(function () {
-                    var digits = field.value.replace(/\D/g, '');
-                    if (digits.length === 12 && digits.indexOf('63') === 0) { digits = digits.slice(2); }
-                    else if (digits.length === 11 && digits.charAt(0) === '0') { digits = digits.slice(1); }
-                    digits = digits.slice(0, 10);
-                    if (digits !== field.value) { field.value = digits; }
-                }, 0);
-            });
-
-            $('#newCustomerSave').on('click', function () {
-                var $button = $(this);
-                showError('');
-                $button.prop('disabled', true);
-
-                $.ajax({
-                    url: '@Url.Action("QuickCustomer")',
-                    type: 'POST',
-                    data: {
-                        lastName: $('#newCustomerLast').val(),
-                        firstName: $('#newCustomerFirst').val(),
-                        contactNumber: $('#newCustomerNumber').val(),
-                        __RequestVerificationToken: $('#saleForm input[name="__RequestVerificationToken"]').val()
-                    }
-                }).done(function (result) {
-                    if (result.error) { showError(result.error); return; }
-
-                    var $customer = $('#customerId');
-
-                    // Only ever a customer that did not exist a moment ago -
-                    // one already on file is refused above, not resolved - so
-                    // the option is always new. Guarded anyway: appending a
-                    // second option for one person would be worse than the
-                    // line it saves.
-                    if (!$customer.find('option[value="' + result.id + '"]').length) {
-                        $customer.append($('<option></option>').val(result.id).text(result.name));
-                    }
-
-                    // Selected with change(), so the vehicle list reloads for
-                    // them exactly as it would had they been picked by hand.
-                    $customer.val(String(result.id)).trigger('change');
-
-                    $panel.hide();
-                    $('#newCustomerLast').val('');
-                    $('#newCustomerFirst').val('');
-                    $('#newCustomerNumber').val('');
-                }).fail(function () {
-                    showError('The customer could not be added. Check the connection and try again.');
-                }).always(function () {
-                    $button.prop('disabled', false);
-                });
-            });
+            // The + New customer panel is wwwroot/js/quick-customer.js,
+            // shared with the quotation screen.
         });
     </script>
 }

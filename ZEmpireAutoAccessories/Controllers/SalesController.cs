@@ -109,12 +109,9 @@ namespace ZEmpireAutoAccessories.Controllers
         //
         // A walk-in buying a bottle of wax is still a customer, and sending
         // the person at the counter off to the Customers module to make one
-        // loses the sale they had half-typed. This adds the two fields a sale
-        // actually needs and hands the id straight back to the form.
-        //
-        // It only ever ADDS. A number already on file is refused rather than
-        // quietly resolved to whoever holds it: picking a customer the typist
-        // did not choose is how a sale ends up against the wrong person.
+        // loses the sale they had half-typed. The rules are in
+        // Services/QuickCustomer, shared with the quotation screen, which
+        // asks the same question for the same reason.
         //
         // It lives here rather than on CustomerController because that one is
         // behind the Customers module, and somebody who may ring up a sale is
@@ -126,54 +123,12 @@ namespace ZEmpireAutoAccessories.Controllers
         public async Task<IActionResult> QuickCustomer(
             string? lastName, string? firstName, string? contactNumber)
         {
-            // Two boxes, one column - the same split the Customers module
-            // uses, so a walk-in added here is not a different shape of
-            // record from one added there.
-            var fullName = PersonName.Combine(firstName, lastName);
+            var result = await Services.QuickCustomer.Add(
+                _context, lastName, firstName, contactNumber);
 
-            if (string.IsNullOrWhiteSpace(firstName))
-                return Json(new { error = "Enter the customer's first name." });
-
-            if (string.IsNullOrWhiteSpace(lastName))
-                return Json(new { error = "Enter the customer's last name." });
-
-            var number = PhoneNumber.ToPhilippineMobile(contactNumber);
-            if (number == null)
-                return Json(new { error = "Enter a Philippine mobile number: +63 then 10 digits starting with 9." });
-
-            // This panel adds a customer; it does not find one. A number
-            // already on file is refused and the holder named, the same way
-            // the Customers module refuses it, so the two screens cannot
-            // disagree about whether a number may be reused. Naming them is
-            // the point: the customer is already in the dropdown behind this
-            // panel, and whoever is typing needs to know who to pick.
-            //
-            // Both shapes are looked for: a row entered before the shop moved
-            // to +63 still holds 09121231231, which is the same number.
-            var dialled = PhoneNumber.ToDialledForm(number);
-
-            var holder = await _context.Customers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.ContactNumber == number || c.ContactNumber == dialled);
-
-            if (holder != null)
-                return Json(new
-                {
-                    error = $"That number is already on file for \"{holder.FullName}\". "
-                            + "Close this and pick them from the Customer list."
-                });
-
-            var customer = new Customer
-            {
-                FullName = fullName,
-                ContactNumber = number,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.Customers.Add(customer);
-            await _context.SaveChangesAsync();
-
-            return Json(new { id = customer.CustomerID, name = customer.FullName });
+            return result.Error != null
+                ? Json(new { error = result.Error })
+                : Json(new { id = result.Id, name = result.Name });
         }
 
         // GET: Sale/VehiclesForCustomer?customerId=5

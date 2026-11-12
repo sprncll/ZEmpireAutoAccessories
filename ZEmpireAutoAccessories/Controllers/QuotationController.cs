@@ -120,6 +120,27 @@ namespace ZEmpireAutoAccessories.Controllers
             return Json(vehicles);
         }
 
+        // POST: Quotation/QuickCustomer
+        //
+        // Somebody asking for a price is as likely to be new as somebody
+        // buying, and the quotation screen loses what has been typed the same
+        // way the sale does. Same panel, same rules - see
+        // Services/QuickCustomer - behind this module's own permission rather
+        // than the Customers module's, because making a customer is part of
+        // making a quotation.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> QuickCustomer(
+            string? lastName, string? firstName, string? contactNumber)
+        {
+            var result = await Services.QuickCustomer.Add(
+                _context, lastName, firstName, contactNumber);
+
+            return result.Error != null
+                ? Json(new { error = result.Error })
+                : Json(new { id = result.Id, name = result.Name });
+        }
+
         // GET: Quotation/Pdf/5
         public async Task<IActionResult> Pdf(int? id)
         {
