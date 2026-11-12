@@ -128,6 +128,11 @@
 
         <h6 class="mt-4 mb-2">Line Items</h6>
         <p class="zx-page-sub mb-2">Products priced by panel need a Vehicle picked above to look up the matching price.</p>
+        <div id="priceBlocked" class="alert alert-danger py-2 px-3" style="display:none; font-size:13px;">
+            A line has no price yet. For a product priced by panel, pick the Tint Variant and Panel so the
+            price can be looked up - if there is no price for that combination, an administrator sets one
+            under Pricing.
+        </div>
         <div id="stockBlocked" class="alert alert-danger py-2 px-3" style="display:none; font-size:13px;">
             One or more lines ask for more than there is in stock. Fix the highlighted quantities to continue.
         </div>
@@ -497,7 +502,28 @@
             var saleTotal = 0;
 
             function updateSubmit() {
-                $('#saleForm button[type=submit]').prop('disabled', !(stockOk && paymentOk));
+                $('#saleForm button[type=submit]')
+                    .prop('disabled', !(stockOk && paymentOk && pricesOk()));
+            }
+
+            // Every line that names a product has to carry a price. An empty
+            // Price box posts nothing at all, which used to leave the server
+            // reading three columns of different lengths and walking off the
+            // end of one - an unhandled exception at the counter. It is a
+            // blank box, so it is said as one.
+            function pricesOk() {
+                var ok = true;
+
+                $('.line-row').each(function () {
+                    var $row = $(this);
+                    if (!$row.find('.product-select').val()) { return; }
+
+                    var price = $row.find('.unit-price').val();
+                    if (price === '' || price === null || isNaN(parseFloat(price))) { ok = false; }
+                });
+
+                $('#priceBlocked').toggle(!ok);
+                return ok;
             }
 
             function refreshStockState() {
@@ -638,9 +664,11 @@
                     $row.find('.unit-price').val(parseFloat(price).toFixed(2));
                 }
                 recalcTotal();
+                updateSubmit();
             });
 
             $(document).on('input', 'input[name=quantity], input[name=unitPrice]', function () {
+                updateSubmit();
                 recalcTotal();
                 refreshStockState();
             });
@@ -679,9 +707,11 @@
             });
 
             // Settle the total, the change and the button before anything is
-            // touched - an empty cart cannot be completed.
+            // touched - an empty cart cannot be completed, and neither can a
+            // line with no price.
             recalcTotal();
             applyPaymentMode();
+            refreshStockState();
 
             // ---- adding a walk-in without leaving the sale ----------------
             //

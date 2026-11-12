@@ -234,6 +234,34 @@ namespace ZEmpireAutoAccessories.Controllers
             List<decimal> unitPrice,
             decimal? amountTendered = null)
         {
+            productId ??= new List<int>();
+            quantity ??= new List<int>();
+            unitPrice ??= new List<decimal>();
+
+            // The three lists are one table read column by column, and they
+            // only line up while every box on every row posts a value. An
+            // empty Unit Price does not: the binder cannot make a decimal of
+            // "", so that row's price is simply missing and every price after
+            // it belongs to the row above. Reading them by index then walked
+            // off the end of the list - an unhandled exception at the counter,
+            // with the customer waiting, instead of a word about the one box
+            // that was blank.
+            //
+            // A price is blank when a panel-priced film has no panel picked
+            // yet, or the price list has no row for the one that is - and the
+            // Price box is read-only to staff, so nobody could type over it
+            // either. Say which line it is and send the form back.
+            if (quantity.Count != productId.Count || unitPrice.Count != productId.Count)
+            {
+                ModelState.AddModelError(string.Empty,
+                    "A line is missing its price. For a product priced by panel, pick the "
+                    + "Tint Variant and Panel so the price can be looked up - if there is no "
+                    + "price for that combination yet, an administrator sets one under Pricing.");
+
+                await LoadDropdowns();
+                return View();
+            }
+
             var items = new List<SaleLineRequest>();
             for (int i = 0; i < productId.Count; i++)
             {
