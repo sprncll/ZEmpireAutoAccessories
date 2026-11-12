@@ -1,4 +1,4 @@
-﻿@using ZEmpireAutoAccessories.Models
+@using ZEmpireAutoAccessories.Models
 @model VehicleChecklist
 
 @{
@@ -12,9 +12,14 @@
 
 <div class="zx-page-head">
     <h1>New Vehicle Checklist</h1>
-    <a class="btn btn-outline-secondary" asp-action="Index">
+    @{
+        var returnUrl = Context.Request.Query["returnUrl"].ToString();
+        var cameFromElsewhere = !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl);
+        var backUrl = cameFromElsewhere ? returnUrl : Url.Action("Index");
+    }
+    <a class="btn btn-outline-secondary" href="@backUrl">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
-        Back to list
+        @(cameFromElsewhere ? "Back" : "Back to list")
     </a>
 </div>
 <p class="zx-page-sub">
@@ -38,6 +43,7 @@ else if (available == 0)
 }
 
 <form asp-action="Create" method="post">
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
     <div class="zx-card padded">

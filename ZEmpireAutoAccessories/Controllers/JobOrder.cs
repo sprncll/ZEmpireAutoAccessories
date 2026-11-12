@@ -191,6 +191,24 @@ namespace ZEmpireAutoAccessories.Controllers
             ModelState.Remove(nameof(JobOrder.Vehicle));
             ModelState.Remove(nameof(JobOrder.User));
 
+            // Both are non-nullable, so an empty pick already fails binding -
+            // but as "The value '' is invalid", which tells the person at the
+            // counter nothing. Said plainly instead. A job order is work on a
+            // particular car: without the vehicle there is no classification,
+            // and without that nothing on it can be priced.
+            if (jobOrder.CustomerID <= 0)
+            {
+                ModelState.Remove(nameof(JobOrder.CustomerID));
+                ModelState.AddModelError(nameof(JobOrder.CustomerID), "Choose the customer.");
+            }
+
+            if (jobOrder.VehicleID <= 0)
+            {
+                ModelState.Remove(nameof(JobOrder.VehicleID));
+                ModelState.AddModelError(nameof(JobOrder.VehicleID),
+                    "Choose the vehicle. A job order is work on a particular car, and its class is what prices the work.");
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadHeaderDropdowns(jobOrder);

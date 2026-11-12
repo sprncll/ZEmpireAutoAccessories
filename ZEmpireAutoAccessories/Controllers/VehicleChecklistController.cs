@@ -66,10 +66,27 @@ namespace ZEmpireAutoAccessories.Controllers
             return View(checklists);
         }
 
-        public async Task<IActionResult> Details(int? id)
+        /// <summary>
+        /// Where "Back to list" should land: the screen that sent the user
+        /// here, when that is somewhere in this application, and the checklist
+        /// list otherwise.
+        ///
+        /// A checklist is nearly always opened FROM a job order, and sending
+        /// somebody to the checklist list afterwards strands them two screens
+        /// from the job they were working on.
+        /// </summary>
+        private string BackTo(string? returnUrl) =>
+            !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+                ? returnUrl
+                : Url.Action(nameof(Index))!;
+
+        public async Task<IActionResult> Details(int? id, string? returnUrl = null)
         {
             if (id == null)
                 return NotFound();
+
+            ViewData["BackUrl"] = BackTo(returnUrl);
+            ViewData["ReturnUrl"] = returnUrl;
 
             var checklist = await LoadChecklist(id.Value);
 
@@ -147,7 +164,7 @@ namespace ZEmpireAutoAccessories.Controllers
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        public async Task<IActionResult> Create(int? jobOrderId)
+        public async Task<IActionResult> Create(int? jobOrderId, string? returnUrl = null)
         {
             var checklist = new VehicleChecklist
             {
@@ -169,7 +186,8 @@ namespace ZEmpireAutoAccessories.Controllers
             [Bind("JobOrderID,AdditionalNotes,ClientSignature")] VehicleChecklist checklist,
             List<int> panelId,
             List<string?> existingCondition,
-            List<string?> notes)
+            List<string?> notes,
+            string? returnUrl = null)
         {
             ModelState.Remove(nameof(VehicleChecklist.UserId));
             ModelState.Remove(nameof(VehicleChecklist.JobOrder));
@@ -224,7 +242,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 ? "Checklist created. No panel conditions recorded yet."
                 : $"Checklist saved with {checklist.Details.Count} panel{(checklist.Details.Count == 1 ? "" : "s")} recorded.";
 
-            return RedirectToAction(nameof(Details), new { id = checklist.ChecklistID });
+            return RedirectToAction(nameof(Details), new { id = checklist.ChecklistID, returnUrl });
         }
 
         /// <summary>
@@ -241,7 +259,8 @@ namespace ZEmpireAutoAccessories.Controllers
             string? clientSignature,
             List<int> panelId,
             List<string?> existingCondition,
-            List<string?> notes)
+            List<string?> notes,
+            string? returnUrl = null)
         {
             var checklist = await _context.VehicleChecklists
                 .Include(c => c.Details)
@@ -305,7 +324,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             TempData["Success"] = $"Saved. {saved} panel{(saved == 1 ? "" : "s")} recorded on this checklist.";
 
-            return RedirectToAction(nameof(Details), new { id });
+            return RedirectToAction(nameof(Details), new { id, returnUrl });
         }
 
         public async Task<IActionResult> Pdf(int? id)
@@ -332,15 +351,15 @@ namespace ZEmpireAutoAccessories.Controllers
         /// otherwise start one for it. The job order screen cannot know
         /// which, and should not have to.
         /// </summary>
-        public async Task<IActionResult> ForJobOrder(int jobOrderId)
+        public async Task<IActionResult> ForJobOrder(int jobOrderId, string? returnUrl = null)
         {
             var existing = await _context.VehicleChecklists
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.JobOrderID == jobOrderId);
 
             return existing == null
-                ? RedirectToAction(nameof(Create), new { jobOrderId })
-                : RedirectToAction(nameof(Details), new { id = existing.ChecklistID });
+                ? RedirectToAction(nameof(Create), new { jobOrderId, returnUrl })
+                : RedirectToAction(nameof(Details), new { id = existing.ChecklistID, returnUrl });
         }
 
         public async Task<IActionResult> Delete(int? id)
