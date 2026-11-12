@@ -90,10 +90,22 @@ else if (available == 0)
         <partial name="_Walkaround" model="rows" />
     </div>
 
+    @* Photographs are filed against a checklist, and this one does not exist
+       until it is saved. Rather than leave somebody hunting this screen for
+       an upload box, say where it is. *@
+    <div class="zx-card padded">
+        <h6 class="mb-1">Photos on arrival</h6>
+        <p class="text-muted mb-0" style="font-size:13px;">
+            Save the checklist and the photo boxes appear on the next screen &mdash; up to
+            five, JPG or PNG. A photograph taken before any film is touched is what settles
+            an argument about a scratch afterwards.
+        </p>
+    </div>
+
     <div class="form-actions">
         <button type="submit" class="btn btn-zx" @(total == 0 || available == 0 ? "disabled" : "")>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8" /><path d="M7 3v5h8" /></svg>
-            Save checklist
+            Save &amp; add photos
         </button>
         <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
     </div>
