@@ -1,25 +1,78 @@
-﻿@model ErrorViewModel
+@model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    ViewData["Title"] = "Something went wrong";
+
+    // The usual cause on this system: a script that adds a table, column or
+    // reporting view was not run on this database. Said in words, because
+    // "Invalid object name" means nothing to anyone who did not write it.
+    var looksLikeSchema = Model.ErrorMessage is { } m &&
+        (m.Contains("Invalid object name", StringComparison.OrdinalIgnoreCase) ||
+         m.Contains("Invalid column name", StringComparison.OrdinalIgnoreCase));
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<style>
+    .err-card { max-width: 760px; }
+    .err-head { display: flex; gap: 14px; align-items: flex-start; }
+    .err-ic { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+              background: #fef2f2; color: #b91c1c; }
+    .err-head h1 { font-family: 'Oswald', system-ui, sans-serif; font-weight: 700; font-size: 22px; margin: 2px 0 4px; color: #0b0b0c; }
+    .err-head p { margin: 0; color: #5d6472; font-size: 14.5px; }
+    .err-detail { margin-top: 18px; border: 1px solid #f6d2d4; background: #fff8f8; border-radius: 12px; padding: 14px 16px; }
+    .err-detail .k { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #9b1c1c; }
+    .err-detail pre { margin: 6px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; color: #3b0a0a; }
+    .err-hint { margin-top: 12px; font-size: 13.5px; color: #5d6472; }
+    .err-meta { margin-top: 18px; font-size: 12.5px; color: #98a0ad; }
+    .err-meta code { color: #5d6472; }
+    .err-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+</style>
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+<div class="zx-card padded err-card">
+    <div class="err-head">
+        <span class="err-ic">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        </span>
+        <div>
+            <h1>That page could not be opened</h1>
+            <p>
+                Nothing you entered was lost or half-saved by this screen.
+                Try again; if it keeps happening, tell an Admin which page you were opening.
+            </p>
+        </div>
+    </div>
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+    @if (Model.ErrorMessage != null)
+    {
+        <div class="err-detail">
+            <div class="k">What failed (shown to Admin only)</div>
+            <pre>@Model.ErrorType: @Model.ErrorMessage</pre>
+        </div>
+
+        @if (looksLikeSchema)
+        {
+            <p class="err-hint">
+                The database is missing a table, column or view this page reads. That usually means one of
+                the scripts in the <code>Database</code> folder has not been run on this database yet -
+                check the name above against them.
+            </p>
+        }
+    }
+
+    <div class="err-meta">
+        @if (!string.IsNullOrEmpty(Model.Path))
+        {
+            <span>Page: <code>@Model.Path</code> &middot; </span>
+        }
+        @if (Model.ShowRequestId)
+        {
+            <span>Reference: <code>@Model.RequestId</code></span>
+        }
+    </div>
+
+    <div class="err-actions">
+        @if (!string.IsNullOrEmpty(Model.Path) && Model.Path != "/" && !Model.Path.StartsWith("/Home", StringComparison.OrdinalIgnoreCase))
+        {
+            <a class="btn btn-zx" href="@Model.Path">Try again</a>
+        }
+        <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Index">Go to the dashboard</a>
+    </div>
+</div>

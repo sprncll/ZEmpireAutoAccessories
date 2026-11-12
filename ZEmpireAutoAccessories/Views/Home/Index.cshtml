@@ -319,6 +319,28 @@
     </div>
 </div>
 
+@{
+    var statFailures = ViewData["StatFailures"] as List<(string Tile, string Reason)> ?? new();
+}
+@if (statFailures.Count > 0)
+{
+    @* A figure that could not be read is said, not silently dropped - a
+       missing tile would otherwise look like there was nothing to count. *@
+    <div class="alert alert-warning">
+        <strong>@string.Join(", ", statFailures.Select(f => f.Tile))</strong>
+        could not be loaded, so @(statFailures.Count == 1 ? "it is" : "they are") left off this screen.
+        @if (User.IsInRole("Admin"))
+        {
+            <div class="small mt-1">
+                @foreach (var f in statFailures)
+                {
+                    <div><strong>@f.Tile:</strong> @f.Reason</div>
+                }
+            </div>
+        }
+    </div>
+}
+
 @if (stats.Count > 0)
 {
     <div class="row g-3 stat-row">

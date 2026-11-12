@@ -14,7 +14,8 @@
     // Which screen this is, so its link can be lit and the top bar can say
     // where you are. Null on the dashboard and on Change Password.
     var controller = ViewContext.RouteData.Values["controller"]?.ToString();
-    var onDashboard = string.Equals(controller, "Home", StringComparison.OrdinalIgnoreCase);
+    var onDashboard = string.Equals(controller, "Home", StringComparison.OrdinalIgnoreCase) &&
+                      string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Index", StringComparison.OrdinalIgnoreCase);
     var here = AppNav.Locate(controller);
 }
 <!DOCTYPE html>

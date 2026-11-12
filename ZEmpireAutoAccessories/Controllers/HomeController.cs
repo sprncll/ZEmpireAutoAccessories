@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics;
@@ -33,6 +34,26 @@ namespace ZEmpireAutoAccessories.Controllers
             // the module it links to.
             var stats = new List<DashboardStat>();
 
+            // The dashboard is where everyone lands after signing in, so one
+            // figure that cannot be read - a reporting view missing from this
+            // database, say - must not turn the whole screen into an error
+            // page. Each tile is fetched on its own; one that fails is left
+            // out, logged, and named on the screen, and the rest still show.
+            var failures = new List<(string Tile, string Reason)>();
+
+            async Task Tile(string name, Func<Task> load)
+            {
+                try
+                {
+                    await load();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Dashboard tile {Tile} could not be loaded", name);
+                    failures.Add((name, ex.GetBaseException().Message));
+                }
+            }
+
             // Peso figures are Admin-only - Staff still gets the operational
             // counts below (job orders, stock, warranties), just not revenue.
             // Everything taken today, not product sales alone - most of this
@@ -47,6 +68,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var seesInvoices = modules.Contains("Service Invoices");
 
             if ((seesSales || seesInvoices) && User.IsInRole("Admin"))
+            await Tile("Collected Today", async () =>
             {
                 var today = await _reportService.GetDailySales();
 
@@ -61,9 +83,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 stats.Add(new DashboardStat(label, "₱" + amount.ToString("N2"),
                     Url.Action("Index", "Cashiering")!, "sales", StatTone.Plain,
                     DateTime.Today.ToString("MMM d")));
-            }
+            });
 
             if (modules.Contains("Job Orders"))
+            await Tile("Pending Job Orders", async () =>
             {
                 var pending = await _context.JobOrders.CountAsync(j => j.Status == "Pending");
 
@@ -74,9 +97,10 @@ namespace ZEmpireAutoAccessories.Controllers
                     Url.Action("Index", "JobOrder", new { status = "Pending" })!, "jobs",
                     pending > 0 ? StatTone.Waiting : StatTone.Plain,
                     pending == 0 ? "Nothing waiting" : "Not started yet"));
-            }
+            });
 
             if (modules.Contains("Inventory"))
+            await Tile("Low Stock Items", async () =>
             {
                 var lowStock = (await _reportService.GetLowStock()).Count;
 
@@ -87,18 +111,20 @@ namespace ZEmpireAutoAccessories.Controllers
                     Url.Action("Index", "Inventory", new { status = "LowStock" })!, "stock",
                     lowStock > 0 ? StatTone.Attention : StatTone.Plain,
                     lowStock == 0 ? "All stocked" : "Running out"));
-            }
+            });
 
             if (modules.Contains("Warranty"))
+            await Tile("Active Warranties", async () =>
             {
                 var active = await _context.Warranties.CountAsync(w => w.WarrantyStatus == "Active");
                 stats.Add(new DashboardStat(
                     "Active Warranties", active.ToString(),
                     Url.Action("Index", "Warranty", new { status = "Active" })!, "warranty",
                     StatTone.Plain, "Currently covered"));
-            }
+            });
 
             ViewData["Stats"] = stats;
+            ViewData["StatFailures"] = failures;
             return View();
         }
 
@@ -111,7 +137,28 @@ namespace ZEmpireAutoAccessories.Controllers
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
         public IActionResult Error()
         {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+            // What failed and where. UseExceptionHandler has already written
+            // the full exception to the log; this is so somebody standing at
+            // the counter can say more than "it broke".
+            var failure = HttpContext.Features.Get<IExceptionHandlerPathFeature>();
+
+            var model = new ErrorViewModel
+            {
+                RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier,
+                Path = failure?.Path,
+            };
+
+            // The reason itself goes to Admin only. It can name tables and
+            // columns, which is exactly what the owner needs to fix a missing
+            // script and nothing a cashier needs to see.
+            if (failure?.Error is { } error && User.IsInRole("Admin"))
+            {
+                var root = error.GetBaseException();
+                model.ErrorType = root.GetType().Name;
+                model.ErrorMessage = root.Message;
+            }
+
+            return View(model);
         }
     }
 }
