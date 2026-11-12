@@ -87,12 +87,22 @@ else
         <div class="row">
             <div class="col-md-6 mb-3">
                 <label asp-for="WarrantyStartDate" class="form-label"></label>
-                <input asp-for="WarrantyStartDate" type="date" class="form-control" />
+                @* A warranty cannot begin before the work was done. On an
+                   existing one the stored date is honoured even if it has
+                   since passed, or editing a remark would be refused over a
+                   date nobody touched. *@
+                <input asp-for="WarrantyStartDate" type="date" class="form-control"
+                       min="@(Model.WarrantyStartDate is { } s && s < DateOnly.FromDateTime(DateTime.Today)
+                              ? s.ToString("yyyy-MM-dd")
+                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="WarrantyStartDate" class="text-danger"></span>
             </div>
             <div class="col-md-6 mb-3">
                 <label asp-for="WarrantyEndDate" class="form-label"></label>
-                <input asp-for="WarrantyEndDate" type="date" class="form-control" />
+                <input asp-for="WarrantyEndDate" type="date" class="form-control"
+                       min="@(Model.WarrantyEndDate is { } e && e < DateOnly.FromDateTime(DateTime.Today)
+                              ? e.ToString("yyyy-MM-dd")
+                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="WarrantyEndDate" class="text-danger"></span>
             </div>
         </div>

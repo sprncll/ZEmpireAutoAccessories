@@ -342,6 +342,24 @@ namespace ZEmpireAutoAccessories.Controllers
                     "The end date can't be before the start date.");
             }
 
+            // The form's date picker will not offer a day that has gone, but
+            // that is the browser's doing and a posted form need not have come
+            // from it. A warranty beginning before the work was done is not a
+            // typo worth keeping.
+            var today = DateOnly.FromDateTime(DateTime.Today);
+
+            if (warranty.WarrantyStartDate != null && warranty.WarrantyStartDate < today)
+            {
+                ModelState.AddModelError(nameof(Warranty.WarrantyStartDate),
+                    "A warranty can't start on a date that has already passed.");
+            }
+
+            if (warranty.WarrantyEndDate != null && warranty.WarrantyEndDate < today)
+            {
+                ModelState.AddModelError(nameof(Warranty.WarrantyEndDate),
+                    "A warranty can't end on a date that has already passed.");
+            }
+
             if (!ModelState.IsValid)
             {
                 // Came in from a line item - keep the banner and the hidden
@@ -400,6 +418,30 @@ namespace ZEmpireAutoAccessories.Controllers
             {
                 ModelState.AddModelError(nameof(Warranty.WarrantyEndDate),
                     "The end date can't be before the start date.");
+            }
+
+            // A past date is refused only when this edit is what put it there.
+            // An old warranty's dates are in the past by now and always will
+            // be; refusing them would mean a remark could never be corrected
+            // on a warranty more than a day old.
+            var stored = await _context.Warranties
+                .AsNoTracking()
+                .FirstOrDefaultAsync(w => w.WarrantyID == id);
+
+            var now = DateOnly.FromDateTime(DateTime.Today);
+
+            if (warranty.WarrantyStartDate != null && warranty.WarrantyStartDate < now
+                && warranty.WarrantyStartDate != stored?.WarrantyStartDate)
+            {
+                ModelState.AddModelError(nameof(Warranty.WarrantyStartDate),
+                    "A warranty can't be moved to a start date that has already passed.");
+            }
+
+            if (warranty.WarrantyEndDate != null && warranty.WarrantyEndDate < now
+                && warranty.WarrantyEndDate != stored?.WarrantyEndDate)
+            {
+                ModelState.AddModelError(nameof(Warranty.WarrantyEndDate),
+                    "A warranty can't be moved to an end date that has already passed.");
             }
 
             if (!ModelState.IsValid)

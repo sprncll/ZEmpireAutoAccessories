@@ -21,7 +21,8 @@
        which is where a walkaround actually gets typed. */
     .walkaround { display:flex; flex-direction:column; }
 
-    .wa-row { display:grid; grid-template-columns: 1.1fr 1.2fr 2fr; gap:12px; align-items:center;
+    .wa-notes { min-height:58px; resize:vertical; line-height:1.35; }
+    .wa-row { display:grid; grid-template-columns: 1.1fr 1.2fr 2fr; gap:12px; align-items:start;
               padding:9px 0; border-bottom:1px solid #eef0f3; }
     .wa-row:last-child { border-bottom:none; }
 
@@ -85,8 +86,9 @@
             </div>
 
             <div>
-                <input type="text" name="notes" class="form-control form-control-sm"
-                       value="@row.Notes" maxlength="400" placeholder="Where on the panel, how bad" />
+                <textarea name="notes" class="form-control form-control-sm wa-notes"
+                          rows="2" maxlength="400"
+                          placeholder="Where on the panel, how bad">@row.Notes</textarea>
             </div>
         </div>
     }
