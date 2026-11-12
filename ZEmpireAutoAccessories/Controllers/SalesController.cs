@@ -248,6 +248,27 @@ namespace ZEmpireAutoAccessories.Controllers
                 }
             }
 
+            // The same PRODUCT on two rows is one line of two, not two
+            // lines of one - the rule the job order and the quotation keep,
+            // and a receipt a customer reads should add up the same way.
+            // Four rows of "Armor Rear Side Step" at 1 tell nobody anything
+            // the single row "4" does not, and they invite somebody voiding
+            // a duplicate to take off a quantity that was really sold.
+            //
+            // Only lines that agree on the price are folded: a different
+            // price is a different deal and stays its own line. The first
+            // appearance keeps its place in the list, so the receipt reads in
+            // the order the counter wrote it.
+            items = items
+                .GroupBy(i => new { i.ProductID, i.UnitPrice })
+                .Select(g => new SaleLineRequest
+                {
+                    ProductID = g.Key.ProductID,
+                    UnitPrice = g.Key.UnitPrice,
+                    Quantity = g.Sum(x => x.Quantity)
+                })
+                .ToList();
+
             if (items.Count == 0)
             {
                 ModelState.AddModelError(string.Empty, "Add at least one line item.");

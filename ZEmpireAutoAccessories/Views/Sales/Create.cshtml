@@ -25,6 +25,19 @@
 <style>
     #grandTotal { font-weight:700; font-size:18px; }
 
+    /* A box nobody can use is not a box. A step board has no tint variant
+       and no panel, and a row of greyed "-- N/A --" controls asks somebody
+       to work out which of them they are meant to ignore - the same rule
+       the job order's line form keeps, in the shape a table allows. */
+    td.line-na > .ss-wrap, td.line-na > select { display:none; }
+    td.line-na::after { content:"\2014"; color:#9aa2ad; }
+
+    /* The same product written on two rows. Said while it can still be
+       changed, rather than discovered on the receipt. */
+    #duplicateLines { font-size:12.5px; color:#8a6d1f; background:#fdf6e3;
+                      border:1px solid #f0e3bd; border-radius:6px;
+                      padding:7px 11px; margin-bottom:12px; display:none; }
+
     /* Same payment card as the service invoice, so the counter reads the
        same whichever document is being settled. */
     .pay-card { border-top:1px solid #e8ebf0; margin-top:6px; padding-top:18px; }
@@ -147,12 +160,12 @@
                             }
                         </select>
                     </td>
-                    <td>
+                    <td class="line-na">
                         <select class="form-select tint-variant-select" disabled>
                             <option value="">-- N/A --</option>
                         </select>
                     </td>
-                    <td>
+                    <td class="line-na">
                         <select class="form-select panel-select" disabled>
                             <option value="">-- N/A --</option>
                         </select>
@@ -166,6 +179,7 @@
             </tbody>
         </table>
         </div>
+        <div id="duplicateLines"></div>
         <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="addRow">+ Add Item</button>
         @if (!canEditPrice)
         {
@@ -183,12 +197,12 @@
                         }
                     </select>
                 </td>
-                <td>
+                <td class="line-na">
                     <select class="form-select tint-variant-select" disabled>
                         <option value="">-- N/A --</option>
                     </select>
                 </td>
-                <td>
+                <td class="line-na">
                     <select class="form-select panel-select" disabled>
                         <option value="">-- N/A --</option>
                     </select>
@@ -322,6 +336,46 @@
 
             function resetSelect($select, placeholder) {
                 $select.empty().append($('<option></option>').val('').text(placeholder)).prop('disabled', true);
+
+                // "-- N/A --" means this product has no such thing, so the
+                // cell reads as a dash. The other placeholders are
+                // instructions - "-- Select Tint Variant First --" is worth
+                // showing, and stays a box.
+                $select.closest('td').toggleClass('line-na', placeholder === '-- N/A --');
+            }
+
+            // A cell with something to pick is a box again.
+            function usable($select) {
+                $select.prop('disabled', false).closest('td').removeClass('line-na');
+            }
+
+            // The same product written on more than one row is one line of
+            // several: four rows of "Armor Rear Side Step" at 1 tell the
+            // customer nothing the single row "4" does not, and they invite
+            // somebody deleting a duplicate to remove a quantity that was
+            // really sold. The sale folds them together when it is saved -
+            // this says so while the rows can still be changed.
+            function showDuplicates() {
+                var counts = {};
+                var names = {};
+
+                $('#linesTable tbody .line-row').each(function () {
+                    var $product = $(this).find('.product-select');
+                    var id = $product.val();
+                    if (!id) { return; }
+
+                    counts[id] = (counts[id] || 0) + 1;
+                    names[id] = ($product.find(':selected').text() || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+                });
+
+                var repeated = Object.keys(counts).filter(function (id) { return counts[id] > 1; });
+                var $note = $('#duplicateLines');
+
+                if (repeated.length === 0) { $note.hide().text(''); return; }
+
+                $note.text(repeated.map(function (id) {
+                    return names[id] + ' is on ' + counts[id] + ' rows';
+                }).join('; ') + ' - each is added together into one line when the sale is saved.').show();
             }
 
             function refreshPanels($row, tintVariantId) {
@@ -337,7 +391,7 @@
                 $.each(rows, function (i, r) {
                     $panel.append($('<option></option>').val(r.panelId).text(r.panelName).attr('data-price', r.price));
                 });
-                $panel.prop('disabled', false);
+                usable($panel);
 
                 // Only one panel option for this product/variant - skip
                 // making the user pick it themselves.
@@ -371,7 +425,7 @@
                 $.each(variants, function (i, v) {
                     $tint.append($('<option></option>').val(v.id).text(v.name));
                 });
-                $tint.prop('disabled', false);
+                usable($tint);
                 resetSelect($row.find('.panel-select'), '-- Select Tint Variant First --');
 
                 if (variants.length === 1) {
@@ -592,6 +646,7 @@
             });
 
             $(document).on('change', '.product-select', refreshStockState);
+            $(document).on('change', '.product-select', showDuplicates);
 
             $('#addRow').on('click', function () {
                 // Clone from the inert <template>, not the live first row -
@@ -601,6 +656,7 @@
                 var frag = document.getElementById('lineRowTemplate').content.cloneNode(true);
                 $('#linesTable tbody').append(frag);
                 refreshStockState();
+                showDuplicates();
             });
 
             $(document).on('click', '.remove-row', function () {
@@ -619,6 +675,7 @@
                 // the warning and the button are worked out again rather than
                 // left on the last answer.
                 refreshStockState();
+                showDuplicates();
             });
 
             // Settle the total, the change and the button before anything is
