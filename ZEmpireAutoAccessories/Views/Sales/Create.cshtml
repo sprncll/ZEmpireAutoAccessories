@@ -44,6 +44,8 @@
     td .classification-select { display:none; }
     td.asks-class .classification-select { display:block; }
     td.asks-class .classification-select { margin-top:0; }
+    .qty-label { font-size:11px; font-weight:600; color:#7b8290; text-transform:uppercase;
+                 letter-spacing:.3px; margin-bottom:2px; }
     .cut-note { font-size:11.5px; color:#2f7a3e; margin-top:4px; line-height:1.4; font-weight:600; }
     .cut-note.missing { color:#b91c1c; font-weight:500; }
 
@@ -210,7 +212,8 @@
                         </select>
                     </td>
                     <td>
-                        <input type="number" name="quantity" class="form-control" value="1" min="1" required />
+                        <input type="number" name="quantity" class="form-control" value="1" min="1" required
+                           title="How many - metres, where film is sold off the roll" />
                         @* Hidden on a non-film row, and posting its blank either way: this
                            column has to stay the same length as the ones beside it. *@
                         <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
@@ -273,7 +276,8 @@
                     </select>
                 </td>
                 <td>
-                    <input type="number" name="quantity" class="form-control" value="1" min="1" required />
+                    <input type="number" name="quantity" class="form-control" value="1" min="1" required
+                           title="How many - metres, where film is sold off the roll" />
                     @* Hidden on a non-film row, and posting its blank either way: this
                        column has to stay the same length as the ones beside it. *@
                     <select name="classificationId" class="form-select classification-select mt-1" data-searchable="false">
@@ -773,6 +777,16 @@
 
                 $qty.toggle(!isFilm || byLength);
                 if (isFilm && !byLength) { $qty.val(1); }
+
+                // Where the box IS the answer on a film row, it is counting
+                // metres off the roll - and a bare "1" in a column headed Qty
+                // does not say that.
+                var $qtyLabel = $row.find('.qty-label');
+                if (byLength) {
+                    if ($qtyLabel.length === 0) { $qty.before('<div class="qty-label">Metres</div>'); }
+                } else {
+                    $qtyLabel.remove();
+                }
 
                 if (!panelId) {
                     var waitingForVariant = priced
