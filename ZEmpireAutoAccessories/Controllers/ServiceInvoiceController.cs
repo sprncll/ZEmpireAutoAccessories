@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -526,6 +526,29 @@ namespace ZEmpireAutoAccessories.Controllers
                 return RedirectToAction(nameof(Details), new { id = serviceInvoiceId });
             }
 
+            // A service goes on the invoice once. Billing the fitting twice is
+            // a quantity of two on the one line, not two lines - unlike a
+            // product, there is no second price for labour to justify a
+            // separate one. Adding it again is a slip, so it is said out loud
+            // rather than quietly folded into the document.
+            if (serviceId != null)
+            {
+                var already = await _context.ServiceInvoiceDetails
+                    .Include(d => d.Service)
+                    .FirstOrDefaultAsync(d =>
+                        d.ServiceInvoiceID == serviceInvoiceId && d.ServiceID == serviceId);
+
+                if (already != null)
+                {
+                    TempData["LineError"] =
+                        $"\"{already.Service?.ServiceName}\" is already on this invoice "
+                        + $"at a quantity of {already.Quantity:0.##}. "
+                        + "Change that line's quantity rather than adding it again.";
+
+                    return RedirectToAction(nameof(Details), new { id = serviceInvoiceId });
+                }
+            }
+
             // The variant and the shade say what was FITTED, so they are kept
             // when they really belong to the product rather than when a price
             // happens to exist for them.
@@ -909,6 +932,18 @@ namespace ZEmpireAutoAccessories.Controllers
                     tintVariantName = v.VariantName
                 })
                 .ToListAsync();
+
+            // Every panel a line can name, one row per panel. A film always
+            // has to say which part of the vehicle it covers, and the price
+            // matrix cannot be asked for that: a film with no price row for
+            // this class of vehicle has no panels in the matrix at all, so the
+            // picker offered none and the line went onto the document saying
+            // only the product's name. The matrix still decides the price
+            // where it has one; this list only decides what can be named.
+            ViewData["AllPanels"] = WalkaroundPanels
+                .ForPricing(await _context.Panels.ToListAsync())
+                .Select(p => new { panelId = p.PanelID, panelName = p.PanelName })
+                .ToList();
 
             ViewData["ShadesByVariant"] = await _context.Shades
                 .OrderBy(sh => sh.ShadeName)

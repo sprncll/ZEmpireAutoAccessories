@@ -1,4 +1,4 @@
-namespace ZEmpireAutoAccessories.Models
+﻿namespace ZEmpireAutoAccessories.Models
 {
     /// <summary>
     /// Which panels a condition walkaround asks about, and in what order.
@@ -154,6 +154,29 @@ namespace ZEmpireAutoAccessories.Models
 
             return new[] { answered ?? canonical ?? rows.OrderBy(p => p.PanelID).First() };
         }
+
+        private static readonly HashSet<int> NothingRecorded = new();
+
+        /// <summary>
+        /// The panels a LINE ITEM can be priced against: one row per panel, in
+        /// the same walkaround order, with the bundles kept and sent to the
+        /// end.
+        ///
+        /// Two differences from <see cref="Walkaround"/>, and both matter.
+        /// "Full Wrap" and "Whole Vehicle" are nonsense on a condition sheet
+        /// but perfectly ordinary on a price list, so they stay. And nothing
+        /// has been recorded against these - there is no checklist here - so
+        /// where two rows name the same glass the canonical one wins, which is
+        /// the name the price scripts key on.
+        /// </summary>
+        public static List<Panel> ForPricing(IEnumerable<Panel> all) =>
+            all
+                .GroupBy(p => GroupKey(p.PanelName))
+                .SelectMany(group => OnePerPanel(group, NothingRecorded))
+                .OrderBy(p => IsBundle(p.PanelName) ? 1 : 0)
+                .ThenBy(p => Rank(p.PanelName))
+                .ThenBy(p => p.PanelName, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
         /// <summary>
         /// The sheet to walk: one row per piece of glass, plus any bundle that

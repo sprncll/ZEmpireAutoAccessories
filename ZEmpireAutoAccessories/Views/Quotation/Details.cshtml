@@ -1,10 +1,11 @@
-@model ZEmpireAutoAccessories.Models.Quotation
+﻿@model ZEmpireAutoAccessories.Models.Quotation
 
 @{
     ViewData["Title"] = "Quotation Details";
     var successMessage = TempData["Success"] as string;
     var convertError = TempData["ConvertError"] as string;
     var lockError = TempData["LockError"] as string;
+    var lineError = TempData["LineError"] as string;
 
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
     var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
@@ -59,6 +60,10 @@
 @if (!string.IsNullOrEmpty(lockError))
 {
     <div class="alert alert-danger">@lockError</div>
+}
+@if (!string.IsNullOrEmpty(lineError))
+{
+    <div class="alert alert-danger">@lineError</div>
 }
 
 <div class="zx-card padded">
@@ -348,6 +353,12 @@
         // either one or the other.
         (function () {
             var pricingMatrix = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["PricingMatrix"]));
+
+            // Every panel in the catalogue, one row per panel. The matrix
+            // above only holds panels somebody has PRICED for this class of
+            // vehicle; this is the list of panels that exist, which is what a
+            // film line needs to be able to say what it covers.
+            var allPanels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewData["AllPanels"] ?? new List<object>()));
             var $product = $('#addLineProduct');
             var $service = $('#addLineService');
             // Every tint variant each product has, from cat.TintVariant rather
@@ -380,9 +391,23 @@
             // and panel only mean anything once a film has been picked, and a
             // row of boxes reading "-- N/A --" asks somebody to work out which
             // of them they are meant to ignore.
+            // Is the product on the form a film? Roll goods are the test:
+            // tint and PPF are what the shop buys by the metre, and nothing
+            // else on the product list is.
+            function filmPicked() {
+                return !!$product.val() && $product.find(':selected').data('roll') === true;
+            }
+
             function showIfUsable($select) {
                 var usable = !$select.prop('disabled') && $select.find('option').length > 1;
-                $('#wrap-' + $select.attr('id')).toggle(usable);
+
+                // For a film the three boxes stay on screen whether or not
+                // they have anything in them. What a film line contains -
+                // panel, tint variant, shade - is the substance of the line,
+                // so a box saying nothing is on file is worth more than no box
+                // at all: it is the difference between a gap somebody can go
+                // and fill and a screen that looks like it works.
+                $('#wrap-' + $select.attr('id')).toggle(usable || filmPicked());
             }
 
             function refreshPanels() {
@@ -404,6 +429,25 @@
                         : false;
                     var hasVariants = !$tintVariant.prop('disabled')
                         && $tintVariant.find('option').length > 1;
+
+                    // A film still has to say which panel it covers, so
+                    // when the matrix has no row for it the whole panel list
+                    // is offered instead. These options carry no price, so the
+                    // Price box keeps whatever is in it and is typed over by
+                    // hand - an unpriced panel is a price to agree, not a
+                    // reason to leave the job sheet silent about the glass.
+                    if (filmPicked() && !pricedByPanel && allPanels.length > 0) {
+                        $panel.empty()
+                              .append($('<option></option>').val('').text('-- Select Panel (no matrix price) --'))
+                              .prop('disabled', false);
+
+                        allPanels.forEach(function (p) {
+                            $panel.append($('<option></option>').val(p.panelId).text(p.panelName));
+                        });
+
+                        showIfUsable($panel);
+                        return;
+                    }
 
                     resetSelect($panel,
                         !productId ? '-- N/A --'
@@ -441,6 +485,7 @@
                     // picked yet, and a variant whose shades nobody has recorded.
                     resetSelect($shade, tintVariantId
                         ? '-- No shades on file for this variant --'
+                        : filmPicked() ? '-- Pick a tint variant first --'
                         : '-- N/A --');
                     return;
                 }
@@ -470,7 +515,11 @@
 
                 if (variants.length === 0) {
                     // This product genuinely has no variants - most do not.
-                    resetSelect($tintVariant, '-- N/A --');
+                    // On a film that is a gap in the catalogue rather than a
+                    // fact about the product, so it says so.
+                    resetSelect($tintVariant, filmPicked()
+                        ? '-- No tint variants on file for this film --'
+                        : '-- N/A --');
                 } else {
                     $tintVariant.empty().append($('<option></option>').val('').text('-- Select Variant --')).prop('disabled', false);
                 showIfUsable($tintVariant);

@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -487,14 +487,51 @@ namespace ZEmpireAutoAccessories.Controllers
                     keptShadeId = shadeId;
                 }
 
-                var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;
-                var linePanelId = pricingId != null ? panelId : null;
+                // A service is on the order once. Doing the fitting twice is
+                // a quantity of two on the one line, not two lines - and
+                // unlike a product, there is no second price for labour to
+                // justify a separate one. Adding it again is a slip, so it is
+                // said out loud rather than quietly folded into the line.
+                if (serviceId != null)
+                {
+                    var already = await _context.JobOrderDetails
+                        .Include(d => d.Service)
+                        .FirstOrDefaultAsync(d =>
+                            d.JobOrderID == jobOrderId && d.ServiceID == serviceId);
 
-                // The same thing added twice is one line of two, not two
+                    if (already != null)
+                    {
+                        TempData["LineError"] =
+                            $"\"{already.Service?.ServiceName}\" is already on this job order "
+                            + $"at a quantity of {already.Quantity:0.##}. "
+                            + "Change that line's quantity rather than adding it again.";
+
+                        return RedirectToAction(nameof(Details), new { id = jobOrderId });
+                    }
+                }
+
+                var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;
+
+                // A panel is what the line COVERS, not what it costs. Tying
+                // it to pricingId meant a film with no price row for this
+                // class of vehicle had its panel thrown away too, so the line
+                // reached the job sheet naming the film and nothing else -
+                // not which glass it was cut for. Keep any real panel and let
+                // the price fend for itself, exactly as the variant and the
+                // shade above.
+                int? linePanelId = null;
+                if (productId != null && panelId != null
+                    && await _context.Panels.AnyAsync(p => p.PanelID == panelId))
+                {
+                    linePanelId = panelId;
+                }
+
+                // The same PRODUCT added twice is one line of two, not two
                 // lines of one. Three rows reading "Armor Rear Side Step" at
                 // 1, 1 and 4 tell a customer nothing the single row "6" does
                 // not, and they invite somebody deleting a duplicate to
-                // remove a quantity that was really sold.
+                // remove a quantity that was really sold. A service never
+                // reaches here - it is refused above.
                 //
                 // Only a line that matches in every respect is added to:
                 // same product or service, same variant, shade and panel,
@@ -727,6 +764,18 @@ namespace ZEmpireAutoAccessories.Controllers
                     tintVariantName = v.VariantName
                 })
                 .ToListAsync();
+
+            // Every panel a line can name, one row per panel. A film always
+            // has to say which part of the vehicle it covers, and the price
+            // matrix cannot be asked for that: a film with no price row for
+            // this class of vehicle has no panels in the matrix at all, so the
+            // picker offered none and the line went onto the document saying
+            // only the product's name. The matrix still decides the price
+            // where it has one; this list only decides what can be named.
+            ViewData["AllPanels"] = WalkaroundPanels
+                .ForPricing(await _context.Panels.ToListAsync())
+                .Select(p => new { panelId = p.PanelID, panelName = p.PanelName })
+                .ToList();
 
             ViewData["ShadesByVariant"] = await _context.Shades
                 .OrderBy(s => s.ShadeName)
