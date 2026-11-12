@@ -1,4 +1,4 @@
-html {
+﻿html {
   font-size: 14px;
 }
 
@@ -782,4 +782,14 @@ body {
 
 .zx-photo figcaption form {
     margin: 0;
+}
+
+/* How many rows a list is showing, above the list. Written by
+   live-filter.js on any screen that has not already got a line of its own,
+   because a filtered list that does not say it is filtered is a list with
+   rows mysteriously missing. */
+.live-meta {
+  font-size: 12.5px;
+  color: #7b8290;
+  margin: 0 2px 8px;
 }

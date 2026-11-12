@@ -261,7 +261,7 @@
            seventy-four. The form still posts for anyone without JavaScript,
            and the address bar still carries the search. *@
         <input type="text" id="inventorySearch" name="q" value="@search" autofocus
-               class="form-control search-input" placeholder="Search product   /" autocomplete="off" />
+               class="form-control search-input" placeholder="Search product   /" autocomplete="off" data-live-noun="products" />
     </div>
     <button type="submit" class="btn btn-outline-secondary">Search</button>
     @if (!string.IsNullOrEmpty(search))
@@ -420,93 +420,24 @@
 
 @section Scripts {
     <script>
+        // Filtering, "/" and Escape are in wwwroot/js/live-filter.js, which
+        // every list screen gets. This is the part only this one needs.
         (function () {
-            var search = document.getElementById('inventorySearch');
-            var table = document.getElementById('linesBody');
-            var count = document.getElementById('listCount');
-            var empty = document.getElementById('noMatch');
-            if (!search || !table) { return; }
-
-            var rows = Array.prototype.slice.call(table.querySelectorAll('.stock-row'));
-            var bands = Array.prototype.slice.call(table.querySelectorAll('.cat-row'));
-            var total = rows.length;
-
-            // Filtering here rather than on the server.
-            //
-            // Seventy-four rows are already on the page; asking the server
-            // which of them match means a round trip, a reload and a lost
-            // cursor for every letter typed. The Search button still works,
-            // and still puts the term in the address bar for a link somebody
-            // can keep - this only means the list answers while the staff
-            // are still typing.
-            function apply() {
-                var term = search.value.trim().toLowerCase();
-                var shown = 0;
-
-                rows.forEach(function (row) {
-                    var match = !term || row.getAttribute('data-name').indexOf(term) !== -1;
-                    row.hidden = !match;
-                    if (match) { shown++; }
-                });
-
-                // A category band with nothing under it is a heading for an
-                // empty shelf.
-                bands.forEach(function (band) {
-                    var cat = band.getAttribute('data-cat');
-                    var any = rows.some(function (row) {
-                        return !row.hidden && row.getAttribute('data-cat') === cat;
-                    });
-                    band.hidden = !any;
-                });
-
-                if (empty) { empty.hidden = shown > 0; }
-
-                count.textContent = !term
-                    ? total + (total === 1 ? ' product' : ' products')
-                    : shown + ' of ' + total + ' match "' + search.value.trim() + '"';
-            }
-
-            search.addEventListener('input', apply);
-
-            // Escape clears it, which is faster than selecting and deleting.
-            search.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape' && search.value) {
-                    e.preventDefault();
-                    search.value = '';
-                    apply();
-                }
-            });
-
-            // "/" jumps to the search from anywhere on the page, so hands
-            // stay on the keyboard between one product and the next.
-            document.addEventListener('keydown', function (e) {
-                if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) { return; }
-
-                var inField = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
-                if (inField) { return; }
-
-                e.preventDefault();
-                search.focus();
-                search.select();
-            });
-
-            apply();
-
             // Back from a movement: put the cursor where it was and say which
-            // row changed. Taking in a delivery is ten of these one after
-            // another, and finding the same row again each time is most of
-            // the work.
+            // row changed. Taking in a delivery is ten movements one after
+            // another, and the reload used to forget where you were - which
+            // left the next one to be hunted down the page.
             var focusId = @(ViewData["Focus"] is int f ? f : 0);
-            if (focusId) {
-                var row = table.querySelector('.stock-row[data-product="' + focusId + '"]');
-                if (row) {
-                    row.classList.add('just-moved');
-                    row.scrollIntoView({ block: 'center' });
+            if (!focusId) { return; }
 
-                    var box = row.querySelector('.move-qty');
-                    if (box) { box.focus(); }
-                }
-            }
+            var row = document.querySelector('.stock-row[data-product="' + focusId + '"]');
+            if (!row) { return; }
+
+            row.classList.add('just-moved');
+            row.scrollIntoView({ block: 'center' });
+
+            var box = row.querySelector('.move-qty');
+            if (box) { box.focus(); }
         })();
     </script>
 }

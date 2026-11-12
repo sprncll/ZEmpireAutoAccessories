@@ -225,6 +225,10 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/searchable-select.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @* Every list screen has a search box and a table under it; this filters
+       the one with the other as the letters are typed. It finds its own work
+       and does nothing on a page with no search box. *@
+    <script src="~/js/live-filter.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
