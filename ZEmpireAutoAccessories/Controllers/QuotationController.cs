@@ -236,6 +236,17 @@ namespace ZEmpireAutoAccessories.Controllers
             if (existing == null)
                 return NotFound();
 
+            // A discount is money off, so it goes the way a price does: a
+            // staff member does not set one, and whatever an administrator
+            // set stays. The field posts whether or not the form shows it
+            // read-only, so the stored figure is put back rather than
+            // trusted.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                quotation.DiscountAmount = existing.DiscountAmount;
+                ModelState.Remove(nameof(Quotation.DiscountAmount));
+            }
+
             // CK_Quotation_Total requires TotalAmount >= 0, so a discount
             // bigger than the lines plus tax is refused by the database. Say
             // so against the Discount field instead of failing on save.
@@ -349,6 +360,14 @@ namespace ZEmpireAutoAccessories.Controllers
 
                     return RedirectToAction(nameof(Details), new { id = quotationId });
                 }
+
+                // And one job is all it ever is. The same fitting done twice is a
+                // second visit, not a quantity of two on one line - the price of
+                // the work would be multiplied by it, which is what turned a 500-
+                // peso fitting into a line reading 1,500. The Qty box is off the
+                // screen for a service; this is what makes that true of a posted
+                // form as well.
+                quantity = 1;
             }
 
             if (quantity > 0 && unitPrice >= 0 && (productId != null || serviceId != null))
@@ -357,17 +376,49 @@ namespace ZEmpireAutoAccessories.Controllers
                 // Vehicle Classification x Panel) this line's price came from,
                 // when the Add Line Item form resolved one client-side.
                 int? pricingId = null;
+                decimal? bookPrice = null;
                 if (productId != null && panelId != null)
                 {
-                    pricingId = await _context.Pricings
+                    var priced = await _context.Pricings
                         .Where(p =>
                             p.ProductID == productId &&
                             p.TintVariantID == tintVariantId &&
                             p.VehicleClassificationID == quotation.Vehicle.VehicleClassificationID &&
                             p.PanelID == panelId)
-                        .Select(p => (int?)p.PricingID)
+                        .Select(p => new { p.PricingID, p.Price })
                         .FirstOrDefaultAsync();
+
+                    if (priced != null)
+                    {
+                        pricingId = priced.PricingID;
+                        bookPrice = priced.Price;
+                    }
                 }
+
+                // Nothing in the matrix for this combination: fall back to
+                // what the catalogue says the thing costs on its own.
+                bookPrice ??= serviceId != null
+                    ? await _context.Services
+                        .Where(x => x.ServiceID == serviceId)
+                        .Select(x => (decimal?)x.DefaultPrice)
+                        .FirstOrDefaultAsync()
+                    : await _context.Products
+                        .Where(x => x.ProductID == productId)
+                        .Select(x => x.DefaultPrice)
+                        .FirstOrDefaultAsync();
+
+                // Staff quote from the book; administrators set what the book
+                // says. The form shows the price read-only to a staff member,
+                // but a form is only a suggestion - the posted figure is
+                // discarded here and the book's own price used, so typing over
+                // a read-only box, or posting the form by hand, changes
+                // nothing. The same rule the job order has.
+                //
+                // A combination the book has no price for is the one case a
+                // staff member may still type: refusing it would mean a
+                // quotation nobody can raise until an administrator is found.
+                if (!AppRoles.CanEditCatalogPrices(User) && bookPrice is { } fromBook && fromBook > 0)
+                    unitPrice = fromBook;
 
                 // The variant and the shade say what was FITTED. They are not
                 // price drivers - the shade never was, and a variant only
@@ -406,6 +457,23 @@ namespace ZEmpireAutoAccessories.Controllers
                     keptPanelId = panelId;
                 }
 
+                var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;
+
+                // A panel of film is ONE panel. What it takes off the roll
+                // is the cut size for that panel on this class of vehicle,
+                // worked out when the document is completed - DocumentStock
+                // multiplies the cut size by this quantity, so a 2 here is a
+                // second panel, not a longer cut, and it doubles the price
+                // with it. Nobody should be typing into that box, so the form
+                // no longer shows it for these lines; this is the same rule
+                // kept where JavaScript cannot be switched off.
+                if (keptPanelId != null && productId != null
+                    && (await _inventoryService.SoldByLength(new[] { productId.Value })).Count > 0)
+                {
+                    quantity = 1;
+                    lineUnit = UnitOfMeasure.PanelUnit;
+                }
+
                 _context.QuotationDetails.Add(new QuotationDetail
                 {
                     QuotationID = quotationId,
@@ -417,7 +485,7 @@ namespace ZEmpireAutoAccessories.Controllers
                     PricingID = pricingId,
                     Description = description,
                     Quantity = quantity,
-                    Unit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit,
+                    Unit = lineUnit,
                     UnitPrice = unitPrice
                 });
 
@@ -473,16 +541,51 @@ namespace ZEmpireAutoAccessories.Controllers
                 return RedirectToAction(nameof(Details), new { id });
             }
 
-            // Millisecond precision, not just seconds - two conversions
-            // landing in the same second (two staff, or a double-click)
-            // would otherwise generate the same number and collide against
-            // the database's unique constraint on it.
+            // A job order's number is JO-year-sequence, and the sequence is
+            // the row's own ID - which does not exist until the row does. So
+            // the stored procedure is handed a placeholder and the real
+            // number is written straight after, the same two steps
+            // JobOrder.Create takes. A job order raised here and one raised
+            // in the Job Order module now read the same way; converting used
+            // to leave the timestamp behind as the number itself, which is
+            // where JO-20261112122715547 came from.
+            //
+            // Millisecond precision on the placeholder, not just seconds -
+            // two conversions landing in the same second (two staff, or a
+            // double-click) would otherwise collide against the database's
+            // unique constraint on the column.
             var jobOrderNumber = $"JO-{DateTime.Now:yyyyMMddHHmmssfff}";
 
             try
             {
                 var jobOrderId = await _quotationService.ConvertToJobOrder(id, CurrentUserId, jobOrderNumber);
-                TempData["Success"] = $"Converted to Job Order #{jobOrderId} ({jobOrderNumber}).";
+
+                // Numbered in a second save, and deliberately forgiving: the
+                // job order is already committed by here, so a failure
+                // writing the number is not a failed conversion. It would
+                // leave the placeholder on screen, which is ugly and still
+                // unique - reporting a failure would send somebody to convert
+                // again and be told it had already happened.
+                try
+                {
+                    var created = await _context.JobOrders.FindAsync(jobOrderId);
+                    if (created != null)
+                    {
+                        jobOrderNumber = DocumentNumber.For(
+                            DocumentNumber.JobOrder, created.JobOrderID, created.JobOrderDate);
+
+                        created.JobOrderNumber = jobOrderNumber;
+                        await _context.SaveChangesAsync();
+                    }
+                }
+                catch (Exception)
+                {
+                    // Left with the placeholder it was created under.
+                }
+
+                TempData["Success"] =
+                    $"Converted to Job Order {jobOrderNumber}. "
+                    + "Walk the car before any film is touched.";
 
                 // Stamping the quotation is separate, and deliberately after
                 // the message. The job order is already committed by here, so
@@ -499,6 +602,20 @@ namespace ZEmpireAutoAccessories.Controllers
                 {
                     // Left as it was. Display() still reads Converted.
                 }
+
+                // Straight to the walkaround, exactly as raising a job order
+                // in the Job Order module does. A converted quotation is a
+                // car arriving for work like any other, and the condition it
+                // arrived in is a fact about this moment: an hour later the
+                // film is on and nobody can say whether the scratch was there
+                // first. The checklist's Back goes to the job order, and
+                // saving it lands there too, so nothing is lost by passing
+                // through here.
+                return RedirectToAction("ForJobOrder", "VehicleChecklist", new
+                {
+                    jobOrderId,
+                    returnUrl = Url.Action("Details", "JobOrder", new { id = jobOrderId })
+                });
             }
             catch (Exception ex)
             {

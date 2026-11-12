@@ -300,13 +300,13 @@
                 <label class="form-label">Description</label>
                 <input type="text" name="description" class="form-control" placeholder="Optional" />
             </div>
-            <div class="col-md-3">
+            <div class="col-md-3" id="wrap-addLineQty">
                 <label class="form-label" title="How many units of this product or service">Qty</label>
                 @* Quantity and unit read as one value, so they sit in one cell
                    - and for film the unit is part of the measurement, not a
                    separate decision. *@
                 <div class="input-group">
-                    <input type="number" name="quantity" class="form-control" value="1" min="1" />
+                    <input type="number" id="addLineQty" name="quantity" class="form-control" value="1" min="1" />
                     <select name="unit" class="form-select line-unit" data-searchable="false"
                             data-length-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)"
                             data-count-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)"
@@ -448,7 +448,36 @@
                 $('#wrap-' + $select.attr('id')).toggle(usable || filmPicked());
             }
 
+            // A panel of film is one panel, and what it takes off the roll
+            // is the cut size for that panel on this class of vehicle, worked
+            // out when the document is completed. The Qty box has no say in
+            // it: a 2 there doubles the price and the film both, which is a
+            // second panel, not a longer cut. So the box comes off the screen
+            // for those lines. ServiceInvoice, JobOrder and Quotation all
+            // force the same thing server-side, so a line posted without
+            // JavaScript means it too.
+            function applyFixedQuantity() {
+                // Two kinds of line have a quantity nobody should be typing.
+                //
+                // A panel of film is one panel, as above. And labour is one
+                // job: the same fitting done twice is a second visit, not a
+                // quantity of two on one line, and a 3 in that box multiplies
+                // the price of the work by three - which is how a 500-peso
+                // fitting reached a job order reading 1,500. A service is
+                // already refused if it is added twice; this is the same rule
+                // said once more, on the box itself.
+                var fixedQuantity = (filmPicked() && !!$panel.val()) || !!$service.val();
+
+                $('#wrap-addLineQty').toggle(!fixedQuantity);
+                if (fixedQuantity) { $('#addLineQty').val(1); }
+            }
+
             function refreshPanels() {
+                refreshPanelsCore();
+                applyFixedQuantity();
+            }
+
+            function refreshPanelsCore() {
                 var productId = parseInt($product.val(), 10);
                 var tintVariantId = $tintVariant.prop('disabled') ? null : ($tintVariant.val() || null);
                 var rows = productId ? rowsForProduct(productId).filter(function (r) {
@@ -626,6 +655,10 @@
                 }
             });
 
+            // Bound after the handlers above, so it sees the state they
+            // leave behind rather than the one they started from.
+            $product.add($service).add($panel).on('change', applyFixedQuantity);
+
             $service.on('change', function () {
                 if (!$(this).val()) { return; }
 
@@ -637,6 +670,10 @@
                 resetSelect($shade, '-- N/A --');
                 resetSelect($panel, '-- N/A --');
             });
+
+            // The form as the page opens: nothing picked, so everything that
+            // only means something once a film is picked stays off screen.
+            applyFixedQuantity();
         })();
     </script>
 }

@@ -508,6 +508,14 @@ namespace ZEmpireAutoAccessories.Controllers
 
                         return RedirectToAction(nameof(Details), new { id = jobOrderId });
                     }
+
+                    // And one job is all it ever is. The same fitting done twice is a
+                    // second visit, not a quantity of two on one line - the price of
+                    // the work would be multiplied by it, which is what turned a 500-
+                    // peso fitting into a line reading 1,500. The Qty box is off the
+                    // screen for a service; this is what makes that true of a posted
+                    // form as well.
+                    quantity = 1;
                 }
 
                 var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;
@@ -524,6 +532,21 @@ namespace ZEmpireAutoAccessories.Controllers
                     && await _context.Panels.AnyAsync(p => p.PanelID == panelId))
                 {
                     linePanelId = panelId;
+                }
+
+                // A panel of film is ONE panel. What it takes off the roll
+                // is the cut size for that panel on this class of vehicle,
+                // worked out when the document is completed - DocumentStock
+                // multiplies the cut size by this quantity, so a 2 here is a
+                // second panel, not a longer cut, and it doubles the price
+                // with it. Nobody should be typing into that box, so the form
+                // no longer shows it for these lines; this is the same rule
+                // kept where JavaScript cannot be switched off.
+                if (linePanelId != null && productId != null
+                    && (await _inventoryService.SoldByLength(new[] { productId.Value })).Count > 0)
+                {
+                    quantity = 1;
+                    lineUnit = UnitOfMeasure.PanelUnit;
                 }
 
                 // The same PRODUCT added twice is one line of two, not two

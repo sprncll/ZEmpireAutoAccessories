@@ -1,4 +1,4 @@
-@using ZEmpireAutoAccessories.Models
+﻿@using ZEmpireAutoAccessories.Models
 @{
     ViewData["Title"] = "New Sale";
     var products = ViewData["Products"] as List<Product> ?? new();
@@ -10,6 +10,11 @@
 
     // Film and PPF lines are written in metres; data-stock is published in
     // metres to match, so the per-row stock warning compares like with like.
+    // Staff sell at the price in the book; administrators set what the book
+    // says. The controller refuses a line at any other price, so this box
+    // being read-only is a courtesy and not the rule.
+    var canEditPrice = AppRoles.CanEditCatalogPrices(User);
+
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
 
     // Modes charged the exact total, for the script below - it fills the
@@ -153,13 +158,19 @@
                         </select>
                     </td>
                     <td><input type="number" name="quantity" class="form-control" value="1" min="1" required /></td>
-                    <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required /></td>
+                    <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
+                               readonly="@(canEditPrice ? null : "readonly")"
+                               tabindex="@(canEditPrice ? null : "-1")" /></td>
                     <td><button type="button" class="btn btn-sm btn-outline-danger remove-row">&times;</button></td>
                 </tr>
             </tbody>
         </table>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="addRow">+ Add Item</button>
+        @if (!canEditPrice)
+        {
+            <div class="form-text mb-3">Prices come from the price list. An administrator sets what it says.</div>
+        }
 
         <template id="lineRowTemplate">
             <tr class="line-row">
@@ -183,7 +194,9 @@
                     </select>
                 </td>
                 <td><input type="number" name="quantity" class="form-control" value="1" min="1" required /></td>
-                <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required /></td>
+                <td><input type="number" step="0.01" name="unitPrice" class="form-control unit-price" min="0" required
+                           readonly="@(canEditPrice ? null : "readonly")"
+                           tabindex="@(canEditPrice ? null : "-1")" /></td>
                 <td><button type="button" class="btn btn-sm btn-outline-danger remove-row">&times;</button></td>
             </tr>
         </template>

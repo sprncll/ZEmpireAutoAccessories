@@ -1,4 +1,4 @@
-namespace ZEmpireAutoAccessories.Models
+﻿namespace ZEmpireAutoAccessories.Models
 {
     /// <summary>
     /// Paint Protection Film and Window Tint come off a roll and are measured
@@ -107,6 +107,18 @@ namespace ZEmpireAutoAccessories.Models
 
         /// <summary>What a line is written in when nothing else is chosen.</summary>
         public const string DefaultCountUnit = "pc";
+
+        /// <summary>
+        /// What a line of film cut to a panel is written in. Nobody picks it
+        /// from a list - the form has no Qty box for those lines at all - the
+        /// document sets it when a panel is chosen, because a line of film
+        /// counts panels and the metres come from the cut size.
+        ///
+        /// Deliberately outside the three lists above: offering "panel"
+        /// against a horn or a wax would say nothing, and the figure it goes
+        /// with is never typed.
+        /// </summary>
+        public const string PanelUnit = "panel";
 
         /// <summary>
         /// Products and categories that have been set by hand, overriding the

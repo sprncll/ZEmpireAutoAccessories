@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -253,6 +253,56 @@ namespace ZEmpireAutoAccessories.Controllers
                 ModelState.AddModelError(string.Empty, "Add at least one line item.");
                 await LoadDropdowns();
                 return View();
+            }
+
+            // Staff sell at the price in the book; administrators set what
+            // the book says. The counter form fills the price in and shows it
+            // read-only, but a form is only a suggestion, so each line is
+            // checked here against what the book actually holds for that
+            // product: its own price, or any panel price for the class of car
+            // on the sale. Anything else is refused rather than quietly
+            // corrected - at a counter, with the customer standing there, a
+            // price that silently changes between typing and printing is
+            // worse than being told no.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                var vehicleClassificationId = vehicleId is { } vid
+                    ? await _context.Vehicles
+                        .Where(v => v.VehicleID == vid)
+                        .Select(v => (int?)v.VehicleClassificationID)
+                        .FirstOrDefaultAsync()
+                    : null;
+
+                foreach (var line in items)
+                {
+                    var product = await _context.Products
+                        .Where(x => x.ProductID == line.ProductID)
+                        .Select(x => new { x.ProductName, x.DefaultPrice })
+                        .FirstOrDefaultAsync();
+
+                    var inTheBook =
+                        product?.DefaultPrice is { } flat && flat == line.UnitPrice;
+
+                    if (!inTheBook && vehicleClassificationId != null)
+                    {
+                        inTheBook = await _context.Pricings.AnyAsync(pr =>
+                            pr.ProductID == line.ProductID &&
+                            pr.VehicleClassificationID == vehicleClassificationId &&
+                            pr.Price == line.UnitPrice);
+                    }
+
+                    if (!inTheBook)
+                    {
+                        ModelState.AddModelError(string.Empty,
+                            $"{product?.ProductName ?? "That product"} is not sold at "
+                            + $"{Money.Peso(line.UnitPrice)}. Prices come from the price list - "
+                            + "pick the product again to pull its price, or ask an administrator "
+                            + "to change what the list says.");
+
+                        await LoadDropdowns();
+                        return View();
+                    }
+                }
             }
 
             try

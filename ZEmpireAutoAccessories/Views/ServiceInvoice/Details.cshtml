@@ -10,6 +10,8 @@
                          ?? new Dictionary<int, ZEmpireAutoAccessories.Models.Warranty>();
     var canUseWarranty = User.HasClaim(AppClaims.ModuleAccess, "Warranty");
 
+    var canEditPrice = AppRoles.CanEditCatalogPrices(User);
+
     var rollProducts = ViewData["RollProducts"] as HashSet<int> ?? new HashSet<int>();
     var stockByProduct = ViewData["StockByProduct"] as Dictionary<int, decimal> ?? new Dictionary<int, decimal>();
 
@@ -159,12 +161,11 @@
     </dl>
 
     <div class="status-actions">
-        @if (Model.Status != "Paid")
-        {
-            @* Paid means money changed hands, so it goes through the payment
-               box below rather than a button that just flips the status. *@
-            <a href="#takePayment" class="btn btn-sm btn-zx">Take payment</a>
-        }
+        @* There is no Take payment button here. Money changes hands in the
+           payment box below, which sits on this same page and is the only
+           place that can take it - a second button that only scrolled down to
+           it read as a second way to pay, and left two things on screen
+           called the same thing. *@
         @if (Model.Status != "Pending")
         {
             <form asp-action="SetStatus" method="post">
@@ -199,7 +200,11 @@
             var balanceDue = Model.TotalAmount - Model.AmountPaid;
             var hasDeposit = Model.AmountPaid > 0m && balanceDue > 0m;
         }
-        <h6 class="mb-1">Take payment</h6>
+        @* "Payment" above, "Take payment" on the button: the screen used to
+           say Take payment three times - a button in the header that only
+           scrolled down here, this heading, and the button that actually
+           takes it. One of them does the work. *@
+        <h6 class="mb-1">Payment</h6>
         <p class="zx-page-sub mb-3" style="margin-top:0;">
             Enter what the customer handed over. Less than the balance is taken as a
             down payment and the invoice stays Pending; the balance or more settles it.
@@ -398,13 +403,13 @@
             <input id="addLineDescription" type="text" name="description" class="form-control"
                    placeholder="Filled in when you pick a product or service" />
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3" id="wrap-addLineQty">
             <label class="form-label" title="How many units of this product or service">Qty</label>
             @* Quantity and unit read as one value, so they sit in one cell
                - and for film the unit is part of the measurement, not a
                separate decision. *@
             <div class="input-group">
-                <input type="number" step="0.01" name="quantity" class="form-control" value="1" min="0.01" />
+                <input type="number" step="0.01" id="addLineQty" name="quantity" class="form-control" value="1" min="0.01" />
                 <select name="unit" class="form-select line-unit" data-searchable="false"
                         data-length-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.LengthUnits)"
                         data-count-units="@string.Join(",", ZEmpireAutoAccessories.Models.UnitOfMeasure.CountUnits)"
@@ -419,11 +424,31 @@
         </div>
         <div class="col-md-3">
             <label class="form-label">Price</label>
-            <input id="addLinePrice" type="number" step="0.01" name="unitPrice" class="form-control" value="0" min="0" />
+            @* Staff bill from the book; administrators set what the book
+               says. The controller discards a posted price for staff and uses
+               the book's own, so this box is a courtesy and not the rule. *@
+            <input id="addLinePrice" type="number" step="0.01" name="unitPrice" class="form-control"
+                   value="0" min="0"
+                   readonly="@(canEditPrice ? null : "readonly")"
+                   tabindex="@(canEditPrice ? null : "-1")" />
+            @if (!canEditPrice)
+            {
+                <div class="form-text">Set from the price list for this vehicle's class.</div>
+            }
         </div>
         <div class="col-md-3">
             <label class="form-label">Disc.</label>
-            <input type="number" step="0.01" name="discountAmount" class="form-control" value="0" min="0" />
+            @* A discount is the other way to change what is charged, so it
+               goes the same way as the price: billed in full by staff, and an
+               administrator decides what comes off it. Zeroed server-side. *@
+            <input type="number" step="0.01" name="discountAmount" class="form-control"
+                   value="0" min="0"
+                   readonly="@(canEditPrice ? null : "readonly")"
+                   tabindex="@(canEditPrice ? null : "-1")" />
+            @if (!canEditPrice)
+            {
+                <div class="form-text">An administrator sets any discount.</div>
+            }
         </div>
         @* The button keeps the rightmost quarter, in line with Panel and
            Disc. above it, rather than starting a ragged fifth column. *@
@@ -582,7 +607,36 @@
                 $('#wrap-' + $select.attr('id')).toggle(usable || filmPicked());
             }
 
+            // A panel of film is one panel, and what it takes off the roll
+            // is the cut size for that panel on this class of vehicle, worked
+            // out when the document is completed. The Qty box has no say in
+            // it: a 2 there doubles the price and the film both, which is a
+            // second panel, not a longer cut. So the box comes off the screen
+            // for those lines. ServiceInvoice, JobOrder and Quotation all
+            // force the same thing server-side, so a line posted without
+            // JavaScript means it too.
+            function applyFixedQuantity() {
+                // Two kinds of line have a quantity nobody should be typing.
+                //
+                // A panel of film is one panel, as above. And labour is one
+                // job: the same fitting done twice is a second visit, not a
+                // quantity of two on one line, and a 3 in that box multiplies
+                // the price of the work by three - which is how a 500-peso
+                // fitting reached a job order reading 1,500. A service is
+                // already refused if it is added twice; this is the same rule
+                // said once more, on the box itself.
+                var fixedQuantity = (filmPicked() && !!$panel.val()) || !!$service.val();
+
+                $('#wrap-addLineQty').toggle(!fixedQuantity);
+                if (fixedQuantity) { $('#addLineQty').val(1); }
+            }
+
             function refreshPanels() {
+                refreshPanelsCore();
+                applyFixedQuantity();
+            }
+
+            function refreshPanelsCore() {
                 var productId = parseInt($product.val(), 10);
                 var tintVariantId = $tintVariant.prop('disabled') ? null : ($tintVariant.val() || null);
                 var rows = productId ? rowsForProduct(productId).filter(function (r) {
@@ -778,6 +832,10 @@
                 }
             });
 
+            // Bound after the handlers above, so it sees the state they
+            // leave behind rather than the one they started from.
+            $product.add($service).add($panel).on('change', applyFixedQuantity);
+
             $service.on('change', function () {
                 if (!$(this).val()) { return; }
 
@@ -790,6 +848,10 @@
                 resetSelect($shade, '-- N/A --');
                 resetSelect($panel, '-- N/A --');
             });
+
+            // The form as the page opens: nothing picked, so everything that
+            // only means something once a film is picked stays off screen.
+            applyFixedQuantity();
         })();
     </script>
 }

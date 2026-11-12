@@ -361,6 +361,17 @@ namespace ZEmpireAutoAccessories.Controllers
             if (existing == null)
                 return NotFound();
 
+            // A discount is money off, so it goes the way a price does: a
+            // staff member does not set one, and whatever an administrator
+            // set stays. The field posts whether or not the form shows it
+            // read-only, so the stored figure is put back rather than
+            // trusted.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                invoice.DiscountAmount = existing.DiscountAmount;
+                ModelState.Remove(nameof(ServiceInvoice.DiscountAmount));
+            }
+
             // CK_ServiceInvoice_Total requires TotalAmount >= 0, so a discount
             // bigger than the lines plus tax is refused by the database. Say
             // so against the Discount field instead of failing on save.
@@ -496,6 +507,7 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             var invoice = await _context.ServiceInvoices
                 .Include(i => i.Details)
+                .Include(i => i.Vehicle)
                 .FirstOrDefaultAsync(i => i.ServiceInvoiceID == serviceInvoiceId);
 
             if (invoice == null)
@@ -547,6 +559,14 @@ namespace ZEmpireAutoAccessories.Controllers
 
                     return RedirectToAction(nameof(Details), new { id = serviceInvoiceId });
                 }
+
+                // And one job is all it ever is. The same fitting done twice is a
+                // second visit, not a quantity of two on one line - the price of
+                // the work would be multiplied by it, which is what turned a 500-
+                // peso fitting into a line reading 1,500. The Qty box is off the
+                // screen for a service; this is what makes that true of a posted
+                // form as well.
+                quantity = 1m;
             }
 
             // The variant and the shade say what was FITTED, so they are kept
@@ -568,6 +588,70 @@ namespace ZEmpireAutoAccessories.Controllers
                 keptShadeId = shadeId;
             }
 
+            // Staff bill from the book; administrators set what the book
+            // says. The form shows the price read-only to a staff member, but
+            // a form is only a suggestion - the posted figure is discarded
+            // here and the book's own price used, so typing over a read-only
+            // box, or posting the form by hand, changes nothing. The same
+            // rule the job order and the quotation have.
+            if (!AppRoles.CanEditCatalogPrices(User))
+            {
+                decimal? bookPrice = null;
+
+                if (productId != null && panelId != null && invoice.Vehicle != null)
+                {
+                    bookPrice = await _context.Pricings
+                        .Where(p =>
+                            p.ProductID == productId &&
+                            p.TintVariantID == tintVariantId &&
+                            p.VehicleClassificationID == invoice.Vehicle.VehicleClassificationID &&
+                            p.PanelID == panelId)
+                        .Select(p => (decimal?)p.Price)
+                        .FirstOrDefaultAsync();
+                }
+
+                // Nothing in the matrix for this combination: fall back to
+                // what the catalogue says the thing costs on its own.
+                bookPrice ??= serviceId != null
+                    ? await _context.Services
+                        .Where(x => x.ServiceID == serviceId)
+                        .Select(x => (decimal?)x.DefaultPrice)
+                        .FirstOrDefaultAsync()
+                    : await _context.Products
+                        .Where(x => x.ProductID == productId)
+                        .Select(x => x.DefaultPrice)
+                        .FirstOrDefaultAsync();
+
+                // A combination the book has no price for is the one case a
+                // staff member may still type: refusing it would mean an
+                // invoice nobody can raise until an administrator is found.
+                if (bookPrice is { } fromBook && fromBook > 0)
+                    unitPrice = fromBook;
+
+                // A discount is the other way to change what is charged, so
+                // it goes the same way: a staff member bills the book price
+                // in full and an administrator decides what comes off it.
+                discountAmount = 0m;
+            }
+
+            var linePanelId = productId != null ? panelId : null;
+            var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;
+
+            // A panel of film is ONE panel. What it takes off the roll
+            // is the cut size for that panel on this class of vehicle,
+            // worked out when the document is completed - DocumentStock
+            // multiplies the cut size by this quantity, so a 2 here is a
+            // second panel, not a longer cut, and it doubles the price
+            // with it. Nobody should be typing into that box, so the form
+            // no longer shows it for these lines; this is the same rule
+            // kept where JavaScript cannot be switched off.
+            if (linePanelId != null && productId != null
+                && (await _inventoryService.SoldByLength(new[] { productId.Value })).Count > 0)
+            {
+                quantity = 1;
+                lineUnit = UnitOfMeasure.PanelUnit;
+            }
+
             _context.ServiceInvoiceDetails.Add(new ServiceInvoiceDetail
             {
                 ServiceInvoiceID = serviceInvoiceId,
@@ -575,10 +659,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 ServiceID = serviceId,
                 TintVariantID = keptVariantId,
                 ShadeID = keptShadeId,
-                PanelID = productId != null ? panelId : null,
+                PanelID = linePanelId,
                 Description = description,
                 Quantity = quantity,
-                Unit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit,
+                Unit = lineUnit,
                 UnitPrice = unitPrice,
                 DiscountAmount = discountAmount
             });
