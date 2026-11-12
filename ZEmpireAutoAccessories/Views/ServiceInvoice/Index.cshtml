@@ -1,4 +1,4 @@
-@model IEnumerable<ZEmpireAutoAccessories.Models.ServiceInvoice>
+﻿@model IEnumerable<ZEmpireAutoAccessories.Models.ServiceInvoice>
 
 @{
     ViewData["Title"] = "Service Invoices";
@@ -138,7 +138,20 @@
                     <td>@(item.Vehicle?.PlateNumber ?? "—")</td>
                     <td>@item.InvoiceDate.ToString("MMM d, yyyy")</td>
                     <td>@Money.Peso(item.TotalAmount)</td>
-                    <td><span class="badge badge-@item.Status.ToLower()">@item.Status</span></td>
+                    <td>
+                        <span class="badge badge-@item.Status.ToLower()">@item.Status</span>
+                        @* A part-paid invoice is Pending like any other, and
+                           looked like one that had never been touched. The
+                           deposit is why somebody is looking at this list. *@
+                        @if (item.Status != "Paid" && item.Status != "Refunded"
+                             && item.AmountPaid > 0m && item.AmountPaid < item.TotalAmount)
+                        {
+                            <div class="text-muted small">
+                                @Money.Peso(item.AmountPaid) paid,
+                                @Money.Peso(item.TotalAmount - item.AmountPaid) due
+                            </div>
+                        }
+                    </td>
                     <td class="text-end pe-3">
                         @* Same order as the sales list: reprint first, then
                            open. The PDF is built from the invoice as it stands

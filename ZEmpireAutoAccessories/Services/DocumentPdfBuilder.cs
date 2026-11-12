@@ -1,4 +1,4 @@
-using QuestPDF.Fluent;
+﻿using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using ZEmpireAutoAccessories.Models;
@@ -180,13 +180,47 @@ namespace ZEmpireAutoAccessories.Services
                             SubTotal = d.SubTotal
                         }), includeDiscountColumn: true);
 
-                        ComposeTotals(column, WithVat(
+                        // A part payment reads as a down payment and the
+                        // receipt has to say what is still owed - a customer
+                        // handing over 10,000 against 32,000 should walk out
+                        // holding the figure they will be asked for next
+                        // time, not work it out themselves. Nothing changes
+                        // on a settled invoice, where the balance is zero and
+                        // the row is left off.
+                        var balanceDue = invoice.TotalAmount - invoice.AmountPaid;
+
+                        var paidRows =
+                            balanceDue <= 0
+                                // Settled: what was handed over, and what
+                                // went back.
+                                ? new (string, decimal)[]
+                                  {
+                                      ("Amount Paid", invoice.AmountPaid),
+                                      ("Change", invoice.ChangeAmount)
+                                  }
+                            : invoice.AmountPaid > 0
+                                // Part paid: a deposit, and what is left.
+                                ? new (string, decimal)[]
+                                  {
+                                      ("Down Payment", invoice.AmountPaid),
+                                      ("Balance Due", balanceDue)
+                                  }
+                                // Nothing handed over yet. Calling that a
+                                // down payment of zero says the customer
+                                // paid something.
+                                : new (string, decimal)[]
+                                  {
+                                      ("Amount Paid", 0m),
+                                      ("Balance Due", balanceDue)
+                                  };
+
+                        ComposeTotals(column, WithVat(new (string Label, decimal Value)[]
+                        {
                             ("Sub Total", invoice.SubTotal),
                             ("Discount", -invoice.DiscountAmount),
                             ("Tax entered separately", invoice.TaxAmount),
-                            ("Total", invoice.TotalAmount),
-                            ("Amount Paid", invoice.AmountPaid),
-                            ("Change", invoice.ChangeAmount)));
+                            ("Total", invoice.TotalAmount)
+                        }.Concat(paidRows).ToArray()));
 
                         if (!string.IsNullOrWhiteSpace(invoice.Remarks))
                             ComposeRemarks(column, invoice.Remarks);

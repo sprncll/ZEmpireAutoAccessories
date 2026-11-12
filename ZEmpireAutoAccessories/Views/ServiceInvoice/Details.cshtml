@@ -18,6 +18,18 @@
     // Settled means the money is in: Paid, or Refunded after having been.
     var settled = Model.Status == "Paid" || Model.Status == "Refunded";
 
+    // A down payment: something has been handed over, and it is less than
+    // the invoice comes to.
+    //
+    // Strictly less, deliberately. Before down payments were allowed,
+    // CK_ServiceInvoice_Math forced AmountPaid to equal the total on every
+    // row, paid or not, so an untouched Pending invoice still carries the
+    // full figure. Reading that as money taken would put a payment on screen
+    // that nobody made; a real deposit is always short of the total.
+    var deposit = !settled && Model.AmountPaid > 0m && Model.AmountPaid < Model.TotalAmount
+        ? Model.AmountPaid
+        : 0m;
+
     // The 12% inside the total, worked out once for the whole page.
     var vat = Vat.Breakdown(Model.TotalAmount);
 
@@ -140,17 +152,27 @@
             {
                 @Money.Peso(Model.AmountPaid)
             }
+            else if (deposit > 0m)
+            {
+                @Money.Peso(deposit)
+                <span class="text-muted">- down payment</span>
+            }
             else
             {
                 <span class="text-muted">Not yet paid</span>
             }
         </dd>
 
+        @* The balance is what is left after a deposit, not the invoice
+           total over again: an invoice with 10,000 against 32,000 owes
+           22,000, and saying 32,000 here while the payment box below says
+           22,000 is the kind of disagreement nobody should have to settle
+           with a calculator. *@
         <dt class="col-sm-3">@(settled ? "Change" : "Balance Due")</dt>
         <dd class="col-sm-9">
             @(settled
                 ? Money.Peso(Model.ChangeAmount)
-                : Money.Peso(Model.TotalAmount))
+                : Money.Peso(Model.TotalAmount - deposit))
         </dd>
 
         @if (!string.IsNullOrEmpty(Model.Remarks))
