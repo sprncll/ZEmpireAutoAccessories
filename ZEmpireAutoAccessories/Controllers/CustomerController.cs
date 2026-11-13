@@ -145,7 +145,15 @@ namespace ZEmpireAutoAccessories.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = $"Customer \"{customer.FullName}\" was added. Now add their vehicle.";
-            return RedirectToAction("Create", "Vehicle", new { customerId = customer.CustomerID });
+            // The new vehicle form's Back, Cancel and Save all return to the
+            // customer just made - not to the blank New Customer form, which
+            // would only invite saving the same person twice, and not to the
+            // vehicle list, which nobody was looking at.
+            return RedirectToAction("Create", "Vehicle", new
+            {
+                customerId = customer.CustomerID,
+                returnUrl = Url.Action(nameof(Details), new { id = customer.CustomerID })
+            });
         }
 
         // GET: Customer/Edit/5

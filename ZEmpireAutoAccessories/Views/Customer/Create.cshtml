@@ -15,11 +15,19 @@
 
 <div class="zx-page-head">
     <h1>New Customer</h1>
+    <a href="@BackLink.For(Context.Request, Url.Action("Index"))" class="btn btn-outline-secondary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+        @BackLink.Label(Context.Request, "Back to list")
+    </a>
 </div>
 <p class="zx-page-sub">Add a customer record before registering their vehicles.</p>
 
 <div class="zx-card padded narrow">
     <form asp-action="Create" method="post" class="zx-form">
+        @if (BackLink.Given(Context.Request) is string cameFrom)
+        {
+            <input type="hidden" name="returnUrl" value="@cameFrom" />
+        }
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
         @{
