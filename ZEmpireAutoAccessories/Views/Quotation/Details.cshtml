@@ -655,39 +655,58 @@
             // leave behind rather than the one they started from.
             $product.add($service).add($panel).on('change', applyFixedQuantity);
 
-            // A line is a product OR a service, never both. Whichever is
-            // picked locks the other; setting it back to None unlocks it.
-            // The server refuses a line carrying both as well.
-            //
-            // A locked box says how to switch to it, under itself: one click
-            // clears the other box and opens this one's list, rather than
-            // leaving people to discover that "-- None --" is the way out.
-            var $useProduct = $('<button type="button" class="ps-switch" hidden>Use a product instead</button>');
-            var $useService = $('<button type="button" class="ps-switch" hidden>Use a service instead</button>');
-            $product.closest('[class*="col-"]').append($useProduct);
-            $service.closest('[class*="col-"]').append($useService);
+            // A line is a product OR a service, never both - so the form asks
+            // which first. One switch above the fields, Product | Service, and
+            // only the chosen box on screen: nothing greyed out, nothing to
+            // unlock. Switching clears what the other side had picked. The
+            // server refuses a line carrying both as well.
+            var $productCol = $product.closest('[class*="col-"]');
+            var $serviceCol = $service.closest('[class*="col-"]');
+            var $kind = $(
+                '<div class="col-12 line-kind-row">' +
+                  '<div class="line-kind" role="group" aria-label="What this line is">' +
+                    '<button type="button" data-kind="product">Product</button>' +
+                    '<button type="button" data-kind="service">Service</button>' +
+                  '</div>' +
+                '</div>');
+            $productCol.before($kind);
 
-            function lockOther() {
-                $service.prop('disabled', !!$product.val());
-                $product.prop('disabled', !!$service.val());
-                $useProduct.prop('hidden', !$product.prop('disabled'));
-                $useService.prop('hidden', !$service.prop('disabled'));
-            }
-            $product.add($service).on('change', lockOther);
+            function setKind(kind, openList) {
+                var isProduct = kind === 'product';
+                $kind.find('button').each(function () {
+                    var on = $(this).data('kind') === kind;
+                    $(this).toggleClass('is-on', on).attr('aria-pressed', on ? 'true' : 'false');
+                });
 
-            function switchTo($want, $other) {
-                $other.val('').trigger('change');
-                $price.val('0');
-                lockOther();
-                // Straight into the list that was asked for - a moment later,
-                // once the searchable box has seen its select unlocked.
-                setTimeout(function () {
-                    var box = $want.closest('[class*="col-"]').find('.ss-input').get(0);
-                    if (box) { box.focus(); box.click(); } else { $want.trigger('focus'); }
-                }, 30);
+                // Clear the side being put away, so nothing of it is posted.
+                var $away = isProduct ? $service : $product;
+                if ($away.val()) {
+                    $away.val('').trigger('change');
+                    $price.val('0');
+                }
+
+                $productCol.toggle(isProduct);
+                $serviceCol.toggle(!isProduct);
+                $product.prop('disabled', !isProduct);
+                $service.prop('disabled', isProduct);
+
+                if (openList) {
+                    // Straight into the list - a moment later, once the
+                    // searchable box has seen its select switched back on.
+                    var $want = isProduct ? $productCol : $serviceCol;
+                    setTimeout(function () {
+                        var box = $want.find('.ss-input').get(0);
+                        if (box) { box.focus(); box.click(); }
+                    }, 30);
+                }
             }
-            $useProduct.on('click', function () { switchTo($product, $service); });
-            $useService.on('click', function () { switchTo($service, $product); });
+
+            $kind.on('click', 'button', function () {
+                setKind($(this).data('kind'), true);
+            });
+
+            // A form drawn again after a refused save keeps what it had.
+            setKind($service.val() ? 'service' : 'product', false);
 
             $service.on('change', function () {
                 if (!$(this).val()) { return; }
@@ -704,7 +723,6 @@
             // The form as the page opens: nothing picked, so everything that
             // only means something once a film is picked stays off screen.
             applyFixedQuantity();
-            lockOther();
         })();
     </script>
 }

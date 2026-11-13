@@ -1318,18 +1318,35 @@ a.zx-pager-btn:hover { border-color: var(--zx-ink); color: var(--zx-ink); }
 
 .zx-pager-gap { align-self: center; padding: 0 2px; }
 
-/* "Use a service instead" under a locked Product box, and the reverse. */
-.ps-switch {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--zx-red);
-  cursor: pointer;
+/* Product | Service, above the add-line fields: what the line is, chosen
+   first, so only that box is shown. */
+.line-kind-row { margin-bottom: 4px; }
+
+.line-kind {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 11px;
+  background: #eef0f4;
+  gap: 2px;
 }
 
-.ps-switch:hover { text-decoration: underline; }
-.ps-switch[hidden] { display: none; }
+.line-kind button {
+  border: 0;
+  background: transparent;
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #5d6472;
+  transition: all .15s ease;
+}
+
+.line-kind button:hover { color: var(--zx-ink); }
+
+.line-kind button.is-on {
+  background: #fff;
+  color: var(--zx-ink);
+  box-shadow: 0 1px 3px rgba(11, 11, 12, .14);
+}
+
+.line-kind button:focus-visible { box-shadow: 0 0 0 .2rem var(--zx-ring); outline: none; }
