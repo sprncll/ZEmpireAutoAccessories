@@ -685,11 +685,36 @@
             // A line is a product OR a service, never both. Whichever is
             // picked locks the other; setting it back to None unlocks it.
             // The server refuses a line carrying both as well.
+            //
+            // A locked box says how to switch to it, under itself: one click
+            // clears the other box and opens this one's list, rather than
+            // leaving people to discover that "-- None --" is the way out.
+            var $useProduct = $('<button type="button" class="ps-switch" hidden>Use a product instead</button>');
+            var $useService = $('<button type="button" class="ps-switch" hidden>Use a service instead</button>');
+            $product.closest('[class*="col-"]').append($useProduct);
+            $service.closest('[class*="col-"]').append($useService);
+
             function lockOther() {
                 $service.prop('disabled', !!$product.val());
                 $product.prop('disabled', !!$service.val());
+                $useProduct.prop('hidden', !$product.prop('disabled'));
+                $useService.prop('hidden', !$service.prop('disabled'));
             }
             $product.add($service).on('change', lockOther);
+
+            function switchTo($want, $other) {
+                $other.val('').trigger('change');
+                $price.val('0');
+                lockOther();
+                // Straight into the list that was asked for - a moment later,
+                // once the searchable box has seen its select unlocked.
+                setTimeout(function () {
+                    var box = $want.closest('[class*="col-"]').find('.ss-input').get(0);
+                    if (box) { box.focus(); box.click(); } else { $want.trigger('focus'); }
+                }, 30);
+            }
+            $useProduct.on('click', function () { switchTo($product, $service); });
+            $useService.on('click', function () { switchTo($service, $product); });
 
             $service.on('change', function () {
                 if (!$(this).val()) { return; }
