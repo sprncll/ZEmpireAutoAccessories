@@ -18,9 +18,11 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IReportService _reportService;
         private readonly ExpiryService _expiry;
+        private readonly SchemaStatus _schema;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService, ExpiryService expiry)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService, ExpiryService expiry, SchemaStatus schema)
         {
+            _schema = schema;
             _logger = logger;
             _context = context;
             _reportService = reportService;
@@ -132,6 +134,27 @@ namespace ZEmpireAutoAccessories.Controllers
             });
 
             ViewData["Stats"] = stats;
+
+            // The last few things anyone did, for an Admin: who changed what,
+            // at a glance, with the full log one click away. Only once the
+            // log's table exists; a failure costs the panel, never the page.
+            if (User.IsInRole("Admin"))
+            {
+                try
+                {
+                    if (await _schema.Has(_context, SchemaStatus.ActivityLog))
+                        ViewData["RecentActivity"] = await _context.ActivityLogs.AsNoTracking()
+                            .OrderByDescending(a => a.At).ThenByDescending(a => a.ActivityID)
+                            .Take(8)
+                            .ToListAsync();
+                    else
+                        ViewData["ActivityNotInstalled"] = true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Recent activity could not be read for the dashboard");
+                }
+            }
             ViewData["StatFailures"] = failures;
             return View();
         }
