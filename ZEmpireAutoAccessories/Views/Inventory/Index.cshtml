@@ -229,7 +229,7 @@
         <a class="btn btn-outline-secondary" asp-controller="CutSize" asp-action="Index" zx-return>Cut sizes</a>
         @* This list is per product, because the ledger is. Shade Stock is the
            breakdown behind it, worked out from the last count. *@
-        <a class="btn btn-outline-secondary" asp-action="Shades">Shade stock</a>
+        <a class="btn btn-outline-secondary" asp-action="Shades" zx-return>Shade stock</a>
         <a class="btn btn-outline-secondary" asp-controller="InventoryCheck" asp-action="Index" zx-return>Stock counts</a>
         <a class="btn btn-zx" asp-controller="InventoryCheck" asp-action="Create" zx-return>+ New stock count</a>
     </div>

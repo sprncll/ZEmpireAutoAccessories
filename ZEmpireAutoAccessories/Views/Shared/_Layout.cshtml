@@ -24,7 +24,13 @@
     // said so (a returnUrl - see BackLink and zx-return); otherwise to the
     // record an edit came from, or to the module's list.
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
-    var isList = action.Equals("Index", StringComparison.OrdinalIgnoreCase)
+    // A list is where you start, so it has no Back - unless it is a sub-list
+    // of another module (Cut Sizes under Inventory) or something opened it
+    // and said so (Pricing opened from an inventory row).
+    var parentModule = controller != null ? AppNav.ParentOf(controller) : null;
+    var isList = (action.Equals("Index", StringComparison.OrdinalIgnoreCase)
+                  && parentModule == null
+                  && BackLink.Given(Context.Request) == null)
                  || action.Equals("Error", StringComparison.OrdinalIgnoreCase)
                  || onDashboard;
     string? backUrl = null;
@@ -37,6 +43,7 @@
                          && AppNav.HasDetails(controller);
         var fallback = fromRecord ? Url.Action("Details", controller, new { id })
                      : controller.Equals("Account", StringComparison.OrdinalIgnoreCase) ? Url.Action("Index", "Home")
+                     : parentModule != null && action.Equals("Index", StringComparison.OrdinalIgnoreCase) ? Url.Action("Index", parentModule)
                      : Url.Action("Index", controller);
 
         // A screen that has already worked out its own way back says so.

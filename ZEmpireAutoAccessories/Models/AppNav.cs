@@ -157,6 +157,23 @@ namespace ZEmpireAutoAccessories.Models
 
         public static bool HasDetails(string controller) => WithDetails.Contains(controller);
 
+        // Lists that belong to another module's screen rather than standing on
+        // their own: cut sizes and stock counts are part of Inventory, vehicle
+        // classes part of Vehicles, categories part of Products. They are
+        // lists, but they are reached from their parent, so they get a Back
+        // to it like any other screen below the top level.
+        private static readonly Dictionary<string, string> Parents = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["CutSize"] = "Inventory",
+            ["InventoryCheck"] = "Inventory",
+            ["VehicleClassification"] = "Vehicle",
+            ["ProductCategory"] = "Product",
+        };
+
+        /// <summary>The module a sub-list belongs to, or null for a top-level one.</summary>
+        public static string? ParentOf(string controller) =>
+            Parents.TryGetValue(controller, out var parent) ? parent : null;
+
         // One record of each module, for "Back to job order" rather than
         // "Back to job orders" when Back returns to a single record.
         private static readonly Dictionary<string, string> OneOf = new(StringComparer.OrdinalIgnoreCase)
@@ -188,12 +205,18 @@ namespace ZEmpireAutoAccessories.Models
                 return "Back to Dashboard";
 
             if (Locate(controller) is not { } spot)
-                return "Back";
+                return ParentOf(controller) is { } parent && Locate(parent) is { } p
+                    ? "Back to " + p.Item.Label
+                    : "Back";
 
             if (action.Equals("Index", StringComparison.OrdinalIgnoreCase))
                 return "Back to " + spot.Item.Label;
 
-            if (OneOf.TryGetValue(controller, out var one))
+            var oneRecord = action.Equals("Details", StringComparison.OrdinalIgnoreCase)
+                            || action.Equals("Edit", StringComparison.OrdinalIgnoreCase)
+                            || action.Equals("Claim", StringComparison.OrdinalIgnoreCase);
+
+            if (oneRecord && OneOf.TryGetValue(controller, out var one))
                 return "Back to " + one;
 
             return "Back to " + spot.Item.Label;

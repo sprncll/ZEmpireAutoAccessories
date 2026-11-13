@@ -9,8 +9,7 @@
 <div class="zx-page-head">
     <h1>Stock Counts</h1>
     <div>
-        <a class="btn btn-outline-secondary" href="@BackLink.For(Context.Request, Url.Action("Index", "Inventory"))">@BackLink.Label(Context.Request, "Back to Inventory")</a>
-        <a class="btn btn-zx" asp-action="Create">+ New Count</a>
+        <a class="btn btn-zx" asp-action="Create" zx-return>+ New Count</a>
     </div>
 </div>
 <p class="zx-page-sub">A count records what was physically on the shelf. Reconciling one corrects the system figure to match.</p>
