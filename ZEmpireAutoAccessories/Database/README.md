@@ -1,5 +1,14 @@
 # Sharing the data with the team
 
+> **After pulling, run these once on each database** (in SSMS, against
+> `ZEmpire`). Each checks first, so running one twice does nothing, and the
+> app keeps working the old way until it has been run:
+>
+> | Script | What it turns on |
+> | --- | --- |
+> | `AddInvoicePayments.sql` | Down payments counted on the day they are taken; a payment history on each invoice |
+> | `AddActivityLog.sql` | Administration -> Activity Log: who changed what, and a History link on each record |
+
 Git carries the **code**. It does not carry the SQL Server database — that
 lives on each machine. So pulling `Programmer` gives a teammate the app, and
 then an empty or stale `ZEmpire` database behind it.
