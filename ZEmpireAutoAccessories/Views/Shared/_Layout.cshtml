@@ -18,20 +18,18 @@
                       string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Index", StringComparison.OrdinalIgnoreCase);
     var here = AppNav.Locate(controller);
 
-    // The Back button in the top bar. Every screen that is not a list or the
-    // dashboard gets one, in the same place, so the way back never has to be
-    // looked for. It goes to the screen that opened this one when that screen
+    // The Back link above the page title. Every screen but the dashboard
+    // gets one, in the same place, so the way back never has to be looked
+    // for. It goes to the screen that opened this one when that screen
     // said so (a returnUrl - see BackLink and zx-return); otherwise to the
     // record an edit came from, or to the module's list.
     var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
-    // A list is where you start, so it has no Back - unless it is a sub-list
-    // of another module (Cut Sizes under Inventory) or something opened it
-    // and said so (Pricing opened from an inventory row).
+    // Every screen has a Back except the dashboard, which is home, and the
+    // error page, which has its own way out. A module's list goes back to
+    // the dashboard, or to whatever opened it when that said so; a sub-list
+    // (Cut Sizes under Inventory) goes back to its parent module.
     var parentModule = controller != null ? AppNav.ParentOf(controller) : null;
-    var isList = (action.Equals("Index", StringComparison.OrdinalIgnoreCase)
-                  && parentModule == null
-                  && BackLink.Given(Context.Request) == null)
-                 || action.Equals("Error", StringComparison.OrdinalIgnoreCase)
+    var isList = action.Equals("Error", StringComparison.OrdinalIgnoreCase)
                  || onDashboard;
     string? backUrl = null;
     if (signedIn && !isList && controller != null)
@@ -43,7 +41,8 @@
                          && AppNav.HasDetails(controller);
         var fallback = fromRecord ? Url.Action("Details", controller, new { id })
                      : controller.Equals("Account", StringComparison.OrdinalIgnoreCase) ? Url.Action("Index", "Home")
-                     : parentModule != null && action.Equals("Index", StringComparison.OrdinalIgnoreCase) ? Url.Action("Index", parentModule)
+                     : action.Equals("Index", StringComparison.OrdinalIgnoreCase)
+                         ? (parentModule != null ? Url.Action("Index", parentModule) : Url.Action("Index", "Home"))
                      : Url.Action("Index", controller);
 
         // A screen that has already worked out its own way back says so.
