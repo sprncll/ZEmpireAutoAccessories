@@ -66,6 +66,18 @@
         /// <summary>A price for several panels at once, not a piece of glass.</summary>
         private static readonly string[] Bundles = { "Full Wrap", "Whole Vehicle" };
 
+        // The inside of the car. Walked on the condition sheet - a mark on a
+        // seat is worth recording on arrival - but never something tint or
+        // film is cut for.
+        private static readonly string[] InteriorNames =
+        {
+            "Dashboard", "Seats", "Front Seats", "Rear Seats", "Headliner", "Roof Lining",
+            "Door Panels", "Door Cards", "Carpet", "Flooring", "Floor Mats",
+        };
+
+        public static bool IsInterior(string? panelName) =>
+            panelName != null && InteriorNames.Contains(panelName.Trim(), StringComparer.OrdinalIgnoreCase);
+
         public static bool IsBundle(string? panelName) =>
             panelName != null && Bundles.Contains(panelName.Trim(), StringComparer.OrdinalIgnoreCase);
 
@@ -168,9 +180,15 @@
         /// has been recorded against these - there is no checklist here - so
         /// where two rows name the same glass the canonical one wins, which is
         /// the name the price scripts key on.
+        ///
+        /// The inside of the car is left out: this is the list a tint or film
+        /// line picks its panel from, and the dashboard, seats, headliner,
+        /// door panels and carpet are never cut for. They stay on the
+        /// condition sheet, which is where they belong.
         /// </summary>
         public static List<Panel> ForPricing(IEnumerable<Panel> all) =>
             all
+                .Where(p => !IsInterior(p.PanelName))
                 .GroupBy(p => GroupKey(p.PanelName))
                 .SelectMany(group => OnePerPanel(group, NothingRecorded))
                 .OrderBy(p => IsBundle(p.PanelName) ? 1 : 0)
