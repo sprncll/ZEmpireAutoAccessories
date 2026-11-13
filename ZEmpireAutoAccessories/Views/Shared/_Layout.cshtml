@@ -44,6 +44,9 @@
             ? own
             : BackLink.For(Context.Request, fallback);
     }
+
+    // Says where it goes, so nobody has to press it to find out.
+    var backLabel = backUrl != null ? AppNav.BackLabel(backUrl) : null;
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -124,14 +127,6 @@
                     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /></svg>
                 </button>
 
-                @if (backUrl != null)
-                {
-                    <a class="zx-back" href="@backUrl" title="Back to the previous screen">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
-                        <span>Back</span>
-                    </a>
-                }
-
                 <nav class="zx-crumbs" aria-label="You are here">
                     @if (here is { } spot)
                     {
@@ -172,6 +167,16 @@
 
         <div class="container">
             <main role="main" id="zxMain" class="pb-3">
+                @* Back sits on the page, right above the title - where the eye
+                   already is when a screen opens - and always in the same spot,
+                   so it is found without looking. *@
+                @if (backUrl != null)
+                {
+                    <a class="zx-back" href="@backUrl">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+                        <span>@backLabel</span>
+                    </a>
+                }
                 @RenderBody()
             </main>
         </div>

@@ -157,6 +157,48 @@ namespace ZEmpireAutoAccessories.Models
 
         public static bool HasDetails(string controller) => WithDetails.Contains(controller);
 
+        // One record of each module, for "Back to job order" rather than
+        // "Back to job orders" when Back returns to a single record.
+        private static readonly Dictionary<string, string> OneOf = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Customer"] = "customer", ["Vehicle"] = "vehicle", ["Warranty"] = "warranty",
+            ["JobOrder"] = "job order", ["VehicleChecklist"] = "checklist", ["Service"] = "service",
+            ["JobType"] = "job type", ["Product"] = "product", ["Inventory"] = "stock item",
+            ["InventoryCheck"] = "stock count", ["Pricing"] = "price", ["Quotation"] = "quotation",
+            ["Sales"] = "sale", ["ServiceInvoice"] = "invoice", ["Employee"] = "user",
+            ["VehicleClassification"] = "vehicle class", ["ProductCategory"] = "category",
+        };
+
+        /// <summary>
+        /// What a Back button pointing at <paramref name="url"/> should say:
+        /// "Back to Cashiering", "Back to job order", "Back to Dashboard".
+        /// Worked out from the address alone; anything unrecognised is "Back".
+        /// </summary>
+        public static string BackLabel(string url)
+        {
+            var path = url.Split('?', '#')[0].Trim('/');
+            if (path.Length == 0)
+                return "Back to Dashboard";
+
+            var parts = path.Split('/');
+            var controller = parts[0];
+            var action = parts.Length > 1 ? parts[1] : "Index";
+
+            if (controller.Equals("Home", StringComparison.OrdinalIgnoreCase))
+                return "Back to Dashboard";
+
+            if (Locate(controller) is not { } spot)
+                return "Back";
+
+            if (action.Equals("Index", StringComparison.OrdinalIgnoreCase))
+                return "Back to " + spot.Item.Label;
+
+            if (OneOf.TryGetValue(controller, out var one))
+                return "Back to " + one;
+
+            return "Back to " + spot.Item.Label;
+        }
+
         /// <summary>
         /// The groups this user has at least one screen in, each holding only
         /// the screens they may open. Empty groups are left out.

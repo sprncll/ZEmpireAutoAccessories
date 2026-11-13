@@ -1054,30 +1054,31 @@ button:focus-visible {
 
 .zx-top-btn:hover { border-color: #cfd5de; color: var(--zx-ink); }
 
-/* Back, beside "you are here". A real button rather than a bare arrow:
-   it is the most used control on any screen that is not a list. */
+/* Back, on the page itself, directly above the title. A quiet link
+   rather than a button: it is how you leave, not what the screen is for -
+   but big enough to hit without aiming, and in the same spot on every
+   screen. */
 .zx-back {
-  flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 38px;
-  padding: 0 14px 0 11px;
-  border-radius: 10px;
-  border: 1px solid var(--zx-line);
-  background: #fff;
-  color: var(--zx-ink);
-  font-size: 13.5px;
+  gap: 7px;
+  min-height: 34px;
+  margin: -6px 0 10px -10px;
+  padding: 0 12px 0 10px;
+  border-radius: 9px;
+  color: #5d6472;
+  font-size: 14px;
   font-weight: 600;
   text-decoration: none;
-  transition: all .15s ease;
+  transition: background .15s ease, color .15s ease;
 }
 
-.zx-back:hover { border-color: var(--zx-ink); color: var(--zx-ink); }
+.zx-back:hover { background: #e9ecf1; color: var(--zx-ink); }
+.zx-back:focus-visible { box-shadow: 0 0 0 .2rem var(--zx-ring); }
 
+/* A finger on a phone. */
 @media (max-width: 575.98px) {
-  .zx-back { padding: 0 11px; }
-  .zx-back span { display: none; }
+  .zx-back { min-height: 40px; margin-bottom: 6px; }
 }
 
 .zx-crumbs {
@@ -1241,7 +1242,7 @@ button:focus-visible {
 
 /* Ctrl+P on a list should print the list, not the menu around it. */
 @media print {
-  .zx-side, .zx-top, .zx-backdrop, .zx-skip { display: none !important; }
+  .zx-side, .zx-top, .zx-backdrop, .zx-skip, .zx-back { display: none !important; }
   .zx-app .zx-shell { margin-left: 0 !important; }
   body { background: #fff; }
 }
