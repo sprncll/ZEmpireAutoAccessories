@@ -1,0 +1,105 @@
+@model ZEmpireAutoAccessories.Models.Warranty
+@*
+    What the warranty covers: exactly one of a sale item, a service invoice
+    item or a job order.
+
+    The record has a slot for each, and the form used to show all three at
+    once, so a warranty could be tied to a sale line AND an invoice line AND
+    a job order - for three different customers - and nothing said which one
+    the cover was for. Now the kind is chosen first and only that picker is
+    shown. The other two are disabled as well as hidden: a disabled select
+    posts nothing, so they arrive empty however they were left.
+
+    Without JavaScript all three show, as before, and the controller refuses
+    a save with more than one filled in - the rule lives there, this is only
+    the easy way to follow it.
+*@
+@{
+    var kind = Model.SalesDetailID != null ? "sale"
+             : Model.ServiceInvoiceDetailID != null ? "invoice"
+             : Model.JobOrderID != null ? "job"
+             : "";
+}
+
+<style>
+    .cover-kinds { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .cover-kind { margin: 0; }
+    .cover-kind input { position: absolute; opacity: 0; pointer-events: none; }
+    .cover-kind span {
+        display: inline-flex; align-items: center; gap: 7px;
+        padding: 8px 14px; border-radius: 999px; cursor: pointer;
+        border: 1px solid #dfe3ea; background: #fff; color: #39404e;
+        font-size: 13.5px; font-weight: 600; transition: all .15s ease;
+    }
+    .cover-kind span:hover { border-color: #c7ccd6; color: #0b0b0c; }
+    .cover-kind input:checked + span { background: #0b0b0c; border-color: #0b0b0c; color: #fff; }
+    .cover-kind input:focus-visible + span { box-shadow: 0 0 0 .2rem var(--zx-ring); }
+    .cover-hint { font-size: 13px; color: #7b8290; margin: -4px 0 14px; }
+</style>
+
+<div class="cover-picker" style="grid-column: 1 / -1;">
+    <label class="form-label d-block">This warranty covers</label>
+    <div class="cover-kinds" role="radiogroup" aria-label="What this warranty covers" hidden>
+        <label class="cover-kind"><input type="radio" name="coverKind" value="sale" @(kind == "sale" ? "checked" : null) /><span>A sale item</span></label>
+        <label class="cover-kind"><input type="radio" name="coverKind" value="invoice" @(kind == "invoice" ? "checked" : null) /><span>A service invoice item</span></label>
+        <label class="cover-kind"><input type="radio" name="coverKind" value="job" @(kind == "job" ? "checked" : null) /><span>A job order</span></label>
+    </div>
+    <p class="cover-hint" hidden>Choose one of the three above.</p>
+
+    <div class="mb-3" data-cover="sale">
+        <label asp-for="SalesDetailID" class="form-label">Sale Item</label>
+        <select asp-for="SalesDetailID" class="form-select" asp-items="ViewBag.SalesDetailID">
+            <option value="">-- Select sale item --</option>
+        </select>
+        <span asp-validation-for="SalesDetailID" class="text-danger"></span>
+    </div>
+    <div class="mb-3" data-cover="invoice">
+        <label asp-for="ServiceInvoiceDetailID" class="form-label">Service Invoice Item</label>
+        <select asp-for="ServiceInvoiceDetailID" class="form-select" asp-items="ViewBag.ServiceInvoiceDetailID">
+            <option value="">-- Select service invoice item --</option>
+        </select>
+        <span asp-validation-for="ServiceInvoiceDetailID" class="text-danger"></span>
+    </div>
+    <div class="mb-3" data-cover="job">
+        <label asp-for="JobOrderID" class="form-label">Job Order</label>
+        <select asp-for="JobOrderID" class="form-select" asp-items="ViewBag.JobOrderID">
+            <option value="">-- Select job order --</option>
+        </select>
+        <span asp-validation-for="JobOrderID" class="text-danger"></span>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var picker = document.currentScript.previousElementSibling;
+        var kinds = picker.querySelector('.cover-kinds');
+        var hint = picker.querySelector('.cover-hint');
+        var blocks = picker.querySelectorAll('[data-cover]');
+
+        kinds.hidden = false;
+
+        function show() {
+            var chosen = picker.querySelector('input[name="coverKind"]:checked');
+            var value = chosen ? chosen.value : '';
+            hint.hidden = value !== '';
+
+            blocks.forEach(function (block) {
+                var on = block.getAttribute('data-cover') === value;
+                var select = block.querySelector('select');
+                block.hidden = !on;
+                // Off means empty and not sent - switching from "sale item"
+                // to "job order" must not leave the sale line behind.
+                if (!on && select.value !== '') {
+                    select.value = '';
+                    select.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                select.disabled = !on;
+            });
+        }
+
+        picker.querySelectorAll('input[name="coverKind"]').forEach(function (radio) {
+            radio.addEventListener('change', show);
+        });
+        show();
+    })();
+</script>

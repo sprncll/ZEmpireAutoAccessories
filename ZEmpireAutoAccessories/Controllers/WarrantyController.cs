@@ -330,10 +330,7 @@ namespace ZEmpireAutoAccessories.Controllers
             Warranty warranty,
             bool linked = false)
         {
-            if (warranty.SalesDetailID == null && warranty.ServiceInvoiceDetailID == null && warranty.JobOrderID == null)
-            {
-                ModelState.AddModelError(string.Empty, "Link the warranty to a sale item, a service invoice item, or a job order.");
-            }
+            CheckCoversOne(warranty);
 
             if (warranty.WarrantyEndDate != null && warranty.WarrantyStartDate != null &&
                 warranty.WarrantyEndDate < warranty.WarrantyStartDate)
@@ -412,10 +409,7 @@ namespace ZEmpireAutoAccessories.Controllers
             if (id != warranty.WarrantyID)
                 return NotFound();
 
-            if (warranty.SalesDetailID == null && warranty.ServiceInvoiceDetailID == null && warranty.JobOrderID == null)
-            {
-                ModelState.AddModelError(string.Empty, "Link the warranty to a sale item, a service invoice item, or a job order.");
-            }
+            CheckCoversOne(warranty);
 
             // Same check Create makes - a cover that ends before it starts is
             // not a cover, and nothing in the database stops it.
@@ -548,6 +542,27 @@ namespace ZEmpireAutoAccessories.Controllers
                 warranty.WarrantyStatus = "Expired";
 
             await _context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// A warranty covers exactly one thing: a sale item, a service invoice
+        /// item or a job order. The record has a slot for each, so nothing in
+        /// the database stops two or three being filled - and then nobody can
+        /// say which one the cover is for. The form only shows one picker at a
+        /// time; this is the rule itself, for every way a save can arrive.
+        /// </summary>
+        private void CheckCoversOne(Warranty warranty)
+        {
+            var links = (warranty.SalesDetailID != null ? 1 : 0)
+                      + (warranty.ServiceInvoiceDetailID != null ? 1 : 0)
+                      + (warranty.JobOrderID != null ? 1 : 0);
+
+            if (links == 0)
+                ModelState.AddModelError(string.Empty,
+                    "Choose what this warranty covers: a sale item, a service invoice item, or a job order.");
+            else if (links > 1)
+                ModelState.AddModelError(string.Empty,
+                    "A warranty covers one thing only. Keep the sale item, the service invoice item or the job order, and clear the others.");
         }
 
         private async Task LoadDropdowns(Warranty? warranty = null)

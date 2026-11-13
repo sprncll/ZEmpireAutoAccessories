@@ -17,34 +17,14 @@
 <div class="zx-page-head">
     <h1>Edit Warranty #@Model.WarrantyID</h1>
 </div>
-<p class="zx-page-sub">Link this warranty to a sale item, a service invoice item, or a job order — pick one.</p>
+<p class="zx-page-sub">Choose what this warranty covers: one sale item, one service invoice item, or one job order.</p>
 
 <div class="zx-card padded narrow">
     <form asp-action="Edit" method="post" class="zx-form">
         <input type="hidden" asp-for="WarrantyID" />
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
-        <div class="mb-3">
-            <label asp-for="SalesDetailID" class="form-label">Sale Item</label>
-            <select asp-for="SalesDetailID" class="form-select" asp-items="ViewBag.SalesDetailID">
-                <option value="">-- None --</option>
-            </select>
-            <span asp-validation-for="SalesDetailID" class="text-danger"></span>
-        </div>
-        <div class="mb-3">
-            <label asp-for="ServiceInvoiceDetailID" class="form-label">Service Invoice Item</label>
-            <select asp-for="ServiceInvoiceDetailID" class="form-select" asp-items="ViewBag.ServiceInvoiceDetailID">
-                <option value="">-- None --</option>
-            </select>
-            <span asp-validation-for="ServiceInvoiceDetailID" class="text-danger"></span>
-        </div>
-        <div class="mb-3">
-            <label asp-for="JobOrderID" class="form-label">Job Order</label>
-            <select asp-for="JobOrderID" class="form-select" asp-items="ViewBag.JobOrderID">
-                <option value="">-- None --</option>
-            </select>
-            <span asp-validation-for="JobOrderID" class="text-danger"></span>
-        </div>
+        <partial name="_CoverPicker" model="Model" />
 
         <div class="row">
             <div class="col-md-6 mb-3">
