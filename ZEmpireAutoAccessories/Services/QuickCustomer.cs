@@ -71,7 +71,7 @@ namespace ZEmpireAutoAccessories.Services
             {
                 FullName = PersonName.Combine(firstName, lastName),
                 ContactNumber = number,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = PhTime.Now
             };
 
             context.Customers.Add(customer);

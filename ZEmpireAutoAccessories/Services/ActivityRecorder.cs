@@ -88,7 +88,7 @@ namespace ZEmpireAutoAccessories.Services
         // of its invoice before it is anything of its customer's.
         private static readonly Type[] Documents =
         {
-            typeof(ServiceInvoice), typeof(Sale), typeof(Quotation), typeof(JobOrder),
+            typeof(ServiceInvoice), typeof(Sale), typeof(Quotation), typeof(JobOrder), typeof(Pricing),
             typeof(VehicleChecklist), typeof(InventoryCheck), typeof(Warranty),
             typeof(Product), typeof(Customer),
         };
@@ -290,8 +290,30 @@ namespace ZEmpireAutoAccessories.Services
 
         // ---- reading an entry ---------------------------------------------
 
+        // Work the site does by itself - the expiry sweep - is the site's,
+        // even when it runs inside somebody's request for the dashboard.
+        private static readonly AsyncLocal<bool> _asSystem = new();
+
+        /// <summary>Everything saved inside this scope is logged as "System".</summary>
+        public static IDisposable AsSystem()
+        {
+            var before = _asSystem.Value;
+            _asSystem.Value = true;
+            return new Restore(() => _asSystem.Value = before);
+        }
+
+        private sealed class Restore : IDisposable
+        {
+            private readonly Action _undo;
+            public Restore(Action undo) => _undo = undo;
+            public void Dispose() => _undo();
+        }
+
         private (string? UserId, string? UserName) WhoIsThis()
         {
+            if (_asSystem.Value)
+                return (null, "System");
+
             var user = _http.HttpContext?.User;
             if (user?.Identity?.IsAuthenticated != true)
                 return (null, "System");
@@ -382,9 +404,33 @@ namespace ZEmpireAutoAccessories.Services
             return KeyOf(entry) is { } id ? "#" + id : "";
         }
 
-        /// <summary>"ServiceInvoicePayment" as "service invoice payment".</summary>
+        // What a record is called in the shop, where the class name is not it.
+        private static readonly Dictionary<string, string> PlainNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ServiceInvoice"] = "invoice",
+            ["ServiceInvoiceDetail"] = "invoice item",
+            ["ServiceInvoicePayment"] = "payment",
+            ["Sale"] = "sale",
+            ["SaleDetail"] = "sale item",
+            ["JobOrderDetail"] = "job order item",
+            ["QuotationDetail"] = "quotation item",
+            ["InventoryTransaction"] = "stock movement",
+            ["InventoryCheck"] = "stock count",
+            ["InventoryCheckDetail"] = "stock count line",
+            ["VehicleChecklistDetail"] = "checklist panel",
+            ["Pricing"] = "price",
+            ["ApplicationUser"] = "user account",
+            ["ApplicationRole"] = "role",
+            ["IdentityUserRole`1"] = "user's role",
+            ["RolePermission"] = "role permission",
+        };
+
+        /// <summary>"ServiceInvoiceDetail" as "invoice item"; otherwise the words of the name.</summary>
         public static string Friendly(string entity)
         {
+            if (PlainNames.TryGetValue(entity, out var plain))
+                return plain;
+
             var words = new StringBuilder();
             for (var i = 0; i < entity.Length; i++)
             {

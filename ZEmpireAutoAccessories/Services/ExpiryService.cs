@@ -50,7 +50,11 @@ namespace ZEmpireAutoAccessories.Services
                 warranty.WarrantyStatus = "Expired";
 
             if (quotes.Count + warranties.Count > 0)
-                await _context.SaveChangesAsync();
+            {
+                // The site did this, not whoever happened to open a screen.
+                using (ActivityRecorder.AsSystem())
+                    await _context.SaveChangesAsync();
+            }
 
             return (quotes.Count, warranties.Count);
         }

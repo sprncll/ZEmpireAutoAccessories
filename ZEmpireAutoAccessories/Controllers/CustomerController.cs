@@ -139,7 +139,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 return View(customer);
             }
 
-            customer.CreatedAt = DateTime.UtcNow;
+            customer.CreatedAt = PhTime.Now;
 
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();

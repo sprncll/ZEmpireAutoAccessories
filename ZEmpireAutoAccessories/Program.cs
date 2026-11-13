@@ -32,6 +32,7 @@ builder.Services.AddControllersWithViews(options =>
 // who is signed in, hence the accessor.
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ActivityRecorder>();
+builder.Services.AddScoped<ActivityFeed>();
 
 builder.Services.AddDbContext<ApplicationDbContext>((services, options) =>
     options.UseSqlServer(

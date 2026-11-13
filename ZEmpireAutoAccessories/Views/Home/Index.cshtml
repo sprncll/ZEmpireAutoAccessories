@@ -202,6 +202,15 @@
     .act-text strong { color: #0b0b0c; font-weight: 600; }
     .act-when { flex: none; font-size: 12px; color: #98a0ad; white-space: nowrap; }
     .act-panel-empty { margin: 4px 0 0; font-size: 13.5px; color: #7b8290; }
+    .act-line a { color: inherit; text-decoration: none; border-bottom: 1px solid #dfe3ea; }
+    .act-line a:hover { color: var(--zx-red); border-bottom-color: var(--zx-red); }
+    .act-detail { display: block; font-size: 12.5px; color: #7b8290; margin-top: 2px; }
+    /* Money moved or something was removed: a red edge, and the reason. */
+    .act-panel-list li.is-important { box-shadow: inset 3px 0 0 #dc2626; padding-left: 12px; margin-left: -12px; }
+    .act-panel-list li.is-important .act-dot { background: #dc2626; }
+    .act-flag { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
+                text-transform: uppercase; color: #b91c1c; background: #fef2f2; border-radius: 999px; padding: 1px 8px;
+                vertical-align: 1px; }
 
     /* ---- the module directory, tightened up ---- */
     .mod-bar {
@@ -398,7 +407,7 @@
 }
 
 @{
-    var recent = ViewData["RecentActivity"] as List<ZEmpireAutoAccessories.Models.ActivityLog>;
+    var recent = ViewData["RecentActivity"] as List<ZEmpireAutoAccessories.Services.ActivityEvent>;
     var activityNotInstalled = ViewData["ActivityNotInstalled"] as bool? == true;
 }
 @if (recent != null || activityNotInstalled)
@@ -425,11 +434,28 @@
             <ul class="act-panel-list">
                 @foreach (var a in recent)
                 {
-                    <li>
-                        <span class="act-dot act-@a.Action" aria-hidden="true"></span>
+                    <li class="@(a.Important ? "is-important" : null)">
+                        <span class="act-dot act-@a.Kind" aria-hidden="true"></span>
                         <span class="act-text">
-                            <strong>@(a.UserName ?? "—")</strong>
-                            @(char.ToLowerInvariant(a.Summary[0]) + a.Summary[1..])
+                            <span class="act-line">
+                                <strong>@(a.UserName ?? "—")</strong>
+                                @if (a.Url != null)
+                                {
+                                    <a href="@a.Url" zx-return>@a.Headline</a>
+                                }
+                                else
+                                {
+                                    @a.Headline
+                                }
+                                @if (a.Flag != null)
+                                {
+                                    <span class="act-flag">@a.Flag</span>
+                                }
+                            </span>
+                            @if (a.Detail != null)
+                            {
+                                <span class="act-detail">@a.Detail</span>
+                            }
                         </span>
                         <span class="act-when" title="@a.At.ToString("MMM d, yyyy h:mm tt")">@Ago(a.At)</span>
                     </li>

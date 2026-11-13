@@ -104,7 +104,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 // the account, not the one on the Employee row, so creating an
                 // inactive employee used to hand them a working login anyway.
                 IsActive = employee.IsActive,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = PhTime.Now,
             };
 
             var createResult = await _userManager.CreateAsync(newUser, password);
@@ -129,7 +129,7 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             employee.UserId = newUser.Id;
-            employee.CreatedAt = DateTime.UtcNow;
+            employee.CreatedAt = PhTime.Now;
 
             _context.Employees.Add(employee);
             await _context.SaveChangesAsync();
@@ -234,7 +234,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var wasDeactivated = user.IsActive && !employee.IsActive;
             user.IsActive = employee.IsActive;
 
-            employee.UpdatedAt = DateTime.UtcNow;
+            employee.UpdatedAt = PhTime.Now;
 
             try
             {

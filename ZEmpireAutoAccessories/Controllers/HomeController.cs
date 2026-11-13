@@ -19,10 +19,12 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IReportService _reportService;
         private readonly ExpiryService _expiry;
         private readonly SchemaStatus _schema;
+        private readonly ActivityFeed _feed;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService, ExpiryService expiry, SchemaStatus schema)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService, ExpiryService expiry, SchemaStatus schema, ActivityFeed feed)
         {
             _schema = schema;
+            _feed = feed;
             _logger = logger;
             _context = context;
             _reportService = reportService;
@@ -143,10 +145,9 @@ namespace ZEmpireAutoAccessories.Controllers
                 try
                 {
                     if (await _schema.Has(_context, SchemaStatus.ActivityLog))
-                        ViewData["RecentActivity"] = await _context.ActivityLogs.AsNoTracking()
-                            .OrderByDescending(a => a.At).ThenByDescending(a => a.ActivityID)
-                            .Take(8)
-                            .ToListAsync();
+                        // Grouped and worded for an owner - see ActivityFeed.
+                        ViewData["RecentActivity"] = await _feed.Recent(5,
+                            (controller, id) => Url.Action("Details", controller, new { id }));
                     else
                         ViewData["ActivityNotInstalled"] = true;
                 }
