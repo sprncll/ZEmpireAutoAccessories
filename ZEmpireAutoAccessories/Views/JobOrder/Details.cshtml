@@ -251,7 +251,7 @@
     </div>
 
     <h6 class="mb-3">Add Line Item</h6>
-        <form asp-action="AddLine" method="post" class="row g-2 align-items-end">
+        <form asp-action="AddLine" method="post" class="row g-2 align-items-start">
             <input type="hidden" name="jobOrderId" value="@Model.JobOrderID" />
 
             <div class="col-md-3">
@@ -313,8 +313,8 @@
                         }
                     </select>
                 </div>
+                <div id="lineStockNote" class="form-text mt-1"></div>
             </div>
-            <div id="lineStockNote" class="form-text mt-1"></div>
             <div class="col-md-3">
                 <label class="form-label">Price</label>
                 @* Staff quote from the book; administrators set what the book
@@ -330,7 +330,9 @@
                     <div class="form-text">Set from the price list for this vehicle's class.</div>
                 }
             </div>
-            <div class="col-md-3">
+            @* At the right edge, as on the invoice form, whichever row it lands on. *@
+            <div class="col-md-3 ms-auto">
+                <span class="form-label d-block invisible" aria-hidden="true">Add</span>
                 <button type="submit" class="btn btn-zx w-100">Add</button>
             </div>
         </form>

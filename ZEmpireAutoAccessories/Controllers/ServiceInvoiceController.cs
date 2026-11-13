@@ -722,6 +722,11 @@ namespace ZEmpireAutoAccessories.Controllers
                 lineUnit = UnitOfMeasure.PanelUnit;
             }
 
+            // A counted product is counted in pieces - "set" and "pair" are no
+            // longer offered, and are not taken from an old page either.
+            if (productId != null)
+                lineUnit = UnitOfMeasure.ForCounted(lineUnit);
+
             _context.ServiceInvoiceDetails.Add(new ServiceInvoiceDetail
             {
                 ServiceInvoiceID = serviceInvoiceId,

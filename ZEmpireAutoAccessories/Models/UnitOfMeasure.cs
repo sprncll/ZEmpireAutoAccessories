@@ -87,11 +87,19 @@
         /// cm/in/m, so the same word meant two different things depending on
         /// the screen. Both are gone; a piece is the sensible default.
         ///
-        /// A pair is two sold as one - wiper blades, a set of mirror caps -
-        /// and a set is the same idea where the count is not two. They are
-        /// here because the shop sells boxed goods that way.
+        /// Pieces only. "set" and "pair" were offered too, but the shop
+        /// counts every product it stocks one by one - a pair of wiper blades
+        /// is in inventory as one item - so a second word for the same count
+        /// only made a line harder to read and a stock count harder to match.
         /// </summary>
-        public static readonly string[] CountUnits = { "pc", "set", "pair" };
+        public static readonly string[] CountUnits = { "pc" };
+
+        /// <summary>
+        /// The unit a counted (not measured) product line is saved in,
+        /// whatever was posted: always a piece.
+        /// </summary>
+        public static string ForCounted(string? posted) =>
+            posted != null && (LengthUnits.Contains(posted) || posted == PanelUnit) ? posted : CountUnits[0];
 
         /// <summary>
         /// What labour is written in. A fitting is one job, not one piece of

@@ -570,6 +570,11 @@ namespace ZEmpireAutoAccessories.Controllers
                     lineUnit = UnitOfMeasure.PanelUnit;
                 }
 
+                // A counted product is counted in pieces - "set" and "pair" are no
+                // longer offered, and are not taken from an old page either.
+                if (productId != null)
+                    lineUnit = UnitOfMeasure.ForCounted(lineUnit);
+
                 // The same PRODUCT added twice is one line of two, not two
                 // lines of one. Three rows reading "Armor Rear Side Step" at
                 // 1, 1 and 4 tell a customer nothing the single row "6" does

@@ -531,6 +531,11 @@ namespace ZEmpireAutoAccessories.Controllers
                     lineUnit = UnitOfMeasure.PanelUnit;
                 }
 
+                // A counted product is counted in pieces - "set" and "pair" are no
+                // longer offered, and are not taken from an old page either.
+                if (productId != null)
+                    lineUnit = UnitOfMeasure.ForCounted(lineUnit);
+
                 // The same PRODUCT added twice is one line of two, not two
                 // lines of one - the job order's rule, and a quotation a
                 // customer reads should add up the same way. Three rows

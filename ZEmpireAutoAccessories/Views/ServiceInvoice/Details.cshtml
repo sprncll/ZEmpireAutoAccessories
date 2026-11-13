@@ -442,7 +442,7 @@
     {
         <div class="alert alert-danger py-2 px-3" style="font-size:13.5px;">@lineError</div>
     }
-    <form asp-action="AddLine" method="post" class="row g-2 align-items-end">
+    <form asp-action="AddLine" method="post" class="row g-2 align-items-start">
         <input type="hidden" name="serviceInvoiceId" value="@Model.ServiceInvoiceID" />
 
         <div class="col-md-3">
@@ -538,6 +538,7 @@
         @* The button keeps the rightmost quarter, in line with Panel and
            Disc. above it, rather than starting a ragged fifth column. *@
         <div class="col-md-3 offset-md-9">
+            <span class="form-label d-block invisible" aria-hidden="true">Add</span>
             <button type="submit" class="btn btn-zx w-100">Add</button>
         </div>
     </form>

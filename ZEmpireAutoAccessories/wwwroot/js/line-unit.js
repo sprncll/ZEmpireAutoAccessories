@@ -25,8 +25,14 @@
         return raw ? raw.split(',').map(function (u) { return u.trim(); }).filter(Boolean) : fallback;
     }
 
+    // Shown in place of the dropdown when there is only one unit to have.
+    var fixedUnit = document.createElement('span');
+    fixedUnit.className = 'input-group-text line-unit-fixed';
+    fixedUnit.style.display = 'none';
+    unit.parentNode.insertBefore(fixedUnit, unit.nextSibling);
+
     var LENGTH_UNITS = unitList('lengthUnits', ['cm', 'in', 'm']);
-    var COUNT_UNITS = unitList('countUnits', ['pc', 'set', 'pair']);
+    var COUNT_UNITS = unitList('countUnits', ['pc']);
     var SERVICE_UNITS = unitList('serviceUnits', ['job']);
 
     function selectedIsRoll() {
@@ -64,6 +70,14 @@
                   : COUNT_UNITS;
 
         fill(units, units[0]);
+
+        // One unit is not a choice: say it beside the number instead of
+        // offering a dropdown with a single entry. The select stays in the
+        // form, out of sight, so the unit is still sent.
+        var single = units.length === 1;
+        unit.style.display = single ? 'none' : '';
+        fixedUnit.textContent = single ? units[0] : '';
+        fixedUnit.style.display = single ? '' : 'none';
 
         // Quotation and Job Order lines store quantity as a whole number, so
         // a measured length has to be written in a unit that comes out whole
