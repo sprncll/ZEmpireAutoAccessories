@@ -17,6 +17,33 @@
     var onDashboard = string.Equals(controller, "Home", StringComparison.OrdinalIgnoreCase) &&
                       string.Equals(ViewContext.RouteData.Values["action"]?.ToString(), "Index", StringComparison.OrdinalIgnoreCase);
     var here = AppNav.Locate(controller);
+
+    // The Back button in the top bar. Every screen that is not a list or the
+    // dashboard gets one, in the same place, so the way back never has to be
+    // looked for. It goes to the screen that opened this one when that screen
+    // said so (a returnUrl - see BackLink and zx-return); otherwise to the
+    // record an edit came from, or to the module's list.
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    var isList = action.Equals("Index", StringComparison.OrdinalIgnoreCase)
+                 || action.Equals("Error", StringComparison.OrdinalIgnoreCase)
+                 || onDashboard;
+    string? backUrl = null;
+    if (signedIn && !isList && controller != null)
+    {
+        var id = ViewContext.RouteData.Values["id"]?.ToString();
+        var fromRecord = !string.IsNullOrEmpty(id)
+                         && (action.Equals("Edit", StringComparison.OrdinalIgnoreCase)
+                             || action.Equals("Claim", StringComparison.OrdinalIgnoreCase))
+                         && AppNav.HasDetails(controller);
+        var fallback = fromRecord ? Url.Action("Details", controller, new { id })
+                     : controller.Equals("Account", StringComparison.OrdinalIgnoreCase) ? Url.Action("Index", "Home")
+                     : Url.Action("Index", controller);
+
+        // A screen that has already worked out its own way back says so.
+        backUrl = ViewData["BackUrl"] as string is { } own && BackLink.IsSafe(own)
+            ? own
+            : BackLink.For(Context.Request, fallback);
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -96,6 +123,14 @@
                 <button type="button" class="zx-top-btn" id="zxNavToggle" aria-controls="zxSide" aria-expanded="false" aria-label="Toggle navigation">
                     <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h16" /></svg>
                 </button>
+
+                @if (backUrl != null)
+                {
+                    <a class="zx-back" href="@backUrl" title="Back to the previous screen">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+                        <span>Back</span>
+                    </a>
+                }
 
                 <nav class="zx-crumbs" aria-label="You are here">
                     @if (here is { } spot)

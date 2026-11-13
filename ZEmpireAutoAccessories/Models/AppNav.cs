@@ -146,6 +146,17 @@ namespace ZEmpireAutoAccessories.Models
             }),
         };
 
+        // Controllers with a Details screen, so the top bar's Back from an
+        // Edit can return to the record rather than to the whole list.
+        private static readonly HashSet<string> WithDetails = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Customer", "Employee", "InventoryCheck", "Inventory", "JobOrder", "Pricing", "Product",
+            "Quotation", "Sales", "Service", "ServiceInvoice", "VehicleChecklist",
+            "VehicleClassification", "Vehicle", "Warranty",
+        };
+
+        public static bool HasDetails(string controller) => WithDetails.Contains(controller);
+
         /// <summary>
         /// The groups this user has at least one screen in, each holding only
         /// the screens they may open. Empty groups are left out.

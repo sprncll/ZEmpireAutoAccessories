@@ -1054,6 +1054,32 @@ button:focus-visible {
 
 .zx-top-btn:hover { border-color: #cfd5de; color: var(--zx-ink); }
 
+/* Back, beside "you are here". A real button rather than a bare arrow:
+   it is the most used control on any screen that is not a list. */
+.zx-back {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 14px 0 11px;
+  border-radius: 10px;
+  border: 1px solid var(--zx-line);
+  background: #fff;
+  color: var(--zx-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all .15s ease;
+}
+
+.zx-back:hover { border-color: var(--zx-ink); color: var(--zx-ink); }
+
+@media (max-width: 575.98px) {
+  .zx-back { padding: 0 11px; }
+  .zx-back span { display: none; }
+}
+
 .zx-crumbs {
   display: flex;
   align-items: center;
