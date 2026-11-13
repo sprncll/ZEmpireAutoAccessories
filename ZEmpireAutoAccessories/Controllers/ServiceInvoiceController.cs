@@ -19,6 +19,7 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IDocumentStockService _documentStock;
         private readonly ICutSizeStore _cutSizes;
         private readonly SchemaStatus _schema;
+        private readonly PriceBook _priceBook;
 
         public ServiceInvoiceController(
             ApplicationDbContext context,
@@ -26,9 +27,11 @@ namespace ZEmpireAutoAccessories.Controllers
             IInventoryService inventoryService,
             IDocumentStockService documentStock,
             ICutSizeStore cutSizes,
-            SchemaStatus schema)
+            SchemaStatus schema,
+            PriceBook priceBook)
         {
             _schema = schema;
+            _priceBook = priceBook;
             _context = context;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
@@ -652,45 +655,25 @@ namespace ZEmpireAutoAccessories.Controllers
             // here and the book's own price used, so typing over a read-only
             // box, or posting the form by hand, changes nothing. The same
             // rule the job order and the quotation have.
-            if (!AppRoles.CanEditCatalogPrices(User))
+            // The price comes from the price records, for everybody - see
+            // PriceBook. Whatever the form posted is not used. A line the
+            // records have no price for is not taken: the message says which
+            // record an administrator has to fill in.
+            var price = await _priceBook.For(productId, serviceId, tintVariantId,
+                invoice.Vehicle?.VehicleClassificationID, panelId);
+
+            if (!price.Found)
             {
-                decimal? bookPrice = null;
-
-                if (productId != null && panelId != null && invoice.Vehicle != null)
-                {
-                    bookPrice = await _context.Pricings
-                        .Where(p =>
-                            p.ProductID == productId &&
-                            p.TintVariantID == tintVariantId &&
-                            p.VehicleClassificationID == invoice.Vehicle.VehicleClassificationID &&
-                            p.PanelID == panelId)
-                        .Select(p => (decimal?)p.Price)
-                        .FirstOrDefaultAsync();
-                }
-
-                // Nothing in the matrix for this combination: fall back to
-                // what the catalogue says the thing costs on its own.
-                bookPrice ??= serviceId != null
-                    ? await _context.Services
-                        .Where(x => x.ServiceID == serviceId)
-                        .Select(x => (decimal?)x.DefaultPrice)
-                        .FirstOrDefaultAsync()
-                    : await _context.Products
-                        .Where(x => x.ProductID == productId)
-                        .Select(x => x.DefaultPrice)
-                        .FirstOrDefaultAsync();
-
-                // A combination the book has no price for is the one case a
-                // staff member may still type: refusing it would mean an
-                // invoice nobody can raise until an administrator is found.
-                if (bookPrice is { } fromBook && fromBook > 0)
-                    unitPrice = fromBook;
-
-                // A discount is the other way to change what is charged, so
-                // it goes the same way: a staff member bills the book price
-                // in full and an administrator decides what comes off it.
-                discountAmount = 0m;
+                TempData["LineError"] = price.Missing;
+                return RedirectToAction(nameof(Details), new { id = serviceInvoiceId });
             }
+
+            unitPrice = price.Amount!.Value;
+
+            // A discount is the one way to change what is charged on a line,
+            // and it is an administrator's: a staff member bills in full.
+            if (!AppRoles.CanEditCatalogPrices(User))
+                discountAmount = 0m;
 
             var linePanelId = productId != null ? panelId : null;
             var lineUnit = string.IsNullOrWhiteSpace(unit) ? "Unit" : unit;

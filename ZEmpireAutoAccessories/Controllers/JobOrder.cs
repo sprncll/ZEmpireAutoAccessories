@@ -17,17 +17,20 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly IDocumentStockService _documentStock;
         private readonly ICutSizeStore _cutSizes;
+        private readonly PriceBook _priceBook;
 
         public JobOrderController(
             ApplicationDbContext context,
             IInventoryService inventoryService,
             IDocumentStockService documentStock,
-            ICutSizeStore cutSizes)
+            ICutSizeStore cutSizes,
+            PriceBook priceBook)
         {
             _context = context;
             _inventoryService = inventoryService;
             _documentStock = documentStock;
             _cutSizes = cutSizes;
+            _priceBook = priceBook;
         }
 
         // GET: JobOrder?status=Pending&q=...
@@ -428,50 +431,21 @@ namespace ZEmpireAutoAccessories.Controllers
                 // Record which exact Pricing row (Product x Tint Variant x
                 // Vehicle Classification x Panel) this line's price came from,
                 // when the Add Line Item form resolved one client-side.
-                int? pricingId = null;
-                decimal? bookPrice = null;
+                // The price comes from the price records, for everybody - see
+                // PriceBook. Whatever the form posted is not used. A line the
+                // records have no price for is not taken: the message says
+                // which record an administrator has to fill in.
+                var price = await _priceBook.For(productId, serviceId, tintVariantId,
+                    jobOrder.Vehicle.VehicleClassificationID, panelId);
 
-                if (productId != null && panelId != null)
+                if (!price.Found)
                 {
-                    var priced = await _context.Pricings
-                        .Where(p =>
-                            p.ProductID == productId &&
-                            p.TintVariantID == tintVariantId &&
-                            p.VehicleClassificationID == jobOrder.Vehicle.VehicleClassificationID &&
-                            p.PanelID == panelId)
-                        .Select(p => new { p.PricingID, p.Price })
-                        .FirstOrDefaultAsync();
-
-                    if (priced != null)
-                    {
-                        pricingId = priced.PricingID;
-                        bookPrice = priced.Price;
-                    }
+                    TempData["LineError"] = price.Missing;
+                    return RedirectToAction(nameof(Details), new { id = jobOrderId });
                 }
 
-                // Nothing in the matrix for this combination: fall back to
-                // what the catalogue says the thing costs on its own.
-                bookPrice ??= serviceId != null
-                    ? await _context.Services
-                        .Where(x => x.ServiceID == serviceId)
-                        .Select(x => (decimal?)x.DefaultPrice)
-                        .FirstOrDefaultAsync()
-                    : await _context.Products
-                        .Where(x => x.ProductID == productId)
-                        .Select(x => x.DefaultPrice)
-                        .FirstOrDefaultAsync();
-
-                // Staff quote from the book; administrators set what the book
-                // says. The form shows the price read-only to a staff member,
-                // but a form is only a suggestion - the posted figure is
-                // discarded here and the book's own price used, so typing over
-                // a disabled box or posting the form by hand changes nothing.
-                //
-                // A combination the book has no price for is the one case a
-                // staff member may still type: refusing it would mean a job
-                // nobody can raise until an administrator is found.
-                if (!AppRoles.CanEditCatalogPrices(User) && bookPrice is { } fromBook && fromBook > 0)
-                    unitPrice = fromBook;
+                unitPrice = price.Amount!.Value;
+                int? pricingId = price.PricingId;
 
                 // The variant and the shade say what was FITTED. They are not
                 // price drivers - the shade never was, and a variant only

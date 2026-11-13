@@ -378,7 +378,11 @@ namespace ZEmpireAutoAccessories.Controllers
             // corrected - at a counter, with the customer standing there, a
             // price that silently changes between typing and printing is
             // worse than being told no.
-            if (!AppRoles.CanEditCatalogPrices(User))
+            //
+            // For everybody, administrators included: an administrator changes
+            // what the price list says, under Pricing or Products, and the
+            // counter sells at that. A line the list has no price for is
+            // refused with the record to fill in - see PriceBook.
             {
                 var vehicleClassificationId = vehicleId is { } vid
                     ? await _context.Vehicles
@@ -404,30 +408,33 @@ namespace ZEmpireAutoAccessories.Controllers
 
                     if (!inTheBook && lineClassification != null)
                     {
+                        // The panel's own price, where the line names one -
+                        // not any panel's price for this product.
                         inTheBook = await _context.Pricings.AnyAsync(pr =>
                             pr.ProductID == line.ProductID &&
                             pr.VehicleClassificationID == lineClassification &&
-                            pr.Price == line.UnitPrice);
+                            (line.PanelID == null || pr.PanelID == line.PanelID) &&
+                            pr.Price == line.UnitPrice &&
+                            pr.Price > 0);
                     }
 
-                    // A product the book has no price for at all is the
-                    // one case a staff member may still name one: refusing it
-                    // would mean a sale nobody can ring up until an
-                    // administrator is found, with the customer at the
-                    // counter. The same carve-out the job order has.
-                    if (!inTheBook)
-                    {
-                        var hasAnyPrice =
-                            product?.DefaultPrice is { } any && any > 0;
-
-                        if (!hasAnyPrice && lineClassification != null)
-                        {
-                            hasAnyPrice = await _context.Pricings.AnyAsync(pr =>
+                    // Nothing in the book for this product at all: say where
+                    // its price is set, rather than letting a figure through.
+                    var hasAnyPrice = product?.DefaultPrice is > 0m
+                        || (lineClassification != null && await _context.Pricings.AnyAsync(pr =>
                                 pr.ProductID == line.ProductID &&
-                                pr.VehicleClassificationID == lineClassification);
-                        }
+                                pr.VehicleClassificationID == lineClassification &&
+                                pr.Price > 0));
 
-                        inTheBook = !hasAnyPrice;
+                    if (!inTheBook && !hasAnyPrice)
+                    {
+                        ModelState.AddModelError(string.Empty,
+                            $"{product?.ProductName ?? "That product"} has no price yet. "
+                            + "An administrator sets it under Catalog & Inventory → Pricing "
+                            + "(or on the product, for something sold by the piece).");
+
+                        await LoadDropdowns();
+                        return View();
                     }
 
                     if (!inTheBook)

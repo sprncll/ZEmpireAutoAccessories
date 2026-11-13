@@ -34,6 +34,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<ActivityRecorder>();
 builder.Services.AddScoped<ActivityFeed>();
 
+// What a line costs - the one place that says so. See PriceBook.
+builder.Services.AddScoped<PriceBook>();
+
 builder.Services.AddDbContext<ApplicationDbContext>((services, options) =>
     options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"))

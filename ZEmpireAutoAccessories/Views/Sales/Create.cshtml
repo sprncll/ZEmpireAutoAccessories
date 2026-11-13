@@ -852,16 +852,19 @@
                 var hasBookPrice = rowsForProduct(productId, classOf($row)).length > 0
                     || (!isNaN(flat) && flat > 0);
 
+                // The price box never opens: prices come from the price list,
+                // for everybody. With nothing on file the row says where it
+                // is set, and the sale is refused until it is.
+                $price.prop('readonly', true).attr('tabindex', '-1');
                 if (hasBookPrice) {
-                    $price.prop('readonly', true).attr('tabindex', '-1').removeAttr('placeholder');
+                    $price.removeAttr('placeholder');
                     $row.find('.price-note').remove();
                 } else {
-                    $price.prop('readonly', false).removeAttr('tabindex')
-                          .attr('placeholder', 'No price on file');
+                    $price.attr('placeholder', 'No price on file');
 
                     if ($row.find('.price-note').length === 0) {
                         $price.closest('td').append(
-                            '<div class="price-note">Nothing in the price list for this - type what was agreed.</div>');
+                            '<div class="price-note">No price in the price list yet - an administrator sets it under Pricing.</div>');
                     }
                 }
             }

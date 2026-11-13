@@ -280,12 +280,10 @@
                    rule. *@
                 <input id="addLinePrice" type="number" step="0.01" name="unitPrice" class="form-control"
                        value="0" min="0"
-                       readonly="@(canEditPrice ? null : "readonly")"
-                       tabindex="@(canEditPrice ? null : "-1")" />
-                @if (!canEditPrice)
-                {
-                    <div class="form-text">Set from the price list for this vehicle's class.</div>
-                }
+                       readonly tabindex="-1" />
+                @* From the price records, for everybody - see PriceBook. An
+                   administrator changes the record, not the line. *@
+                <div class="form-text">From the price list.@if (canEditPrice) { <text> Change it under </text><a asp-controller="Pricing" asp-action="Index" zx-return>Pricing</a><text>.</text> }</div>
             </div>
             @* At the right edge, as on the invoice form, whichever row it lands on. *@
             <div class="col-md-3 ms-auto">
@@ -500,19 +498,15 @@
                     // comes from it, and the line is refused without one - so
                     // when nothing is priced for this product, variant and
                     // vehicle class, every panel is offered, unpriced.
-                    if (filmPicked() && allPanels.length > 0) {
+                    // A film is sold per panel at the Pricing price, and nothing
+                    // is priced for this product, variant and class of vehicle -
+                    // so no panel can be added until an administrator sets one.
+                    // Said in the box, rather than offering panels the save
+                    // would only refuse.
+                    if (filmPicked()) {
                         $price.val('0');
-                        $panel.empty()
-                              .append($('<option></option>').val('').text(pricedByPanel
-                                  ? '-- Select Panel (no price for this variant) --'
-                                  : '-- Select Panel (no matrix price) --'))
-                              .prop('disabled', false);
-
-                        allPanels.forEach(function (p) {
-                            $panel.append($('<option></option>').val(p.panelId).text(p.panelName));
-                        });
-
-                        showIfUsable($panel);
+                        resetSelect($panel, '-- Not priced in Pricing for this vehicle class --');
+                        $('#wrap-' + $panel.attr('id')).show();
                         return;
                     }
 
