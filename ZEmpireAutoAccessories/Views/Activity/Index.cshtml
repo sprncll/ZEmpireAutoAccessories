@@ -52,7 +52,7 @@
 }
 else
 {
-    <form method="get" class="act-filters">
+    <form method="get" class="act-filters" id="actFilters">
         @if (oneRecord)
         {
             <input type="hidden" name="entity" value="@entity" />
@@ -86,14 +86,17 @@ else
             <input type="text" class="form-control" id="q" name="q" value="@search" placeholder="Invoice no., name, field" />
         </div>
         <div class="d-flex gap-2">
-            <button type="submit" class="btn btn-zx">Filter</button>
-            @if (from != null || to != null || !string.IsNullOrEmpty(ViewData["User"] as string) || (!oneRecord && !string.IsNullOrEmpty(entity)) || !string.IsNullOrEmpty(search))
-            {
-                <a class="btn btn-outline-secondary" href="@Url.Action("Index", oneRecord ? new { entity, key } : null)">Clear</a>
-            }
+            @* Kept for a browser without JavaScript; the script hides it, since
+               the filters apply themselves. *@
+            <button type="submit" class="btn btn-zx" id="actFilterBtn">Filter</button>
+            <a class="btn btn-outline-secondary" id="actClear" href="@Url.Action("Index", oneRecord ? new { entity, key } : null)"
+               hidden="@(from != null || to != null || !string.IsNullOrEmpty(ViewData["User"] as string) || (!oneRecord && !string.IsNullOrEmpty(entity)) || !string.IsNullOrEmpty(search) ? null : "hidden")">Clear</a>
         </div>
     </form>
 
+    @* What the filters swap in place as they change - the table and its
+       page bar - so typing does not reload the page and lose the cursor. *@
+    <div id="actResults">
     <div class="zx-card">
         <div class="table-responsive">
             <table class="table zx-table mb-0">
@@ -141,4 +144,79 @@ else
     </div>
 
     <partial name="_Pager" />
+    </div>
+}
+
+@section Scripts {
+    <script>
+        // Live filters. A dropdown or a date applies the moment it changes;
+        // the text box after a short pause in typing. The results are fetched
+        // and swapped in place, and the address bar follows, so Back, refresh
+        // and a bookmark still show the same filtered log.
+        (function () {
+            var form = document.getElementById('actFilters');
+            var results = document.getElementById('actResults');
+            if (!form || !results || !window.fetch) { return; }
+
+            var button = document.getElementById('actFilterBtn');
+            var clear = document.getElementById('actClear');
+            if (button) { button.hidden = true; }
+
+            var timer = null;
+            var latest = 0;
+
+            function query() {
+                var params = new URLSearchParams(new FormData(form));
+                // Empty boxes say nothing; leave them out of the address.
+                Array.from(params.keys()).forEach(function (k) {
+                    if (!params.get(k)) { params.delete(k); }
+                });
+                return params.toString();
+            }
+
+            function anyFilter() {
+                return Array.from(form.querySelectorAll('input:not([type=hidden]), select'))
+                    .some(function (el) { return !!el.value; });
+            }
+
+            function apply() {
+                var qs = query();
+                var url = form.getAttribute('action') || location.pathname;
+                url = url.split('?')[0] + (qs ? '?' + qs : '');
+                var mine = ++latest;
+
+                results.style.opacity = '.55';
+                fetch(url, { headers: { 'X-Requested-With': 'fetch' } })
+                    .then(function (r) { return r.text(); })
+                    .then(function (html) {
+                        // A slower, older answer must not overwrite a newer one.
+                        if (mine !== latest) { return; }
+                        var doc = new DOMParser().parseFromString(html, 'text/html');
+                        var fresh = doc.getElementById('actResults');
+                        if (fresh) { results.innerHTML = fresh.innerHTML; }
+                        history.replaceState(null, '', url);
+                        if (clear) { clear.hidden = !anyFilter(); }
+                    })
+                    .catch(function () { form.submit(); })
+                    .finally(function () { if (mine === latest) { results.style.opacity = ''; } });
+            }
+
+            form.addEventListener('change', function (e) {
+                if (e.target.matches('select, input[type=date]')) { clearTimeout(timer); apply(); }
+            });
+
+            form.addEventListener('input', function (e) {
+                if (!e.target.matches('input[type=text]')) { return; }
+                clearTimeout(timer);
+                timer = setTimeout(apply, 350);
+            });
+
+            // Enter in the text box applies now rather than reloading.
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearTimeout(timer);
+                apply();
+            });
+        })();
+    </script>
 }
