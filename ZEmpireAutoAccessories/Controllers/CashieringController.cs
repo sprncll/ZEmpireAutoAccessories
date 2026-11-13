@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services;
 using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
@@ -27,15 +28,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ICashieringService _cashieringService;
         private readonly IProofStore _proofs;
+        private readonly ActivityRecorder _activity;
 
         public CashieringController(
             ApplicationDbContext context,
             ICashieringService cashieringService,
-            IProofStore proofs)
+            IProofStore proofs,
+            ActivityRecorder activity)
         {
             _context = context;
             _cashieringService = cashieringService;
             _proofs = proofs;
+            _activity = activity;
         }
 
         // GET: Cashiering?from=...&to=...&q=...&paymentModeId=...&userId=...&source=Sale
@@ -169,6 +173,12 @@ namespace ZEmpireAutoAccessories.Controllers
             if (refused.Count > 0)
                 TempData["ProofError"] = string.Join(" ", refused);
 
+            // Files are not database rows, so the activity log is told.
+            if (saved > 0)
+                await _activity.Note(_context, EntityFor(source), sourceId.ToString(),
+                    saved == 1 ? "Attached a receipt as proof of payment"
+                               : $"Attached {saved} receipts as proof of payment");
+
             return RedirectBack(returnUrl);
         }
 
@@ -206,7 +216,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // removal cannot quietly leave a payment looking settled.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult RemoveProof(CashierSource source, int sourceId, int slot, string? returnUrl)
+        public async Task<IActionResult> RemoveProof(CashierSource source, int sourceId, int slot, string? returnUrl)
         {
             if (!MaySee(source))
                 return Forbid();
@@ -220,8 +230,17 @@ namespace ZEmpireAutoAccessories.Controllers
             else
                 TempData["Success"] = "Proof of payment removed. Attach the right file in its place.";
 
+            if (TempData["ProofError"] == null)
+                await _activity.Note(_context, EntityFor(source), sourceId.ToString(),
+                    $"Removed receipt {slot} (proof of payment)");
+
             return RedirectBack(returnUrl);
         }
+
+        // The record a cashiering row is, named the way the activity log names
+        // it, so a note lands in the same history as the record's own changes.
+        private static string EntityFor(CashierSource source) =>
+            source == CashierSource.Sale ? nameof(Sale) : nameof(ServiceInvoice);
 
         /// <summary>
         /// Whether this user holds the module the transaction belongs to. The

@@ -53,6 +53,18 @@
 
     // Says where it goes, so nobody has to press it to find out.
     var backLabel = backUrl != null ? AppNav.BackLabel(backUrl) : null;
+
+    // On a record's own page, an Admin can open everything recorded against
+    // it - who made it, who changed what, receipts attached.
+    string? historyUrl = null;
+    if (signedIn && User.IsInRole("Admin") && controller != null
+        && action.Equals("Details", StringComparison.OrdinalIgnoreCase)
+        && AppNav.RecordedAs(controller) is { } recorded
+        && ViewContext.RouteData.Values["id"]?.ToString() is { Length: > 0 } recordId)
+    {
+        historyUrl = Url.Action("Index", "Activity",
+            new { entity = recorded, key = recordId, returnUrl = BackLink.Here(Context.Request) });
+    }
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -176,12 +188,24 @@
                 @* Back sits on the page, right above the title - where the eye
                    already is when a screen opens - and always in the same spot,
                    so it is found without looking. *@
-                @if (backUrl != null)
+                @if (backUrl != null || historyUrl != null)
                 {
-                    <a class="zx-back" href="@backUrl">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
-                        <span>@backLabel</span>
-                    </a>
+                    <div class="zx-back-row">
+                        @if (backUrl != null)
+                        {
+                            <a class="zx-back" href="@backUrl">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+                                <span>@backLabel</span>
+                            </a>
+                        }
+                        @if (historyUrl != null)
+                        {
+                            <a class="zx-history" href="@historyUrl">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v4l3 3" /><path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5" /></svg>
+                                History
+                            </a>
+                        }
+                    </div>
                 }
                 @RenderBody()
             </main>

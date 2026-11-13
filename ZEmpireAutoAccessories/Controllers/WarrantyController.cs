@@ -14,14 +14,17 @@ namespace ZEmpireAutoAccessories.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IProofStore _proofs;
+        private readonly ActivityRecorder _activity;
         private readonly ExpiryService _expiry;
 
         private static readonly string[] StatusOptions = { "Active", "Expired", "Voided", "Claimed" };
 
-        public WarrantyController(ApplicationDbContext context, IProofStore proofs, ExpiryService expiry)
+        public WarrantyController(ApplicationDbContext context, IProofStore proofs, ExpiryService expiry,
+            ActivityRecorder activity)
         {
             _context = context;
             _proofs = proofs;
+            _activity = activity;
             _expiry = expiry;
         }
 
@@ -109,7 +112,10 @@ namespace ZEmpireAutoAccessories.Controllers
                 : await _proofs.Save(ProofKind.WarrantyClaim, id, proof);
 
             if (TempData["ClaimError"] == null)
+            {
                 TempData["Success"] = "Proof of claim attached.";
+                await _activity.Note(_context, nameof(Warranty), id.ToString(), "Attached proof of claim");
+            }
 
             return RedirectToAction(nameof(Details), new { id });
         }
@@ -138,10 +144,13 @@ namespace ZEmpireAutoAccessories.Controllers
         // remarks record that - so this only clears the attachment.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public IActionResult RemoveClaimProof(int id)
+        public async Task<IActionResult> RemoveClaimProof(int id)
         {
             if (_proofs.Delete(ProofKind.WarrantyClaim, id))
+            {
                 TempData["Success"] = "Proof of claim removed. Attach the right file in its place.";
+                await _activity.Note(_context, nameof(Warranty), id.ToString(), "Removed proof of claim");
+            }
             else
                 TempData["ClaimError"] = "There was nothing attached to remove.";
 
@@ -223,6 +232,9 @@ namespace ZEmpireAutoAccessories.Controllers
             var proofError = claimProof == null
                 ? null
                 : await _proofs.Save(ProofKind.WarrantyClaim, id, claimProof);
+
+            if (claimProof != null && proofError == null)
+                await _activity.Note(_context, nameof(Warranty), id.ToString(), "Attached proof of claim");
 
             TempData["Success"] = proofError == null
                 ? "Warranty claimed successfully."

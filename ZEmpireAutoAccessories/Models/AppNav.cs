@@ -143,6 +143,12 @@ namespace ZEmpireAutoAccessories.Models
                     "<path d='M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z'/><circle cx='16.5' cy='7.5' r='.5' fill='currentColor'/>",
                     new[] { "Roles" },
                     AdminOnly: true),
+                // Who changed what. Admin only, like the roles screen: it
+                // names every user and every figure anyone has changed.
+                new("Activity Log", "Activity",
+                    "<path d='M12 8v4l3 3'/><path d='M3.05 11a9 9 0 1 1 .5 4m-.5 5v-5h5'/>",
+                    new[] { "Roles" },
+                    AdminOnly: true),
             }),
         };
 
@@ -169,6 +175,21 @@ namespace ZEmpireAutoAccessories.Models
             ["VehicleClassification"] = "Vehicle",
             ["ProductCategory"] = "Product",
         };
+
+        // The record a Details screen shows, named the way the activity log
+        // names it, for the History link. Only screens whose id is that
+        // record's own key.
+        private static readonly Dictionary<string, string> Recorded = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Customer"] = "Customer", ["Vehicle"] = "Vehicle", ["JobOrder"] = "JobOrder",
+            ["Quotation"] = "Quotation", ["Sales"] = "Sale", ["ServiceInvoice"] = "ServiceInvoice",
+            ["Warranty"] = "Warranty", ["Product"] = "Product", ["Pricing"] = "Pricing",
+            ["VehicleChecklist"] = "VehicleChecklist", ["Service"] = "Service",
+        };
+
+        /// <summary>The activity log's name for what this controller's Details shows, or null.</summary>
+        public static string? RecordedAs(string controller) =>
+            Recorded.TryGetValue(controller, out var entity) ? entity : null;
 
         /// <summary>The module a sub-list belongs to, or null for a top-level one.</summary>
         public static string? ParentOf(string controller) =>

@@ -67,6 +67,10 @@ namespace ZEmpireAutoAccessories.Data
         public DbSet<Module> Modules => Set<Module>();
         public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
+        // Created by Database/AddActivityLog.sql. Written only after
+        // SchemaStatus has confirmed it exists - see ActivityRecorder.
+        public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
+
         // ----- dbo reporting views (keyless) -----
         public DbSet<VwStockOnHand> StockOnHand => Set<VwStockOnHand>();
         public DbSet<VwSalesSummary> SalesSummaries => Set<VwSalesSummary>();

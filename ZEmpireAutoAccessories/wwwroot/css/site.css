@@ -1076,6 +1076,34 @@ button:focus-visible {
 .zx-back:hover { background: #e9ecf1; color: var(--zx-ink); }
 .zx-back:focus-visible { box-shadow: 0 0 0 .2rem var(--zx-ring); }
 
+/* Back on the left; on a record's page, History (Admin) on the right. */
+.zx-back-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.zx-back-row .zx-back { margin-bottom: 0; }
+
+.zx-history {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  margin-top: -6px;
+  padding: 0 12px;
+  border-radius: 9px;
+  color: #5d6472;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: auto;
+}
+
+.zx-history:hover { background: #e9ecf1; color: var(--zx-ink); }
+
 /* A finger on a phone. */
 @media (max-width: 575.98px) {
   .zx-back { min-height: 40px; margin-bottom: 6px; }
@@ -1242,7 +1270,7 @@ button:focus-visible {
 
 /* Ctrl+P on a list should print the list, not the menu around it. */
 @media print {
-  .zx-side, .zx-top, .zx-backdrop, .zx-skip, .zx-back { display: none !important; }
+  .zx-side, .zx-top, .zx-backdrop, .zx-skip, .zx-back, .zx-history { display: none !important; }
   .zx-app .zx-shell { margin-left: 0 !important; }
   body { background: #fff; }
 }

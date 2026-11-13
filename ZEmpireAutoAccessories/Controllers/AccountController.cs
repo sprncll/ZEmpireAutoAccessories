@@ -1,3 +1,5 @@
+using ZEmpireAutoAccessories.Services;
+using ZEmpireAutoAccessories.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +14,18 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<AccountController> _logger;
+        private readonly ApplicationDbContext _context;
+        private readonly ActivityRecorder _activity;
 
         public AccountController(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
-            ILogger<AccountController> logger)
+            ILogger<AccountController> logger,
+            ApplicationDbContext context,
+            ActivityRecorder activity)
         {
+            _context = context;
+            _activity = activity;
             _signInManager = signInManager;
             _userManager = userManager;
             _logger = logger;
@@ -63,14 +71,22 @@ namespace ZEmpireAutoAccessories.Controllers
             if (result.Succeeded)
             {
                 _logger.LogInformation("User {User} signed in.", user.UserName);
+                // This request is not signed in yet - the cookie is only on
+                // its way - so who it was is said rather than looked up.
+                await _activity.Note(_context, "Account", user.Id, "Signed in", user.Id, user.UserName);
                 return RedirectToLocal(model.ReturnUrl);
             }
 
             if (result.IsLockedOut)
             {
+                await _activity.Note(_context, "Account", user.Id, "Locked out after repeated wrong passwords", user.Id, user.UserName);
                 ModelState.AddModelError(string.Empty, "Account locked out due to multiple failed attempts. Try again later.");
                 return View(model);
             }
+
+            // A wrong password for a real account. An unknown name is not
+            // logged: it is whatever somebody typed, and it names nobody.
+            await _activity.Note(_context, "Account", user.Id, "Failed sign-in (wrong password)", user.Id, user.UserName);
 
             ModelState.AddModelError(string.Empty, "Invalid username or password.");
             return View(model);

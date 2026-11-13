@@ -1,0 +1,144 @@
+@model List<ZEmpireAutoAccessories.Models.ActivityLog>
+@using ZEmpireAutoAccessories.Services
+@{
+    ViewData["Title"] = "Activity Log";
+    var notInstalled = ViewData["NotInstalled"] as bool? == true;
+    var from = ViewData["From"] as DateOnly?;
+    var to = ViewData["To"] as DateOnly?;
+    var entity = ViewData["Entity"] as string;
+    var key = ViewData["Key"] as string;
+    var search = ViewData["Search"] as string;
+    var entities = ViewData["Entities"] as List<SelectListItem> ?? new();
+    var oneRecord = !string.IsNullOrEmpty(entity) && !string.IsNullOrEmpty(key);
+}
+
+<style>
+    .act-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end; margin-bottom: 18px; }
+    .act-filters .form-label { font-size: 12.5px; }
+    .act-action { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .3px; padding: 2px 8px; border-radius: 999px; }
+    .act-Added   { background: rgba(21,128,61,.12);  color: #15803d; }
+    .act-Changed { background: rgba(59,130,246,.14); color: #1d4ed8; }
+    .act-Deleted { background: rgba(220,38,38,.12);  color: #b91c1c; }
+    .act-Note    { background: #f1f3f7; color: #5d6472; }
+    .act-when { white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .act-who { white-space: nowrap; font-weight: 600; }
+    .act-summary { font-weight: 500; color: #0b0b0c; }
+    .act-changes summary { cursor: pointer; font-size: 12.5px; color: #5d6472; margin-top: 3px; }
+    .act-changes pre { margin: 6px 0 0; padding: 8px 10px; background: #f7f8fa; border-radius: 8px; font-size: 12.5px;
+                       white-space: pre-wrap; word-break: break-word; font-family: inherit; color: #39404e; }
+    .act-record { font-size: 12px; color: #98a0ad; }
+</style>
+
+<div class="zx-page-head">
+    <h1>@(oneRecord ? "History" : "Activity Log")</h1>
+</div>
+<p class="zx-page-sub">
+    @if (oneRecord)
+    {
+        <text>Everything recorded against this @ActivityRecorder.Friendly(entity!) (#@key), newest first.</text>
+    }
+    else
+    {
+        <text>Who added, changed or deleted what, and when - newest first. Passwords and security tokens are never recorded.</text>
+    }
+</p>
+
+@if (notInstalled)
+{
+    <div class="alert alert-warning">
+        Nothing is being recorded yet. Run <code>Database/AddActivityLog.sql</code> on this database once;
+        recording starts within two minutes, with no restart.
+    </div>
+}
+else
+{
+    <form method="get" class="act-filters">
+        @if (oneRecord)
+        {
+            <input type="hidden" name="entity" value="@entity" />
+            <input type="hidden" name="key" value="@key" />
+        }
+        <div>
+            <label class="form-label" for="from">From</label>
+            <input type="date" class="form-control" id="from" name="from" value="@from?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div>
+            <label class="form-label" for="to">To</label>
+            <input type="date" class="form-control" id="to" name="to" value="@to?.ToString("yyyy-MM-dd")" />
+        </div>
+        <div>
+            <label class="form-label" for="user">Who</label>
+            <select class="form-select" id="user" name="user" asp-items="ViewBag.Users">
+                <option value="">Everyone</option>
+            </select>
+        </div>
+        @if (!oneRecord)
+        {
+            <div>
+                <label class="form-label" for="entity">Record</label>
+                <select class="form-select" id="entity" name="entity" asp-items="entities">
+                    <option value="">All kinds</option>
+                </select>
+            </div>
+        }
+        <div>
+            <label class="form-label" for="q">Containing</label>
+            <input type="text" class="form-control" id="q" name="q" value="@search" placeholder="Invoice no., name, field" />
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-zx">Filter</button>
+            @if (from != null || to != null || !string.IsNullOrEmpty(ViewData["User"] as string) || (!oneRecord && !string.IsNullOrEmpty(entity)) || !string.IsNullOrEmpty(search))
+            {
+                <a class="btn btn-outline-secondary" href="@Url.Action("Index", oneRecord ? new { entity, key } : null)">Clear</a>
+            }
+        </div>
+    </form>
+
+    <div class="zx-card">
+        <div class="table-responsive">
+            <table class="table zx-table mb-0">
+                <thead>
+                    <tr>
+                        <th>When</th>
+                        <th>Who</th>
+                        <th></th>
+                        <th>What</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model)
+                    {
+                        <tr>
+                            <td class="act-when">@a.At.ToString("MMM d, yyyy h:mm tt")</td>
+                            <td class="act-who">@(a.UserName ?? "—")</td>
+                            <td><span class="act-action act-@a.Action">@a.Action</span></td>
+                            <td>
+                                <div class="act-summary">@a.Summary</div>
+                                @if (!oneRecord && a.EntityKey != null)
+                                {
+                                    <a class="act-record" asp-action="Index" asp-route-entity="@a.Entity" asp-route-key="@a.EntityKey">History of this record</a>
+                                }
+                                @if (!string.IsNullOrEmpty(a.Changes))
+                                {
+                                    var count = a.Changes.Count(c => c == '\n') + 1;
+                                    <details class="act-changes">
+                                        <summary>@count field@(count == 1 ? "" : "s")</summary>
+                                        <pre>@a.Changes</pre>
+                                    </details>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="4" class="zx-empty">Nothing recorded@(from != null || to != null || !string.IsNullOrEmpty(search) ? " that matches" : " yet").</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <partial name="_Pager" />
+}

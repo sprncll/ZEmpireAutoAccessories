@@ -27,9 +27,16 @@ builder.Services.AddControllersWithViews(options =>
 });
 
 // Add Entity Framework Core + SQL Server
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Who changed what: every save is written down by ActivityRecorder, which
+// sits in the save itself so no screen has to remember to. It needs to know
+// who is signed in, hence the accessor.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<ActivityRecorder>();
+
+builder.Services.AddDbContext<ApplicationDbContext>((services, options) =>
     options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")));
+            builder.Configuration.GetConnectionString("DefaultConnection"))
+        .AddInterceptors(services.GetRequiredService<ActivityRecorder>()));
 
 // ASP.NET Core Identity mapped to the asp.* tables
 builder.Services
