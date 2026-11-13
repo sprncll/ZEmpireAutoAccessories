@@ -67,7 +67,29 @@ namespace ZEmpireAutoAccessories.Models
         /// Refunded invoices still appear in the list but are not collected
         /// cash.
         /// </summary>
-        public bool IsCollected => Source == CashierSource.Sale || Status == "Paid";
+        public bool IsCollected => FromLedger
+            ? Source == CashierSource.Sale || PaymentId != null
+            : Source == CashierSource.Sale || Status == "Paid";
+
+        /// <summary>
+        /// Read from the payment ledger (sales.ServiceInvoicePayment): each
+        /// invoice row is one payment, dated when it was taken, and its amount
+        /// is what that payment put in the drawer. False until the ledger's
+        /// script has been run, when a row is a whole invoice as before.
+        /// </summary>
+        public bool FromLedger { get; set; }
+
+        /// <summary>The payment this row is, on an invoice row from the ledger.</summary>
+        public int? PaymentId { get; set; }
+
+        /// <summary>
+        /// The invoice's own total, where the row's amount is only part of it -
+        /// a down payment, a balance, a refund.
+        /// </summary>
+        public decimal? DocumentTotal { get; set; }
+
+        /// <summary>"Down payment", "Balance", "Refunded", "Balance due"...</summary>
+        public string? PaymentLabel { get; set; }
 
         /// <summary>
         /// The receipts attached to this payment, by number, in the order
@@ -91,7 +113,7 @@ namespace ZEmpireAutoAccessories.Models
         /// Collected on an online mode with nothing attached to show for it -
         /// the row a cashier has to chase before closing the day.
         /// </summary>
-        public bool ProofMissing => NeedsProof && IsCollected && !HasProof;
+        public bool ProofMissing => NeedsProof && IsCollected && TotalAmount > 0m && !HasProof;
     }
 
     /// <summary>Collected cash for one payment mode within the filtered range.</summary>
@@ -143,6 +165,12 @@ namespace ZEmpireAutoAccessories.Models
         // Cashiering has no module of its own; it is opened by holding Sales
         // or Service Invoices, and shows only the half that is held. The view
         // uses these to hide the tiles, filters and links for the other half.
+        /// <summary>
+        /// Invoice money is counted from the payment ledger - by the day each
+        /// payment was taken - rather than by whole invoice.
+        /// </summary>
+        public bool UsesLedger { get; set; }
+
         public bool CanSeeSales { get; set; }
         public bool CanSeeServiceInvoices { get; set; }
 

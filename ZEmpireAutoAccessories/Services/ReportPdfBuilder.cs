@@ -242,7 +242,7 @@ namespace ZEmpireAutoAccessories.Services
                                 header.Cell().Element(HeaderCell).Text("Payment");
                                 header.Cell().Element(HeaderCell).Text("Cashier");
                                 header.Cell().Element(HeaderCell).Text("Status");
-                                header.Cell().Element(HeaderCell).AlignRight().Text("Total");
+                                header.Cell().Element(HeaderCell).AlignRight().Text("Amount");
                             });
 
                             foreach (var txn in model.Transactions)
@@ -254,7 +254,8 @@ namespace ZEmpireAutoAccessories.Services
                                 table.Cell().Element(BodyCell).Text(txn.CustomerName ?? "—");
                                 table.Cell().Element(BodyCell).Text(txn.PaymentModeName);
                                 table.Cell().Element(BodyCell).Text(txn.CashierName ?? "—");
-                                table.Cell().Element(BodyCell).Text(txn.Status);
+                                table.Cell().Element(BodyCell).Text(
+                                    txn.PaymentLabel != null ? txn.Status + " · " + txn.PaymentLabel : txn.Status);
 
                                 // An uncollected row is listed but is not part
                                 // of the takings, and the figure is greyed so

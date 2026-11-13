@@ -12,6 +12,9 @@
 }
 
 <style>
+    /* What an invoice row's amount is - a down payment, the balance, a
+       refund - and of how much. */
+    .amt-note { font-size: 11.5px; color: #7b8290; font-weight: 500; white-space: nowrap; }
     .report-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
     .report-tabs a { padding:7px 16px; border-radius:999px; font-size:13.5px; font-weight:600; color:#4b5563;
                      background:#fff; border:1px solid #e8ebf0; text-decoration:none; }
@@ -90,7 +93,7 @@
                     <th>Payment</th>
                     <th>Cashier</th>
                     <th>Status</th>
-                    <th class="num pe-3">Total</th>
+                    <th class="num pe-3">Amount</th>
                 </tr>
             </thead>
             <tbody>
@@ -108,7 +111,13 @@
                         <td>@txn.PaymentModeName</td>
                         <td>@(txn.CashierName ?? "—")</td>
                         <td>@txn.Status</td>
-                        <td class="num amount pe-3">@("₱" + txn.TotalAmount.ToString("N2"))</td>
+                        <td class="num amount pe-3">
+                            @("₱" + txn.TotalAmount.ToString("N2"))
+                            @if (txn.PaymentLabel != null)
+                            {
+                                <div class="amt-note">@txn.PaymentLabel@(txn.DocumentTotal is { } of && of != txn.TotalAmount ? " · of " + Money.Peso(of) : "")</div>
+                            }
+                        </td>
                     </tr>
                 }
                 @if (Model.Transactions.Count == 0)

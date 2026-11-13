@@ -16,10 +16,12 @@ namespace ZEmpireAutoAccessories.Services
     public class CashieringService : ICashieringService
     {
         private readonly ApplicationDbContext _context;
+        private readonly SchemaStatus _schema;
 
-        public CashieringService(ApplicationDbContext context)
+        public CashieringService(ApplicationDbContext context, SchemaStatus schema)
         {
             _context = context;
+            _schema = schema;
         }
 
         public async Task<CashieringViewModel> GetCashiering(
@@ -45,14 +47,18 @@ namespace ZEmpireAutoAccessories.Services
                 transactions.AddRange(await GetSaleRows(from, toExclusive, term, paymentModeId, userId));
 
             if (source is null or CashierSource.ServiceInvoice)
-                transactions.AddRange(await GetServiceInvoiceRows(from, toExclusive, term, paymentModeId, userId));
+                transactions.AddRange(await _schema.Has(_context, SchemaStatus.Payments)
+                    ? await GetInvoicePaymentRows(from, toExclusive, term, paymentModeId, userId)
+                    : await GetServiceInvoiceRows(from, toExclusive, term, paymentModeId, userId));
 
             transactions = transactions
                 .OrderByDescending(t => t.TransactionDate)
                 .ThenByDescending(t => t.InvoiceNumber)
                 .ToList();
 
-            return BuildViewModel(transactions, dateFrom, dateTo, term, paymentModeId, userId, source);
+            var model = BuildViewModel(transactions, dateFrom, dateTo, term, paymentModeId, userId, source);
+            model.UsesLedger = await _schema.Has(_context, SchemaStatus.Payments);
+            return model;
         }
 
         private async Task<List<CashierTransaction>> GetSaleRows(
@@ -132,6 +138,102 @@ namespace ZEmpireAutoAccessories.Services
                     Status = i.Status
                 })
                 .ToListAsync();
+        }
+
+        /// <summary>
+        /// Service invoice rows from the payment ledger: every payment taken in
+        /// the range, on the day it was taken - a down payment today is in
+        /// today's takings, whenever the invoice was raised - and every invoice
+        /// raised in the range that is still owed something, as the balance
+        /// due, which is not money in.
+        /// </summary>
+        private async Task<List<CashierTransaction>> GetInvoicePaymentRows(
+            DateTime from, DateTime toExclusive, string? term, int? paymentModeId, string? userId)
+        {
+            var payments = _context.ServiceInvoicePayments
+                .Where(p => p.PaymentDate >= from && p.PaymentDate < toExclusive);
+
+            if (term != null)
+                payments = payments.Where(p => p.ServiceInvoice.InvoiceNumber.Contains(term)
+                                            || p.ServiceInvoice.Customer.FullName.Contains(term));
+
+            if (paymentModeId.HasValue)
+                payments = payments.Where(p => p.PaymentModeID == paymentModeId.Value);
+
+            if (!string.IsNullOrEmpty(userId))
+                payments = payments.Where(p => p.UserId == userId);
+
+            var rows = await payments
+                .Select(p => new CashierTransaction
+                {
+                    FromLedger = true,
+                    PaymentId = p.PaymentID,
+                    Source = CashierSource.ServiceInvoice,
+                    SourceId = p.ServiceInvoiceID,
+                    InvoiceNumber = p.ServiceInvoice.InvoiceNumber,
+                    TransactionDate = p.PaymentDate,
+                    CustomerName = p.ServiceInvoice.Customer.FullName,
+                    PlateNumber = p.ServiceInvoice.Vehicle != null ? p.ServiceInvoice.Vehicle.PlateNumber : null,
+                    PaymentModeID = p.PaymentModeID,
+                    PaymentModeName = p.PaymentMode.PaymentModeName,
+                    UserId = p.UserId,
+                    TotalAmount = p.Amount,
+                    DocumentTotal = p.ServiceInvoice.TotalAmount,
+                    AmountPaid = p.AmountTendered,
+                    ChangeAmount = p.AmountTendered != null ? p.ChangeAmount : null,
+                    Status = p.ServiceInvoice.Status,
+                    PaymentLabel = p.Notes ?? p.Kind
+                })
+                .ToListAsync();
+
+            // Raised in the range and not settled: what is still owed, or the
+            // whole of a cancelled or refunded one, shown so the cashier can
+            // see it but never counted as money in.
+            var owed = _context.ServiceInvoices
+                .Where(i => i.InvoiceDate >= from && i.InvoiceDate < toExclusive && i.Status != "Paid")
+                .Where(i => i.Status != "Pending" || i.AmountPaid < i.TotalAmount);
+
+            if (term != null)
+                owed = owed.Where(i => i.InvoiceNumber.Contains(term) || i.Customer.FullName.Contains(term));
+
+            if (paymentModeId.HasValue)
+                owed = owed.Where(i => i.PaymentModeID == paymentModeId.Value);
+
+            if (!string.IsNullOrEmpty(userId))
+                owed = owed.Where(i => i.UserId == userId);
+
+            rows.AddRange(await owed
+                .Select(i => new CashierTransaction
+                {
+                    FromLedger = true,
+                    Source = CashierSource.ServiceInvoice,
+                    SourceId = i.ServiceInvoiceID,
+                    InvoiceNumber = i.InvoiceNumber,
+                    TransactionDate = i.InvoiceDate,
+                    CustomerName = i.Customer.FullName,
+                    PlateNumber = i.Vehicle != null ? i.Vehicle.PlateNumber : null,
+                    PaymentModeID = i.PaymentModeID,
+                    PaymentModeName = i.PaymentMode.PaymentModeName,
+                    UserId = i.UserId,
+                    TotalAmount = i.Status == "Pending" ? i.TotalAmount - i.AmountPaid : i.TotalAmount,
+                    DocumentTotal = i.TotalAmount,
+                    Status = i.Status,
+                    PaymentLabel = i.Status == "Pending" ? "Balance due" : i.Status
+                })
+                .ToListAsync());
+
+            // Who took each payment. The ledger keeps the user's id only, so
+            // the names are looked up once for the whole page.
+            var ids = rows.Select(r => r.UserId).Distinct().ToList();
+            var names = await _context.Users
+                .Where(u => ids.Contains(u.Id))
+                .Select(u => new { u.Id, Name = u.FullName != null && u.FullName != "" ? u.FullName : u.UserName })
+                .ToDictionaryAsync(u => u.Id, u => u.Name);
+
+            foreach (var row in rows)
+                row.CashierName = names.TryGetValue(row.UserId, out var name) ? name : null;
+
+            return rows;
         }
 
         /// <summary>

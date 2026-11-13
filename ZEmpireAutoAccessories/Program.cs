@@ -107,6 +107,10 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddScoped<IQuotationService, QuotationService>();
 builder.Services.AddScoped<ICashieringService, CashieringService>();
 
+// Whether a table a script in Database/ adds has been created yet, so a
+// screen can keep working the old way until it has. One per site.
+builder.Services.AddSingleton<SchemaStatus>();
+
 // Where files kept as evidence live - proof an online payment arrived, proof
 // a warranty was claimed - and which payment modes need one.
 builder.Services.AddScoped<IProofStore, ProofStore>();

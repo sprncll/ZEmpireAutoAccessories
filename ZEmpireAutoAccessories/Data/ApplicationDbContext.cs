@@ -53,6 +53,10 @@ namespace ZEmpireAutoAccessories.Data
         public DbSet<SaleDetail> SalesDetails => Set<SaleDetail>();
         public DbSet<ServiceInvoice> ServiceInvoices => Set<ServiceInvoice>();
         public DbSet<ServiceInvoiceDetail> ServiceInvoiceDetails => Set<ServiceInvoiceDetail>();
+
+        // Created by Database/AddInvoicePayments.sql. Read only after
+        // SchemaStatus has confirmed it exists - see there.
+        public DbSet<ServiceInvoicePayment> ServiceInvoicePayments => Set<ServiceInvoicePayment>();
         public DbSet<Quotation> Quotations => Set<Quotation>();
         public DbSet<QuotationDetail> QuotationDetails => Set<QuotationDetail>();
         public DbSet<InvoiceNoSeries> InvoiceNoSeries => Set<InvoiceNoSeries>();
@@ -269,6 +273,14 @@ namespace ZEmpireAutoAccessories.Data
                 e.HasOne(x => x.Vehicle).WithMany().HasForeignKey(x => x.VehicleID).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
                 e.HasOne(x => x.PaymentMode).WithMany().HasForeignKey(x => x.PaymentModeID).OnDelete(DeleteBehavior.Restrict);
+            });
+
+            b.Entity<ServiceInvoicePayment>(e =>
+            {
+                e.HasOne(x => x.ServiceInvoice).WithMany()
+                    .HasForeignKey(x => x.ServiceInvoiceID).OnDelete(DeleteBehavior.Cascade);
+                e.HasOne(x => x.PaymentMode).WithMany()
+                    .HasForeignKey(x => x.PaymentModeID).OnDelete(DeleteBehavior.Restrict);
             });
 
             b.Entity<ServiceInvoiceDetail>(e =>

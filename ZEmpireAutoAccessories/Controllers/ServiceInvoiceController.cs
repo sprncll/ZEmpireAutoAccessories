@@ -18,14 +18,17 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly IInventoryService _inventoryService;
         private readonly IDocumentStockService _documentStock;
         private readonly ICutSizeStore _cutSizes;
+        private readonly SchemaStatus _schema;
 
         public ServiceInvoiceController(
             ApplicationDbContext context,
             IQuotationService quotationService,
             IInventoryService inventoryService,
             IDocumentStockService documentStock,
-            ICutSizeStore cutSizes)
+            ICutSizeStore cutSizes,
+            SchemaStatus schema)
         {
+            _schema = schema;
             _context = context;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
@@ -136,6 +139,25 @@ namespace ZEmpireAutoAccessories.Controllers
                         price = p.Price
                     })
                     .ToListAsync();
+            }
+
+            // Every payment against it, newest last, and the modes a payment
+            // may come in on - only once the ledger's script has been run.
+            if (await _schema.Has(_context, SchemaStatus.Payments))
+            {
+                var payments = await _context.ServiceInvoicePayments
+                    .Where(p => p.ServiceInvoiceID == invoice.ServiceInvoiceID)
+                    .Include(p => p.PaymentMode)
+                    .OrderBy(p => p.PaymentDate)
+                    .ToListAsync();
+
+                var takers = payments.Select(p => p.UserId).Distinct().ToList();
+                ViewData["PaymentTakers"] = await _context.Users
+                    .Where(u => takers.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => !string.IsNullOrEmpty(u.FullName) ? u.FullName : u.UserName ?? "");
+                ViewData["Payments"] = payments;
+                ViewData["PayModes"] = PaymentModes.ForSelection(
+                    await _context.PaymentModes.ToListAsync(), invoice.PaymentModeID);
             }
 
             return View(invoice);
@@ -762,7 +784,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // rather than being assumed equal to the total.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> RecordPayment(int id, decimal amountTendered)
+        public async Task<IActionResult> RecordPayment(int id, decimal amountTendered, int? paymentModeId = null)
         {
             var invoice = await _context.ServiceInvoices
                 .Include(i => i.Details)
@@ -800,9 +822,25 @@ namespace ZEmpireAutoAccessories.Controllers
             // and gives nothing back, so anything at or above the balance
             // settles it exactly. Below the balance it is a deposit, and falls
             // through untouched - a deposit by transfer is a real thing.
+            // What this payment came in on. A deposit by GCash and a balance
+            // in cash are two modes on one invoice, so the box on the screen
+            // asks; it starts on the invoice's own mode, which is also what is
+            // used when nothing is sent. Only a mode the shop still offers is
+            // accepted.
+            var mode = invoice.PaymentMode;
+            if (paymentModeId != null && paymentModeId != invoice.PaymentModeID)
+            {
+                var chosen = await _context.PaymentModes.FindAsync(paymentModeId.Value);
+                if (chosen != null && PaymentModes.ForSelection(new[] { chosen }).Any())
+                    mode = chosen;
+            }
+
             if (amountTendered >= balance
-                && PaymentModes.SettlesExactly(invoice.PaymentMode?.PaymentModeName))
+                && PaymentModes.SettlesExactly(mode?.PaymentModeName))
                 amountTendered = balance;
+
+            var applied = Math.Min(amountTendered, balance);
+            var priorPaid = invoice.AmountPaid;
 
             var paidAfter = invoice.AmountPaid + amountTendered;
 
@@ -813,6 +851,28 @@ namespace ZEmpireAutoAccessories.Controllers
             invoice.ChangeAmount = paidAfter > invoice.TotalAmount
                 ? paidAfter - invoice.TotalAmount
                 : 0m;
+
+            // The payment itself, dated now, so it counts in today's takings
+            // whatever day the invoice was raised. Added before the save below
+            // - or before the status change's transaction - so the two are
+            // written together or not at all.
+            if (await _schema.Has(_context, SchemaStatus.Payments))
+            {
+                _context.ServiceInvoicePayments.Add(new ServiceInvoicePayment
+                {
+                    ServiceInvoiceID = invoice.ServiceInvoiceID,
+                    PaymentDate = DateTime.Now,
+                    Amount = applied,
+                    AmountTendered = amountTendered,
+                    ChangeAmount = amountTendered - applied,
+                    PaymentModeID = mode?.PaymentModeID ?? invoice.PaymentModeID,
+                    UserId = CurrentUserId,
+                    Kind = ServiceInvoicePayment.KindPayment,
+                    Notes = paidAfter < invoice.TotalAmount ? "Down payment"
+                          : priorPaid > 0m ? "Balance"
+                          : "Full payment"
+                });
+            }
 
             if (paidAfter >= invoice.TotalAmount)
             {
@@ -848,6 +908,40 @@ namespace ZEmpireAutoAccessories.Controllers
             var holdsStock = OwnsItsStock(invoice) && invoice.Status == "Paid";
             var willHoldStock = OwnsItsStock(invoice) && status == "Paid";
 
+            // Money going back out, as a payment of its own with a minus sign,
+            // dated now: a refund, or a Paid invoice put back to Pending or
+            // Cancelled (which has always cleared what it was paid). The day
+            // it was paid keeps its takings and today shows the return, which
+            // is what happened at the drawer.
+            ServiceInvoicePayment? giveBack = null;
+            var leavesPaid = invoice.Status == "Paid" && (status == "Pending" || status == "Cancelled");
+            var refunds = status == "Refunded" && invoice.Status != "Refunded";
+            if ((leavesPaid || refunds) && await _schema.Has(_context, SchemaStatus.Payments))
+            {
+                var taken = await _context.ServiceInvoicePayments
+                    .Where(p => p.ServiceInvoiceID == invoice.ServiceInvoiceID)
+                    .OrderByDescending(p => p.PaymentDate)
+                    .Select(p => new { p.Amount, p.PaymentModeID })
+                    .ToListAsync();
+
+                var net = taken.Sum(p => p.Amount);
+                if (net > 0m)
+                {
+                    giveBack = new ServiceInvoicePayment
+                    {
+                        ServiceInvoiceID = invoice.ServiceInvoiceID,
+                        PaymentDate = DateTime.Now,
+                        Amount = -net,
+                        ChangeAmount = 0m,
+                        // Back the way the last of it came in.
+                        PaymentModeID = taken.First(p => p.Amount > 0m).PaymentModeID,
+                        UserId = CurrentUserId,
+                        Kind = refunds ? ServiceInvoicePayment.KindRefund : ServiceInvoicePayment.KindReversal,
+                        Notes = refunds ? "Refunded" : $"Marked {status}"
+                    };
+                }
+            }
+
             await using var tx = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -855,6 +949,9 @@ namespace ZEmpireAutoAccessories.Controllers
                     await _documentStock.Post(
                         DocumentKind.ServiceInvoice, invoice.ServiceInvoiceID,
                         willHoldStock, CurrentUserId);
+
+                if (giveBack != null)
+                    _context.ServiceInvoicePayments.Add(giveBack);
 
                 // Sent back to be worked on or written off: the tender that
                 // was recorded no longer stands. Cleared to nothing, which the

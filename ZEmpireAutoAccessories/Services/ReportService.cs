@@ -8,10 +8,12 @@ namespace ZEmpireAutoAccessories.Services
     public class ReportService : IReportService
     {
         private readonly ApplicationDbContext _context;
+        private readonly SchemaStatus _schema;
 
-        public ReportService(ApplicationDbContext context)
+        public ReportService(ApplicationDbContext context, SchemaStatus schema)
         {
             _context = context;
+            _schema = schema;
         }
 
         public Task<CollectedTotal> GetDailySales() =>
@@ -57,10 +59,18 @@ namespace ZEmpireAutoAccessories.Services
                     .Where(s => s.SalesDate >= from && s.SalesDate < toExclusive)
                     .SumAsync(s => (decimal?)s.TotalAmount) ?? 0,
 
-                ServiceInvoices = await _context.ServiceInvoices
-                    .Where(i => i.InvoiceDate >= from && i.InvoiceDate < toExclusive
-                                && i.Status == "Paid")
-                    .SumAsync(i => (decimal?)i.TotalAmount) ?? 0
+                // Every payment taken in the period, on the day it was taken,
+                // less anything given back - once the ledger is there. Until
+                // then, invoices that reached Paid, by the day they were
+                // raised, as before.
+                ServiceInvoices = await _schema.Has(_context, SchemaStatus.Payments)
+                    ? await _context.ServiceInvoicePayments
+                        .Where(p => p.PaymentDate >= from && p.PaymentDate < toExclusive)
+                        .SumAsync(p => (decimal?)p.Amount) ?? 0
+                    : await _context.ServiceInvoices
+                        .Where(i => i.InvoiceDate >= from && i.InvoiceDate < toExclusive
+                                    && i.Status == "Paid")
+                        .SumAsync(i => (decimal?)i.TotalAmount) ?? 0
             };
         }
 

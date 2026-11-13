@@ -36,6 +36,9 @@
     // Everything except cash is charged the exact total, so there is nothing
     // to type and no change to work out.
     var settlesExactly = PaymentModes.SettlesExactly(Model.PaymentMode?.PaymentModeName);
+    var payments = ViewData["Payments"] as List<ServiceInvoicePayment>;
+    var paymentTakers = ViewData["PaymentTakers"] as Dictionary<string, string> ?? new();
+    var payModes = ViewData["PayModes"] as List<PaymentMode>;
 }
 
 <style>
@@ -64,6 +67,12 @@
 </style>
 
 
+@* What a payment just did - "Down payment of P30,000.00 recorded.
+   P37,000.00 still due." - which was being set and never shown. *@
+@if (TempData["Success"] is string done)
+{
+    <div class="alert alert-success">@done</div>
+}
 @if (TempData["StatusError"] is string statusError)
 {
     <div class="alert alert-danger">
@@ -214,6 +223,44 @@
     </div>
 </div>
 
+@if (payments is { Count: > 0 })
+{
+    @* Each payment as it was taken - a down payment, the balance, a refund -
+       with when, how and by whom. The running Amount Paid above is the sum. *@
+    <div class="zx-card padded">
+        <h6 class="mb-3">Payments</h6>
+        <div class="table-responsive">
+            <table class="table zx-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Date &amp; Time</th>
+                        <th>What</th>
+                        <th>Paid by</th>
+                        <th>Taken by</th>
+                        <th class="text-end">Tendered</th>
+                        <th class="text-end">Change</th>
+                        <th class="text-end pe-3">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in payments)
+                    {
+                        <tr>
+                            <td>@p.PaymentDate.ToString("MMM d, yyyy h:mm tt")</td>
+                            <td>@(p.Notes ?? p.Kind)</td>
+                            <td>@p.PaymentMode?.PaymentModeName</td>
+                            <td>@(paymentTakers.TryGetValue(p.UserId, out var taker) ? taker : "—")</td>
+                            <td class="text-end">@(p.AmountTendered is { } t ? Money.Peso(t) : "—")</td>
+                            <td class="text-end">@(p.AmountTendered != null ? Money.Peso(p.ChangeAmount) : "—")</td>
+                            <td class="text-end pe-3 @(p.Amount < 0 ? "text-danger" : "")">@Money.Peso(p.Amount)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
 @if (!settled)
 {
     <div class="zx-card padded" id="takePayment">
@@ -247,6 +294,23 @@
                 </span>
                 <span class="pay-vat">Includes @Money.Peso(vat.Amount) VAT (@Vat.RateLabel)</span>
             </div>
+            @if (payModes != null)
+            {
+                @* What this payment came in on. A deposit by GCash and the
+                   balance in cash are two modes on one invoice; it starts on
+                   the invoice's own. *@
+                <div class="pay-field">
+                    <label class="form-label" for="paymentModeId">Paid by</label>
+                    <select id="paymentModeId" name="paymentModeId" class="form-select" data-searchable="false">
+                        @foreach (var m in payModes)
+                        {
+                            <option value="@m.PaymentModeID"
+                                    data-exact="@(PaymentModes.SettlesExactly(m.PaymentModeName) ? "true" : "false")"
+                                    selected="@(m.PaymentModeID == Model.PaymentModeID)">@m.PaymentModeName</option>
+                        }
+                    </select>
+                </div>
+            }
             <div class="pay-field">
                 <label class="form-label" for="amountTendered">Amount tendered</label>
                 @* A mode that settles exactly gives no change back, so it is
@@ -546,6 +610,25 @@
             }
 
             tendered.addEventListener('input', update);
+
+            // A mode that gives no change cannot take more than the balance;
+            // which mode that is follows the Paid by box.
+            var modeBox = document.getElementById('paymentModeId');
+            if (modeBox) {
+                var syncCap = function () {
+                    var opt = modeBox.options[modeBox.selectedIndex];
+                    if (opt && opt.getAttribute('data-exact') === 'true') {
+                        tendered.max = total.toFixed(2);
+                        if (parseFloat(tendered.value) > total) { tendered.value = total.toFixed(2); }
+                    } else {
+                        tendered.removeAttribute('max');
+                    }
+                    update();
+                };
+                modeBox.addEventListener('change', syncCap);
+                syncCap();
+            }
+
             update();
         })();
     </script>
