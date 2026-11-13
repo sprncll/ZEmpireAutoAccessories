@@ -554,6 +554,15 @@ namespace ZEmpireAutoAccessories.Controllers
             decimal unitPrice,
             decimal discountAmount)
         {
+            // A line is a product or a service, not both: the form locks
+            // one once the other is picked, and this is that rule where the
+            // form is not in the way.
+            if (productId != null && serviceId != null)
+            {
+                TempData["LineError"] = "Pick a product or a service for a line, not both.";
+                return RedirectToAction(nameof(Details), new { id = serviceInvoiceId });
+            }
+
             var invoice = await _context.ServiceInvoices
                 .Include(i => i.Details)
                 .Include(i => i.Vehicle)

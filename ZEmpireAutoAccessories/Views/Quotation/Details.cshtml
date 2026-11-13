@@ -655,6 +655,15 @@
             // leave behind rather than the one they started from.
             $product.add($service).add($panel).on('change', applyFixedQuantity);
 
+            // A line is a product OR a service, never both. Whichever is
+            // picked locks the other; setting it back to None unlocks it.
+            // The server refuses a line carrying both as well.
+            function lockOther() {
+                $service.prop('disabled', !!$product.val());
+                $product.prop('disabled', !!$service.val());
+            }
+            $product.add($service).on('change', lockOther);
+
             $service.on('change', function () {
                 if (!$(this).val()) { return; }
 
@@ -670,6 +679,7 @@
             // The form as the page opens: nothing picked, so everything that
             // only means something once a film is picked stays off screen.
             applyFixedQuantity();
+            lockOther();
         })();
     </script>
 }
