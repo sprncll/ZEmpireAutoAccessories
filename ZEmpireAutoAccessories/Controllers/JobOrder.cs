@@ -173,8 +173,8 @@ namespace ZEmpireAutoAccessories.Controllers
             // still allowed because the column is nullable.
             return View(new JobOrder
             {
-                JobOrderDate = DateTime.Now,
-                InstallationDate = DateTime.Today
+                JobOrderDate = PhTime.Now,
+                InstallationDate = PhTime.Today
             });
         }
 
@@ -211,7 +211,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             // The picker will not offer a day that has gone, but that is the
             // browser's doing and a posted form need not have come from it.
-            if (jobOrder.InstallationDate is { } installOn && installOn.Date < DateTime.Today)
+            if (jobOrder.InstallationDate is { } installOn && installOn.Date < PhTime.Today)
             {
                 ModelState.AddModelError(nameof(JobOrder.InstallationDate),
                     "Installation can't be dated before today.");
@@ -224,7 +224,7 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             jobOrder.UserId = CurrentUserId;
-            jobOrder.JobOrderDate = DateTime.Now;
+            jobOrder.JobOrderDate = PhTime.Now;
             jobOrder.Status = "Pending";
             jobOrder.JobOrderNumber = "PENDING";
 
@@ -298,7 +298,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 .FirstOrDefaultAsync();
 
             if (jobOrder.InstallationDate is { } movedTo
-                && movedTo.Date < DateTime.Today
+                && movedTo.Date < PhTime.Today
                 && movedTo != storedInstall)
             {
                 ModelState.AddModelError(nameof(JobOrder.InstallationDate),

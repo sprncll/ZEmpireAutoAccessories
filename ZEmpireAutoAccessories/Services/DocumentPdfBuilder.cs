@@ -814,7 +814,7 @@ namespace ZEmpireAutoAccessories.Services
                 column.Item().AlignCenter().Text(text =>
                 {
                     text.DefaultTextStyle(x => x.FontSize(7.5f).FontColor(Colors.Grey.Medium));
-                    text.Span($"Generated {DateTime.Now:MMM d, yyyy h:mm tt} · Page ");
+                    text.Span($"Generated {PhTime.Now:MMM d, yyyy h:mm tt} · Page ");
                     text.CurrentPageNumber();
                     text.Span(" of ");
                     text.TotalPages();

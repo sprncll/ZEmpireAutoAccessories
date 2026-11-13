@@ -45,9 +45,9 @@
                    An expired one keeps its own date so it can still be opened
                    and read. *@
                 <input asp-for="ValidUntil" type="date" class="form-control"
-                       min="@(Model.ValidUntil is { } v && v < DateOnly.FromDateTime(DateTime.Today)
+                       min="@(Model.ValidUntil is { } v && v < DateOnly.FromDateTime(PhTime.Today)
                               ? v.ToString("yyyy-MM-dd")
-                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
+                              : PhTime.Today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="ValidUntil" class="text-danger"></span>
             </div>
         </div>

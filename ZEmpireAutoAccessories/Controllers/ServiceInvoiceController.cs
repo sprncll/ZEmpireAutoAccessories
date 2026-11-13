@@ -238,7 +238,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // GET: ServiceInvoice/Create?jobOrderId=5
         public async Task<IActionResult> Create(int? jobOrderId)
         {
-            var invoice = new ServiceInvoice { InvoiceDate = DateTime.Now };
+            var invoice = new ServiceInvoice { InvoiceDate = PhTime.Now };
 
             if (jobOrderId != null)
             {
@@ -309,8 +309,8 @@ namespace ZEmpireAutoAccessories.Controllers
             invoice.InvoiceNumber = invoiceNumber;
             invoice.InvoiceNoSeriesID = seriesId;
             invoice.UserId = CurrentUserId;
-            invoice.InvoiceDate = DateTime.Now;
-            invoice.CreatedAt = DateTime.Now;
+            invoice.InvoiceDate = PhTime.Now;
+            invoice.CreatedAt = PhTime.Now;
             // The work is not finished and nothing has been handed over yet,
             // so a new invoice starts Pending. It becomes Paid when the
             // payment is recorded.
@@ -873,7 +873,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 _context.ServiceInvoicePayments.Add(new ServiceInvoicePayment
                 {
                     ServiceInvoiceID = invoice.ServiceInvoiceID,
-                    PaymentDate = DateTime.Now,
+                    PaymentDate = PhTime.Now,
                     Amount = applied,
                     AmountTendered = amountTendered,
                     ChangeAmount = amountTendered - applied,
@@ -942,7 +942,7 @@ namespace ZEmpireAutoAccessories.Controllers
                     giveBack = new ServiceInvoicePayment
                     {
                         ServiceInvoiceID = invoice.ServiceInvoiceID,
-                        PaymentDate = DateTime.Now,
+                        PaymentDate = PhTime.Now,
                         Amount = -net,
                         ChangeAmount = 0m,
                         // Back the way the last of it came in.

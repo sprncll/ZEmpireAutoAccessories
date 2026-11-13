@@ -207,7 +207,7 @@ namespace ZEmpireAutoAccessories.Services
             _pending.Remove(db);
 
             var (userId, userName) = WhoIsThis();
-            var now = DateTime.Now;
+            var now = PhTime.Now;
 
             // Keys are read now, after the save: an added row has its id only
             // once the database has given it one.
@@ -261,7 +261,7 @@ namespace ZEmpireAutoAccessories.Services
                 var who = WhoIsThis();
                 var row = new ActivityLog
                 {
-                    At = DateTime.Now,
+                    At = PhTime.Now,
                     UserId = userId ?? who.UserId,
                     UserName = userName ?? who.UserName,
                     Action = ActivityLog.Note,

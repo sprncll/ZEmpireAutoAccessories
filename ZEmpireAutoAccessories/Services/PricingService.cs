@@ -136,7 +136,7 @@ namespace ZEmpireAutoAccessories.Services
                     UserId = userId,
                     OldPrice = oldPrice,
                     NewPrice = newPrice,
-                    DateChanged = DateTime.Now
+                    DateChanged = PhTime.Now
                 });
 
                 pricing.Price = newPrice;

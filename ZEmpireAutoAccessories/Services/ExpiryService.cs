@@ -1,3 +1,4 @@
+using ZEmpireAutoAccessories.Models;
 using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Data;
 
@@ -25,7 +26,7 @@ namespace ZEmpireAutoAccessories.Services
         /// <summary>How many of each it marked.</summary>
         public async Task<(int Quotations, int Warranties)> Sweep()
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = DateOnly.FromDateTime(PhTime.Today);
 
             // A quotation that became a job order is done with, not expired;
             // one already cancelled stays cancelled. Only a live one runs out.

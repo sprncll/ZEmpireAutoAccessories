@@ -55,9 +55,9 @@
                    honoured, or editing a complaint would be refused over a
                    date nobody touched. *@
                 <input asp-for="InstallationDate" type="date" class="form-control"
-                       min="@(Model.InstallationDate is { } d && d.Date < DateTime.Today
+                       min="@(Model.InstallationDate is { } d && d.Date < PhTime.Today
                               ? d.ToString("yyyy-MM-dd")
-                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
+                              : PhTime.Today.ToString("yyyy-MM-dd"))" />
             </div>
         </div>
 

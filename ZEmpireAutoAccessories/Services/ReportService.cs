@@ -17,17 +17,17 @@ namespace ZEmpireAutoAccessories.Services
         }
 
         public Task<CollectedTotal> GetDailySales() =>
-            Collected(DateTime.Today, DateTime.Today.AddDays(1));
+            Collected(PhTime.Today, PhTime.Today.AddDays(1));
 
         public Task<CollectedTotal> GetWeeklySales()
         {
-            var startOfWeek = DateTime.Today.AddDays(-(int)DateTime.Today.DayOfWeek);
+            var startOfWeek = PhTime.Today.AddDays(-(int)PhTime.Today.DayOfWeek);
             return Collected(startOfWeek, startOfWeek.AddDays(7));
         }
 
         public Task<CollectedTotal> GetMonthlySales()
         {
-            var startOfMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var startOfMonth = new DateTime(PhTime.Today.Year, PhTime.Today.Month, 1);
             return Collected(startOfMonth, startOfMonth.AddMonths(1));
         }
 

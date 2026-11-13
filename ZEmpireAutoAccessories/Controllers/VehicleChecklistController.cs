@@ -178,7 +178,7 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             var checklist = new VehicleChecklist
             {
-                ChecklistDate = DateTime.Now,
+                ChecklistDate = PhTime.Now,
                 JobOrderID = jobOrderId ?? 0
             };
 
@@ -240,7 +240,7 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             checklist.UserId = CurrentUserId;
-            checklist.ChecklistDate = DateTime.Now;
+            checklist.ChecklistDate = PhTime.Now;
 
             foreach (var (id, row) in typed)
             {

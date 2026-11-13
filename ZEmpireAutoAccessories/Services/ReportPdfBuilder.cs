@@ -366,7 +366,7 @@ namespace ZEmpireAutoAccessories.Services
                             col.Item().PaddingTop(2).Text(subtitle).FontSize(8).FontColor(Colors.Grey.Darken1);
                     });
 
-                    row.ConstantItem(140).AlignRight().Text($"Generated {DateTime.Now:MMM d, yyyy h:mm tt}")
+                    row.ConstantItem(140).AlignRight().Text($"Generated {PhTime.Now:MMM d, yyyy h:mm tt}")
                         .FontSize(7).FontColor(Colors.Grey.Medium);
                 });
 

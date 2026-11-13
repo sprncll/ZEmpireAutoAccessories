@@ -82,17 +82,17 @@ else
                    since passed, or editing a remark would be refused over a
                    date nobody touched. *@
                 <input asp-for="WarrantyStartDate" type="date" class="form-control"
-                       min="@(Model.WarrantyStartDate is { } s && s < DateOnly.FromDateTime(DateTime.Today)
+                       min="@(Model.WarrantyStartDate is { } s && s < DateOnly.FromDateTime(PhTime.Today)
                               ? s.ToString("yyyy-MM-dd")
-                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
+                              : PhTime.Today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="WarrantyStartDate" class="text-danger"></span>
             </div>
             <div class="col-md-6 mb-3">
                 <label asp-for="WarrantyEndDate" class="form-label"></label>
                 <input asp-for="WarrantyEndDate" type="date" class="form-control"
-                       min="@(Model.WarrantyEndDate is { } e && e < DateOnly.FromDateTime(DateTime.Today)
+                       min="@(Model.WarrantyEndDate is { } e && e < DateOnly.FromDateTime(PhTime.Today)
                               ? e.ToString("yyyy-MM-dd")
-                              : DateTime.Today.ToString("yyyy-MM-dd"))" />
+                              : PhTime.Today.ToString("yyyy-MM-dd"))" />
                 <span asp-validation-for="WarrantyEndDate" class="text-danger"></span>
             </div>
         </div>

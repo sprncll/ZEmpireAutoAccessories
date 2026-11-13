@@ -2,7 +2,7 @@
 
 @{
     ViewData["Title"] = "Cashiering";
-    var today = DateOnly.FromDateTime(DateTime.Now);
+    var today = DateOnly.FromDateTime(PhTime.Now);
     var isToday = Model.DateFrom == today && Model.DateTo == today;
 
     // Cashiering has no module of its own - it is opened by holding Sales or

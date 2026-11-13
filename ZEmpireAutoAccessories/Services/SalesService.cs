@@ -124,7 +124,7 @@ namespace ZEmpireAutoAccessories.Services
                     VehicleID = vehicleId,
                     UserId = userId,
                     PaymentModeID = paymentModeId,
-                    SalesDate = DateTime.Now,
+                    SalesDate = PhTime.Now,
                     TotalAmount = 0
                 };
 
@@ -225,7 +225,7 @@ namespace ZEmpireAutoAccessories.Services
                         UserId = userId,
                         TransactionType = "OUT",
                         Quantity = takenFromStock,
-                        TransactionDate = DateTime.Now
+                        TransactionDate = PhTime.Now
                     });
 
                     total += item.UnitPrice * item.Quantity;

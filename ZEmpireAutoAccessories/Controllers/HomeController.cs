@@ -90,7 +90,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
                 stats.Add(new DashboardStat(label, "₱" + amount.ToString("N2"),
                     Url.Action("Index", "Cashiering")!, "sales", StatTone.Plain,
-                    DateTime.Today.ToString("MMM d")));
+                    PhTime.Today.ToString("MMM d")));
             });
 
             if (modules.Contains("Job Orders"))

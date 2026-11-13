@@ -212,7 +212,7 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             var claimedBy = User.FindFirst(AppClaims.FullName)?.Value ?? User.Identity?.Name ?? "Unknown";
-            var stamp = $"Claimed {DateTime.Now:MMM d, yyyy} by {claimedBy}" +
+            var stamp = $"Claimed {PhTime.Now:MMM d, yyyy} by {claimedBy}" +
                         (string.IsNullOrWhiteSpace(claimNotes) ? "" : $": {claimNotes.Trim()}");
 
             // Remarks is limited to 150 chars in the DB - keep the newest note
@@ -266,7 +266,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // Arriving from a line item means the warranty starts today unless
             // the user says otherwise; a blank form leaves the dates alone.
             if (salesDetailId != null || serviceInvoiceDetailId != null || jobOrderId != null)
-                warranty.WarrantyStartDate = DateOnly.FromDateTime(DateTime.Today);
+                warranty.WarrantyStartDate = DateOnly.FromDateTime(PhTime.Today);
 
             await DescribeLink(warranty);
             await LoadDropdowns(warranty);
@@ -359,7 +359,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // that is the browser's doing and a posted form need not have come
             // from it. A warranty beginning before the work was done is not a
             // typo worth keeping.
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = DateOnly.FromDateTime(PhTime.Today);
 
             if (warranty.WarrantyStartDate != null && warranty.WarrantyStartDate < today)
             {
@@ -444,7 +444,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 .AsNoTracking()
                 .FirstOrDefaultAsync(w => w.WarrantyID == id);
 
-            var now = DateOnly.FromDateTime(DateTime.Today);
+            var now = DateOnly.FromDateTime(PhTime.Today);
 
             if (warranty.WarrantyStartDate != null && warranty.WarrantyStartDate < now
                 && warranty.WarrantyStartDate != stored?.WarrantyStartDate)
@@ -470,7 +470,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // AutoExpireOverdueWarranties) - if the end date is pushed back
             // out and it's still sitting at Expired, it's stale. Voided and
             // Claimed are deliberate, so those are left alone.
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = DateOnly.FromDateTime(PhTime.Today);
             if (warranty.WarrantyStatus == "Expired" &&
                 (warranty.WarrantyEndDate == null || warranty.WarrantyEndDate >= today))
             {
@@ -538,7 +538,7 @@ namespace ZEmpireAutoAccessories.Controllers
         private static bool IsOverdue(Warranty warranty) =>
             warranty.WarrantyStatus == "Active" &&
             warranty.WarrantyEndDate.HasValue &&
-            warranty.WarrantyEndDate.Value < DateOnly.FromDateTime(DateTime.Today);
+            warranty.WarrantyEndDate.Value < DateOnly.FromDateTime(PhTime.Today);
 
         /// <summary>
         /// A warranty covers exactly one thing: a sale item, a service invoice

@@ -92,7 +92,7 @@
             </div>
             <div class="col-md-6 mb-3">
                 <label class="form-label">Valid Until</label>
-                <input type="text" class="form-control" value="@DateOnly.FromDateTime(DateTime.Now.AddDays(7)).ToString("MMM d, yyyy")" disabled />
+                <input type="text" class="form-control" value="@DateOnly.FromDateTime(PhTime.Now.AddDays(7)).ToString("MMM d, yyyy")" disabled />
                 <div class="form-text">Automatically set to 7 days from today.</div>
             </div>
         </div>

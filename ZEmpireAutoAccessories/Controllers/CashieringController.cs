@@ -54,7 +54,7 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             // A cashier opens this to close out the current shift, so default
             // to today rather than to the whole table.
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var today = DateOnly.FromDateTime(PhTime.Now);
             var dateFrom = from ?? today;
             var dateTo = to ?? today;
 

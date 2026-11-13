@@ -146,7 +146,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var check = new InventoryCheck
             {
                 UserId = CurrentUserId,
-                CheckDate = DateTime.Now
+                CheckDate = PhTime.Now
             };
 
             foreach (var detail in counted)

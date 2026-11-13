@@ -168,7 +168,7 @@ namespace ZEmpireAutoAccessories.Controllers
         public async Task<IActionResult> Create()
         {
             await LoadHeaderDropdowns();
-            return View(new Quotation { QuotationDate = DateTime.Now });
+            return View(new Quotation { QuotationDate = PhTime.Now });
         }
 
         // POST: Quotation/Create
@@ -190,11 +190,11 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             quotation.UserId = CurrentUserId;
-            quotation.QuotationDate = DateTime.Now;
+            quotation.QuotationDate = PhTime.Now;
             quotation.ValidUntil = DateOnly.FromDateTime(quotation.QuotationDate.AddDays(7));
             quotation.Status = "Draft";
             quotation.QuotationNumber = "PENDING";
-            quotation.CreatedAt = DateTime.Now;
+            quotation.CreatedAt = PhTime.Now;
 
             _context.Quotations.Add(quotation);
             await _context.SaveChangesAsync();
@@ -247,7 +247,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Select(q => q.ValidUntil)
                 .FirstOrDefaultAsync();
 
-            if (quotation.ValidUntil < DateOnly.FromDateTime(DateTime.Today)
+            if (quotation.ValidUntil < DateOnly.FromDateTime(PhTime.Today)
                 && quotation.ValidUntil != storedValidUntil)
             {
                 ModelState.AddModelError(nameof(Quotation.ValidUntil),
@@ -297,7 +297,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // Given more time, an expired quotation is live again - the
             // customer came back, and the shop agreed to honour the price.
             if (existing.Status == "Expired" && existing.JobOrder == null
-                && quotation.ValidUntil >= DateOnly.FromDateTime(DateTime.Today))
+                && quotation.ValidUntil >= DateOnly.FromDateTime(PhTime.Today))
                 existing.Status = QuotationStatuses.Draft;
             existing.DiscountAmount = quotation.DiscountAmount;
             existing.TaxAmount = quotation.TaxAmount;
@@ -641,7 +641,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // two conversions landing in the same second (two staff, or a
             // double-click) would otherwise collide against the database's
             // unique constraint on the column.
-            var jobOrderNumber = $"JO-{DateTime.Now:yyyyMMddHHmmssfff}";
+            var jobOrderNumber = $"JO-{PhTime.Now:yyyyMMddHHmmssfff}";
 
             try
             {

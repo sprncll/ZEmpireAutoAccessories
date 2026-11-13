@@ -62,7 +62,7 @@ namespace ZEmpireAutoAccessories.Services
                 UserId = userId,
                 TransactionType = "IN",
                 Quantity = quantity,
-                TransactionDate = DateTime.Now
+                TransactionDate = PhTime.Now
             });
 
             await _context.SaveChangesAsync();
@@ -91,7 +91,7 @@ namespace ZEmpireAutoAccessories.Services
                 UserId = userId,
                 TransactionType = "OUT",
                 Quantity = quantity,
-                TransactionDate = DateTime.Now
+                TransactionDate = PhTime.Now
             });
 
             await _context.SaveChangesAsync();
@@ -156,7 +156,7 @@ namespace ZEmpireAutoAccessories.Services
                     UserId = userId,
                     TransactionType = consume ? "OUT" : "IN",
                     Quantity = line.Quantity,
-                    TransactionDate = DateTime.Now
+                    TransactionDate = PhTime.Now
                 });
             }
 

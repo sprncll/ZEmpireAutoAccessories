@@ -59,7 +59,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var model = await GetCollectionsReport(from, to);
             var pdf = ReportPdfBuilder.BuildCollectionsPdf(model);
 
-            return File(pdf, "application/pdf", $"Collections-Report-{DateTime.Now:yyyyMMdd-HHmm}.pdf");
+            return File(pdf, "application/pdf", $"Collections-Report-{PhTime.Now:yyyyMMdd-HHmm}.pdf");
         }
 
         private async Task<CashieringViewModel> GetCollectionsReport(DateOnly? from, DateOnly? to)
@@ -67,7 +67,7 @@ namespace ZEmpireAutoAccessories.Controllers
             // A month to date, where the other reports default to everything -
             // collections are read by period, and "all of it" is not a period
             // anyone closes out.
-            var today = DateOnly.FromDateTime(DateTime.Now);
+            var today = DateOnly.FromDateTime(PhTime.Now);
             var dateFrom = from ?? new DateOnly(today.Year, today.Month, 1);
             var dateTo = to ?? today;
 
@@ -115,7 +115,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var (results, total) = await GetSalesReport(from, to);
             var pdf = ReportPdfBuilder.BuildSalesPdf(results, from, to, total);
 
-            return File(pdf, "application/pdf", $"Sales-Report-{DateTime.Now:yyyyMMdd-HHmm}.pdf");
+            return File(pdf, "application/pdf", $"Sales-Report-{PhTime.Now:yyyyMMdd-HHmm}.pdf");
         }
 
         private async Task<(List<VwSalesSummary> Results, decimal Total)> GetSalesReport(DateOnly? from, DateOnly? to)
@@ -150,7 +150,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var (results, total) = await GetJobOrdersReport(from, to, status);
             var pdf = ReportPdfBuilder.BuildJobOrdersPdf(results, from, to, status, total);
 
-            return File(pdf, "application/pdf", $"Job-Orders-Report-{DateTime.Now:yyyyMMdd-HHmm}.pdf");
+            return File(pdf, "application/pdf", $"Job-Orders-Report-{PhTime.Now:yyyyMMdd-HHmm}.pdf");
         }
 
         private async Task<(List<VwJobOrderSummary> Results, decimal Total)> GetJobOrdersReport(DateOnly? from, DateOnly? to, string? status)
@@ -209,7 +209,7 @@ namespace ZEmpireAutoAccessories.Controllers
             var (results, total) = await GetQuotationsReport(from, to, status);
             var pdf = ReportPdfBuilder.BuildQuotationsPdf(results, from, to, status, total);
 
-            return File(pdf, "application/pdf", $"Quotations-Report-{DateTime.Now:yyyyMMdd-HHmm}.pdf");
+            return File(pdf, "application/pdf", $"Quotations-Report-{PhTime.Now:yyyyMMdd-HHmm}.pdf");
         }
 
         private async Task<(List<VwQuotationSummary> Results, decimal Total)> GetQuotationsReport(DateOnly? from, DateOnly? to, string? status)
