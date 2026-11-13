@@ -37,9 +37,9 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Sale?q=...&productId=...&dateFrom=...&dateTo=...
-        public async Task<IActionResult> Index(string? q, int? productId, DateOnly? dateFrom, DateOnly? dateTo)
+        public async Task<IActionResult> Index(string? q, int? productId, DateOnly? dateFrom, DateOnly? dateTo, int? page = null)
         {
-            var sales = await _salesService.GetSales(q, productId, dateFrom, dateTo);
+            var sales = await _salesService.QuerySales(q, productId, dateFrom, dateTo).ToPageAsync(page, ViewData);
 
             ViewData["Search"] = q;
             ViewData["ProductID"] = new SelectList(

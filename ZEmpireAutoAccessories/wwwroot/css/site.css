@@ -1250,3 +1250,42 @@ button:focus-visible {
 /* The links are display:flex, which outranks the browser's own rule for
    [hidden] - without this, "find a screen" would hide nothing. */
 .zx-side-link[hidden] { display: none; }
+
+/* ---- the bar under a paged list ------------------------------------- */
+.zx-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 14px;
+  font-size: 13.5px;
+  color: var(--zx-muted);
+}
+
+.zx-pager-count strong { color: var(--zx-ink); font-weight: 600; }
+
+.zx-pager-pages { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.zx-pager-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  border: 1px solid var(--zx-line);
+  background: #fff;
+  color: var(--zx-ink);
+  font-weight: 600;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  transition: all .15s ease;
+}
+
+a.zx-pager-btn:hover { border-color: var(--zx-ink); color: var(--zx-ink); }
+
+.zx-pager-btn.is-current { background: var(--zx-ink); border-color: var(--zx-ink); color: #fff; }
+
+.zx-pager-gap { align-self: center; padding: 0 2px; }

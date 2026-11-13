@@ -45,7 +45,8 @@ namespace ZEmpireAutoAccessories.Controllers
             string? q,
             int? paymentModeId,
             string? userId,
-            CashierSource? source)
+            CashierSource? source,
+            int? page = null)
         {
             // A cashier opens this to close out the current shift, so default
             // to today rather than to the whole table.
@@ -103,6 +104,12 @@ namespace ZEmpireAutoAccessories.Controllers
             }
 
             ViewData["MaxProofs"] = _proofs.MaxPerRecord;
+
+            // The day's figures above are over every row; the table is one
+            // page of them. Missing receipts are counted before the cut, so
+            // the warning covers the whole range, not just this page.
+            ViewData["Unproven"] = model.Transactions.Count(t => t.ProofMissing);
+            model.Transactions = model.Transactions.ToPage(page, ViewData);
 
             await LoadFilterDropdowns(model);
 

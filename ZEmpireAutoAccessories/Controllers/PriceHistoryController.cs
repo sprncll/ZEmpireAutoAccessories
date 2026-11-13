@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ZEmpireAutoAccessories.Models;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 
@@ -19,7 +20,7 @@ namespace ZEmpireAutoAccessories.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? page = null)
         {
             var history = await _context.PriceHistories
                 .Include(h => h.User)
@@ -30,7 +31,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 .Include(h => h.Pricing)
                     .ThenInclude(p => p.Panel)
                 .OrderByDescending(h => h.DateChanged)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             return View(history);
         }

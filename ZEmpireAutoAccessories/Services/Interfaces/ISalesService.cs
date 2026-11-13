@@ -6,6 +6,9 @@ namespace ZEmpireAutoAccessories.Services.Interfaces
     {
         Task<Sale?> GetSale(int saleId);
 
+        /// <summary>The sales matching the filters, newest first, not yet read.</summary>
+        IQueryable<Sale> QuerySales(string? q = null, int? productId = null, DateOnly? dateFrom = null, DateOnly? dateTo = null);
+
         Task<List<Sale>> GetSales(string? q = null, int? productId = null, DateOnly? dateFrom = null, DateOnly? dateTo = null);
 
         Task<int> GetUnitsSold(int productId, DateOnly? dateFrom = null, DateOnly? dateTo = null);

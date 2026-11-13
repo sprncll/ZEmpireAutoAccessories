@@ -32,7 +32,8 @@
         <a class="btn btn-zx" asp-action="Create">+ New Vehicle</a>
     </div>
 </div>
-<p class="zx-page-sub">@Model.Count() vehicle@(Model.Count() == 1 ? "" : "s") on record.</p>
+@{ var onRecord = (ViewData[Paging.Key] as PageInfo)?.Total ?? Model.Count(); }
+<p class="zx-page-sub">@onRecord vehicle@(onRecord == 1 ? "" : "s") on record.</p>
 
 @if (customerId.HasValue)
 {
@@ -113,3 +114,5 @@
     </table>
     </div>
 </div>
+
+<partial name="_Pager" />

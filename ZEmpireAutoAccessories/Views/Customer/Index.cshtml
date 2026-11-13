@@ -30,7 +30,8 @@
         New Customer
     </a>
 </div>
-<p class="zx-page-sub">@Model.Count() customer@(Model.Count() == 1 ? "" : "s") on record.</p>
+@{ var onRecord = (ViewData[Paging.Key] as PageInfo)?.Total ?? Model.Count(); }
+<p class="zx-page-sub">@onRecord customer@(onRecord == 1 ? "" : "s") on record.</p>
 
 @if (!string.IsNullOrEmpty(successMessage))
 {
@@ -131,3 +132,5 @@
     </table>
     </div>
 </div>
+
+<partial name="_Pager" />

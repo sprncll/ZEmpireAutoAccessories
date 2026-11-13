@@ -31,7 +31,7 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: JobOrder?status=Pending&q=...
-        public async Task<IActionResult> Index(string? status, string? q)
+        public async Task<IActionResult> Index(string? status, string? q, int? page = null)
         {
             var query = _context.JobOrders
                 .Include(j => j.Customer)
@@ -52,7 +52,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var jobOrders = await query
                 .OrderByDescending(j => j.JobOrderDate)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             ViewData["Status"] = status;
             ViewData["Search"] = q;

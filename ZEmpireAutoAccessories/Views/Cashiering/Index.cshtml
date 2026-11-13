@@ -15,7 +15,7 @@
 
     // Collected with nothing attached to show for it. These are the rows to
     // chase before the day is closed out.
-    var unproven = Model.Transactions.Count(t => t.ProofMissing);
+    var unproven = ViewData["Unproven"] as int? ?? Model.Transactions.Count(t => t.ProofMissing);
 }
 
 <style>
@@ -687,6 +687,8 @@
         </table>
     </div>
 </div>
+
+<partial name="_Pager" />
 
 @* One dialog for the whole table - the row's details are written into it
    when its chip is pressed, rather than rendering a form per row. It lists

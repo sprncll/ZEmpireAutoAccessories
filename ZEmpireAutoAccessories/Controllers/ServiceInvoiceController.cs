@@ -37,7 +37,7 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: ServiceInvoice?status=Paid
-        public async Task<IActionResult> Index(string? status, string? q)
+        public async Task<IActionResult> Index(string? status, string? q, int? page = null)
         {
             var query = _context.ServiceInvoices
                 .Include(i => i.Customer)
@@ -61,7 +61,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var invoices = await query
                 .OrderByDescending(i => i.InvoiceDate)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             ViewData["Status"] = status;
             ViewData["Search"] = q;

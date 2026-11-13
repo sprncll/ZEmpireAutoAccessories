@@ -30,7 +30,7 @@ namespace ZEmpireAutoAccessories.Controllers
             _photos = photos;
         }
 
-        public async Task<IActionResult> Index(string? q)
+        public async Task<IActionResult> Index(string? q, int? page = null)
         {
             var query = _context.VehicleChecklists
                 .Include(c => c.JobOrder).ThenInclude(j => j.Customer)
@@ -51,7 +51,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var checklists = await query
                 .OrderByDescending(c => c.ChecklistDate)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             var panels = await _context.Panels.AsNoTracking().ToListAsync();
 

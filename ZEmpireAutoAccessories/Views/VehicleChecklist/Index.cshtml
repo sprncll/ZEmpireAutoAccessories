@@ -48,14 +48,20 @@
     How each car arrived, panel by panel, agreed before work starts.
     @if (all.Count > 0)
     {
-        <text>@all.Count checklist@(all.Count == 1 ? "" : "s")</text>
+        var paged = ViewData[Paging.Key] as PageInfo;
+        var totalChecklists = paged?.Total ?? all.Count;
+        // Damage and not-walked are worked out per checklist from its rows,
+        // so they are counted for the page on screen; say so when it is not
+        // the whole list.
+        var ofPage = paged is { HasMore: true } ? " on this page" : "";
+        <text>@totalChecklists checklist@(totalChecklists == 1 ? "" : "s")</text>
         @if (withIssues > 0)
         {
-            <text> · @withIssues with damage on arrival</text>
+            <text> · @withIssues with damage on arrival@ofPage</text>
         }
         @if (notStarted > 0)
         {
-            <text> · @notStarted not walked yet</text>
+            <text> · @notStarted not walked yet@ofPage</text>
         }
     }
 </p>
@@ -177,3 +183,5 @@
         </table>
     </div>
 </div>
+
+<partial name="_Pager" />

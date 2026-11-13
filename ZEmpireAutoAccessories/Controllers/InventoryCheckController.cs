@@ -47,13 +47,13 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: InventoryCheck
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(int? page = null)
         {
             var checks = await _context.InventoryChecks
                 .Include(c => c.User)
                 .Include(c => c.Details)
                 .OrderByDescending(c => c.CheckDate)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             return View(checks);
         }

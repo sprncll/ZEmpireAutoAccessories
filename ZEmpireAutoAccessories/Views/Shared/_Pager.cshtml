@@ -1,0 +1,69 @@
+@*
+    The bar under a paged list: where you are, and the way to the rest.
+    Every other part of the address - the search, the status, the dates -
+    is kept, so moving a page never loses the filter.
+*@
+@{
+    var info = ViewData[Paging.Key] as PageInfo;
+}
+@if (info != null && info.Total > 0)
+{
+    string For(int page)
+    {
+        var query = Context.Request.Query
+            .Where(p => !string.Equals(p.Key, "page", StringComparison.OrdinalIgnoreCase))
+            .SelectMany(p => p.Value.Select(v => Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(v ?? "")))
+            .ToList();
+        if (page > 1)
+            query.Add("page=" + page);
+        return Context.Request.Path + (query.Count > 0 ? "?" + string.Join("&", query) : "");
+    }
+
+    // A window of pages around this one, and the first and last always.
+    var shown = new SortedSet<int> { 1, info.Pages };
+    for (var p = info.Page - 2; p <= info.Page + 2; p++)
+        if (p >= 1 && p <= info.Pages) shown.Add(p);
+
+    <nav class="zx-pager" aria-label="Pages" data-total="@info.Total" data-paged="@(info.HasMore ? "true" : "false")">
+        <span class="zx-pager-count">
+            @if (info.HasMore)
+            {
+                <text>Showing <strong>@info.First–@info.Last</strong> of <strong>@info.Total</strong></text>
+            }
+            else
+            {
+                <text><strong>@info.Total</strong> in all</text>
+            }
+        </span>
+        @if (info.HasMore)
+        {
+            <span class="zx-pager-pages">
+                @if (info.Page > 1)
+                {
+                    <a class="zx-pager-btn" href="@For(info.Page - 1)" rel="prev" aria-label="Previous page">‹ Prev</a>
+                }
+                @{ var last = 0; }
+                @foreach (var p in shown)
+                {
+                    if (p - last > 1)
+                    {
+                        <span class="zx-pager-gap">…</span>
+                    }
+                    if (p == info.Page)
+                    {
+                        <span class="zx-pager-btn is-current" aria-current="page">@p</span>
+                    }
+                    else
+                    {
+                        <a class="zx-pager-btn" href="@For(p)">@p</a>
+                    }
+                    last = p;
+                }
+                @if (info.Page < info.Pages)
+                {
+                    <a class="zx-pager-btn" href="@For(info.Page + 1)" rel="next" aria-label="Next page">Next ›</a>
+                }
+            </span>
+        }
+    </nav>
+}

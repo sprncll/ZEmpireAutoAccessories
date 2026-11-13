@@ -40,7 +40,7 @@ namespace ZEmpireAutoAccessories.Controllers
         // filter reads the job order rather than the status text, because the
         // quotations converted before the status was written carry whatever
         // they had at the time - see Models/QuotationStatuses.cs.
-        public async Task<IActionResult> Index(string? status, string? q)
+        public async Task<IActionResult> Index(string? status, string? q, int? page = null)
         {
             // Anything past its Valid Until date reads as Expired before the
             // list is drawn. See ExpiryService.
@@ -72,7 +72,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var quotations = await query
                 .OrderByDescending(quotation => quotation.QuotationDate)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             ViewData["Status"] = status;
             ViewData["Search"] = q;

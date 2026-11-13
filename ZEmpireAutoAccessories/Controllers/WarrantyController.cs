@@ -26,7 +26,7 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Warranty?status=Active&q=...
-        public async Task<IActionResult> Index(string? status, string? q)
+        public async Task<IActionResult> Index(string? status, string? q, int? page = null)
         {
             // Quotations and warranties past their dates - see ExpiryService.
             await _expiry.Sweep();
@@ -51,7 +51,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var warranties = await query
                 .OrderByDescending(w => w.WarrantyID)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             ViewData["Status"] = status;
             ViewData["Search"] = q;

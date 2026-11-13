@@ -50,7 +50,7 @@ namespace ZEmpireAutoAccessories.Services
                 .FirstOrDefaultAsync(s => s.SalesID == saleId);
         }
 
-        public async Task<List<Sale>> GetSales(string? q = null, int? productId = null, DateOnly? dateFrom = null, DateOnly? dateTo = null)
+        public IQueryable<Sale> QuerySales(string? q = null, int? productId = null, DateOnly? dateFrom = null, DateOnly? dateTo = null)
         {
             var query = _context.Sales
                 .Include(s => s.Customer)
@@ -75,10 +75,12 @@ namespace ZEmpireAutoAccessories.Services
             if (dateTo.HasValue)
                 query = query.Where(s => s.SalesDate < dateTo.Value.AddDays(1).ToDateTime(TimeOnly.MinValue));
 
-            return await query
-                .OrderByDescending(s => s.SalesDate)
-                .ToListAsync();
+            return query
+                .OrderByDescending(s => s.SalesDate);
         }
+
+        public async Task<List<Sale>> GetSales(string? q = null, int? productId = null, DateOnly? dateFrom = null, DateOnly? dateTo = null) =>
+            await QuerySales(q, productId, dateFrom, dateTo).ToListAsync();
 
         public async Task<int> GetUnitsSold(int productId, DateOnly? dateFrom = null, DateOnly? dateTo = null)
         {

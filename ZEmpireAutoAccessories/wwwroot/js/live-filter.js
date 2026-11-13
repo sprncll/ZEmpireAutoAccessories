@@ -40,6 +40,14 @@
     if (rows.length === 0) { return; }
 
     var noun = input.getAttribute('data-live-noun') || 'items';
+
+    // On a paged list only this page's rows are here to filter. Say so, and
+    // point at Enter - the form's own search - which asks the server and so
+    // covers every page.
+    var pager = document.querySelector('.zx-pager[data-paged="true"]');
+    var allCount = pager ? parseInt(pager.getAttribute('data-total'), 10) : null;
+    // What the server already searched for: typing it again needs no Enter.
+    var applied = input.value.trim().toLowerCase();
     var columns = (table.tHead && table.tHead.rows.length)
         ? table.tHead.rows[0].cells.length
         : 1;
@@ -138,10 +146,16 @@
         });
 
         empty.hidden = shown > 0;
+        if (!empty.hidden) {
+            empty.cells[0].textContent = pager && typed.toLowerCase() !== applied
+                ? 'Nothing on this page matches. Press Enter to search all ' + allCount + '.'
+                : 'Nothing matches what you typed.';
+        }
 
         count.textContent = terms.length === 0
-            ? rows.length + ' ' + noun
-            : shown + ' of ' + rows.length + ' match "' + typed + '"';
+            ? (pager ? rows.length + ' of ' + allCount + ' ' + noun + ' on this page' : rows.length + ' ' + noun)
+            : shown + ' of ' + rows.length + (pager ? ' on this page' : '') + ' match "' + typed + '"'
+              + (pager && typed.toLowerCase() !== applied ? ' - press Enter to search all ' + allCount : '');
     }
 
     input.addEventListener('input', apply);

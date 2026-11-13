@@ -17,7 +17,7 @@ namespace ZEmpireAutoAccessories.Controllers
         }
 
         // GET: Customer?q=...
-        public async Task<IActionResult> Index(string? q)
+        public async Task<IActionResult> Index(string? q, int? page = null)
         {
             var query = _context.Customers
                 .Include(c => c.Vehicles)
@@ -34,7 +34,7 @@ namespace ZEmpireAutoAccessories.Controllers
 
             var customers = await query
                 .OrderBy(c => c.FullName)
-                .ToListAsync();
+                .ToPageAsync(page, ViewData);
 
             ViewData["Search"] = q;
             return View(customers);
