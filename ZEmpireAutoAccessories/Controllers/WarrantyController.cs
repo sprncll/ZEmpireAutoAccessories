@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services;
 using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
@@ -13,19 +14,22 @@ namespace ZEmpireAutoAccessories.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IProofStore _proofs;
+        private readonly ExpiryService _expiry;
 
         private static readonly string[] StatusOptions = { "Active", "Expired", "Voided", "Claimed" };
 
-        public WarrantyController(ApplicationDbContext context, IProofStore proofs)
+        public WarrantyController(ApplicationDbContext context, IProofStore proofs, ExpiryService expiry)
         {
             _context = context;
             _proofs = proofs;
+            _expiry = expiry;
         }
 
         // GET: Warranty?status=Active&q=...
         public async Task<IActionResult> Index(string? status, string? q)
         {
-            await AutoExpireOverdueWarranties();
+            // Quotations and warranties past their dates - see ExpiryService.
+            await _expiry.Sweep();
 
             var query = _context.Warranties
                 .Include(w => w.SalesDetail).ThenInclude(d => d!.Sale)
@@ -523,26 +527,6 @@ namespace ZEmpireAutoAccessories.Controllers
             warranty.WarrantyStatus == "Active" &&
             warranty.WarrantyEndDate.HasValue &&
             warranty.WarrantyEndDate.Value < DateOnly.FromDateTime(DateTime.Today);
-
-        // Flip any Active warranty whose end date has already passed to Expired.
-        // Runs on every Index load so the list always reflects today's date
-        // without needing a background job.
-        private async Task AutoExpireOverdueWarranties()
-        {
-            var today = DateOnly.FromDateTime(DateTime.Today);
-
-            var overdue = await _context.Warranties
-                .Where(w => w.WarrantyStatus == "Active" && w.WarrantyEndDate != null && w.WarrantyEndDate < today)
-                .ToListAsync();
-
-            if (overdue.Count == 0)
-                return;
-
-            foreach (var warranty in overdue)
-                warranty.WarrantyStatus = "Expired";
-
-            await _context.SaveChangesAsync();
-        }
 
         /// <summary>
         /// A warranty covers exactly one thing: a sale item, a service invoice

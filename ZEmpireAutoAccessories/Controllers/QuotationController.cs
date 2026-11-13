@@ -18,17 +18,20 @@ namespace ZEmpireAutoAccessories.Controllers
 
         private readonly IInventoryService _inventoryService;
         private readonly ICutSizeStore _cutSizes;
+        private readonly ExpiryService _expiry;
 
         public QuotationController(
             ApplicationDbContext context,
             IQuotationService quotationService,
             IInventoryService inventoryService,
-            ICutSizeStore cutSizes)
+            ICutSizeStore cutSizes,
+            ExpiryService expiry)
         {
             _context = context;
             _quotationService = quotationService;
             _inventoryService = inventoryService;
             _cutSizes = cutSizes;
+            _expiry = expiry;
         }
 
         // GET: Quotation?status=Draft&q=...
@@ -39,6 +42,10 @@ namespace ZEmpireAutoAccessories.Controllers
         // they had at the time - see Models/QuotationStatuses.cs.
         public async Task<IActionResult> Index(string? status, string? q)
         {
+            // Anything past its Valid Until date reads as Expired before the
+            // list is drawn. See ExpiryService.
+            await _expiry.Sweep();
+
             var query = _context.Quotations
                 .Include(quotation => quotation.Customer)
                 .Include(quotation => quotation.Vehicle)
@@ -77,6 +84,8 @@ namespace ZEmpireAutoAccessories.Controllers
         {
             if (id == null)
                 return NotFound();
+
+            await _expiry.Sweep();
 
             var quotation = await _quotationService.GetQuotation(id.Value);
             if (quotation == null)
@@ -284,6 +293,12 @@ namespace ZEmpireAutoAccessories.Controllers
             existing.VehicleID = quotation.VehicleID;
             existing.JobTypeID = quotation.JobTypeID;
             existing.ValidUntil = quotation.ValidUntil;
+
+            // Given more time, an expired quotation is live again - the
+            // customer came back, and the shop agreed to honour the price.
+            if (existing.Status == "Expired" && existing.JobOrder == null
+                && quotation.ValidUntil >= DateOnly.FromDateTime(DateTime.Today))
+                existing.Status = QuotationStatuses.Draft;
             existing.DiscountAmount = quotation.DiscountAmount;
             existing.TaxAmount = quotation.TaxAmount;
             existing.Remarks = quotation.Remarks;

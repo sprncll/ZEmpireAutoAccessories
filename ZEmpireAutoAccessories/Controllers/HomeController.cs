@@ -6,6 +6,7 @@ using System.Diagnostics;
 using ZEmpireAutoAccessories.Authorization;
 using ZEmpireAutoAccessories.Data;
 using ZEmpireAutoAccessories.Models;
+using ZEmpireAutoAccessories.Services;
 using ZEmpireAutoAccessories.Services.Interfaces;
 
 namespace ZEmpireAutoAccessories.Controllers
@@ -16,12 +17,14 @@ namespace ZEmpireAutoAccessories.Controllers
         private readonly ILogger<HomeController> _logger;
         private readonly ApplicationDbContext _context;
         private readonly IReportService _reportService;
+        private readonly ExpiryService _expiry;
 
-        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService)
+        public HomeController(ILogger<HomeController> logger, ApplicationDbContext context, IReportService reportService, ExpiryService expiry)
         {
             _logger = logger;
             _context = context;
             _reportService = reportService;
+            _expiry = expiry;
         }
 
         public async Task<IActionResult> Index()
@@ -33,6 +36,11 @@ namespace ZEmpireAutoAccessories.Controllers
             // Each quick-stat only appears if the user actually has access to
             // the module it links to.
             var stats = new List<DashboardStat>();
+
+            // So Active Warranties does not count covers that ended last
+            // month. A failure here costs nothing but a stale figure.
+            try { await _expiry.Sweep(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Expiry sweep failed on the dashboard"); }
 
             // The dashboard is where everyone lands after signing in, so one
             // figure that cannot be read - a reporting view missing from this

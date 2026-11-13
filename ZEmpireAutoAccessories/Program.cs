@@ -111,6 +111,12 @@ builder.Services.AddScoped<ICashieringService, CashieringService>();
 // screen can keep working the old way until it has. One per site.
 builder.Services.AddSingleton<SchemaStatus>();
 
+// Quotations past their Valid Until date and warranties past their end
+// date are marked Expired when the site starts, every six hours, and when
+// the screens that show them are opened. See ExpiryService.
+builder.Services.AddScoped<ExpiryService>();
+builder.Services.AddHostedService<ExpirySweeper>();
+
 // Where files kept as evidence live - proof an online payment arrived, proof
 // a warranty was claimed - and which payment modes need one.
 builder.Services.AddScoped<IProofStore, ProofStore>();
