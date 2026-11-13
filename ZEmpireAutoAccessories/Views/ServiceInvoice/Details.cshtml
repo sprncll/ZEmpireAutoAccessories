@@ -720,6 +720,9 @@
             // for those lines. ServiceInvoice, JobOrder and Quotation all
             // force the same thing server-side, so a line posted without
             // JavaScript means it too.
+            // Which side of the Product | Service switch is showing.
+            var lineKind = 'product';
+
             function applyFixedQuantity() {
                 // Two kinds of line have a quantity nobody should be typing.
                 //
@@ -734,7 +737,9 @@
                 // the roll is the panel's cut size, from inventory. So the
                 // box is not shown for them at all - a panel is picked
                 // instead.
-                var fixedQuantity = filmPicked() || !!$service.val();
+                // A service is one job whatever is picked - the box is gone as
+                // soon as the switch says Service, not only once one is chosen.
+                var fixedQuantity = filmPicked() || !!$service.val() || lineKind === 'service';
 
                 $('#wrap-addLineQty').toggle(!fixedQuantity);
                 if (fixedQuantity) { $('#addLineQty').val(1); }
@@ -989,6 +994,7 @@
 
             function setKind(kind, openList) {
                 var isProduct = kind === 'product';
+                lineKind = kind;
                 $kind.find('button').each(function () {
                     var on = $(this).data('kind') === kind;
                     $(this).toggleClass('is-on', on).attr('aria-pressed', on ? 'true' : 'false');
@@ -1005,6 +1011,7 @@
                 $serviceCol.toggle(!isProduct);
                 $product.prop('disabled', !isProduct);
                 $service.prop('disabled', isProduct);
+                applyFixedQuantity();
 
                 if (openList) {
                     // Straight into the list - a moment later, once the
