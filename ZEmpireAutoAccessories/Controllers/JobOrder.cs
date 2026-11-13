@@ -534,6 +534,18 @@ namespace ZEmpireAutoAccessories.Controllers
                     linePanelId = panelId;
                 }
 
+                // Tint and film are cut per panel: what leaves the roll is that
+                // panel's cut size for this class of vehicle, from inventory.
+                // A film line with no panel has nothing to cut, so it is not
+                // taken. The form asks for the panel; this holds without it.
+                if (productId != null && linePanelId == null
+                    && (await _inventoryService.SoldByLength(new[] { productId.Value })).Count > 0)
+                {
+                    TempData["LineError"] = "Pick the panel this tint or film is for. "
+                        + "What comes off the roll is worked out from the panel's cut size, so there is no quantity to enter.";
+                    return RedirectToAction(nameof(Details), new { id = jobOrderId });
+                }
+
                 // A panel of film is ONE panel. What it takes off the roll
                 // is the cut size for that panel on this class of vehicle,
                 // worked out when the document is completed - DocumentStock

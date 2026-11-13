@@ -215,7 +215,7 @@
                             <div class="text-muted small">@line.Description</div>
                         }
                     </td>
-                    <td>@line.Quantity</td>
+                    <td>@(line.Unit == UnitOfMeasure.PanelUnit ? "—" : line.Quantity.ToString("0.##"))</td>
                     <td>
                         <partial name="_PanelFilm" model="new PanelFilm {
                             SoldByLength = line.ProductID != null && rollProducts.Contains(line.ProductID.Value),
@@ -462,7 +462,11 @@
                 // fitting reached a job order reading 1,500. A service is
                 // already refused if it is added twice; this is the same rule
                 // said once more, on the box itself.
-                var fixedQuantity = (filmPicked() && !!$panel.val()) || !!$service.val();
+                // Tint and film are measured, never counted: what comes off
+                // the roll is the panel's cut size, from inventory. So the
+                // box is not shown for them at all - a panel is picked
+                // instead.
+                var fixedQuantity = filmPicked() || !!$service.val();
 
                 $('#wrap-addLineQty').toggle(!fixedQuantity);
                 if (fixedQuantity) { $('#addLineQty').val(1); }
@@ -499,9 +503,25 @@
                     // Price box keeps whatever is in it and is typed over by
                     // hand - an unpriced panel is a price to agree, not a
                     // reason to leave the job sheet silent about the glass.
-                    if (filmPicked() && !pricedByPanel && allPanels.length > 0) {
+                    // A film with variants waits for one: the price depends on it.
+                    if (filmPicked() && hasVariants && !tintVariantId) {
+                        resetSelect($panel, '-- Pick a tint variant first --');
+                        // Nothing priced yet, so nothing carried over either:
+                        // the last product's price must not ride along.
+                        $price.val('0');
+                        return;
+                    }
+
+                    // A film must say which panel it covers - the cut size
+                    // comes from it, and the line is refused without one - so
+                    // when nothing is priced for this product, variant and
+                    // vehicle class, every panel is offered, unpriced.
+                    if (filmPicked() && allPanels.length > 0) {
+                        $price.val('0');
                         $panel.empty()
-                              .append($('<option></option>').val('').text('-- Select Panel (no matrix price) --'))
+                              .append($('<option></option>').val('').text(pricedByPanel
+                                  ? '-- Select Panel (no price for this variant) --'
+                                  : '-- Select Panel (no matrix price) --'))
                               .prop('disabled', false);
 
                         allPanels.forEach(function (p) {
