@@ -189,6 +189,82 @@ namespace ZEmpireAutoAccessories.Services
             }).GeneratePdf();
         }
 
+        /// <summary>
+        /// Service invoices over a range: one row each, with what has been
+        /// paid against it beside its total, so a list of Pending invoices
+        /// shows what is still owed. Used by Reports and by the Service
+        /// Invoices list alike, so the two print the same page.
+        /// </summary>
+        public static byte[] BuildServiceInvoicesPdf(List<VwServiceInvoiceSummary> items, string subtitle, decimal total)
+        {
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    ConfigurePage(page);
+                    page.Header().Element(c => ComposeHeader(c, "Service Invoices Report", subtitle));
+
+                    page.Content().Column(column =>
+                    {
+                        column.Spacing(6);
+
+                        column.Item().Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                // Wide enough that INV-2026-000047 and
+                                // JO-2026-05010 stay on one line.
+                                columns.RelativeColumn(2.8f);
+                                columns.RelativeColumn(2.1f);
+                                columns.RelativeColumn(2.2f);
+                                columns.RelativeColumn(2.5f);
+                                columns.RelativeColumn(1.3f);
+                                columns.RelativeColumn(1.3f);
+                                columns.RelativeColumn(1.5f);
+                                columns.RelativeColumn(1.8f);
+                            });
+
+                            table.Header(header =>
+                            {
+                                header.Cell().Element(HeaderCell).Text("Invoice #");
+                                header.Cell().Element(HeaderCell).Text("Date");
+                                header.Cell().Element(HeaderCell).Text("Customer");
+                                header.Cell().Element(HeaderCell).Text("Job Order");
+                                header.Cell().Element(HeaderCell).Text("Payment");
+                                header.Cell().Element(HeaderCell).Text("Status");
+                                header.Cell().Element(HeaderCell).AlignRight().Text("Paid");
+                                header.Cell().Element(HeaderCell).AlignRight().Text("Total");
+                            });
+
+                            foreach (var item in items)
+                            {
+                                // What has really come in: never more than the
+                                // total, whatever was handed over.
+                                var paid = Math.Min(item.AmountPaid - item.ChangeAmount, item.TotalAmount);
+
+                                table.Cell().Element(BodyCell).Text(item.InvoiceNumber);
+                                table.Cell().Element(BodyCell).Text(item.InvoiceDate.ToString("MMM d, yyyy"));
+                                table.Cell().Element(BodyCell).Text(item.CustomerName ?? "—");
+                                table.Cell().Element(BodyCell).Text(item.JobOrderNumber ?? "—");
+                                table.Cell().Element(BodyCell).Text(item.PaymentModeName);
+                                table.Cell().Element(BodyCell).Text(item.Status);
+                                table.Cell().Element(BodyCell).AlignRight().Text(paid > 0 ? "₱" + paid.ToString("N2") : "—");
+                                table.Cell().Element(BodyCell).AlignRight().Text("₱" + item.TotalAmount.ToString("N2"));
+                            }
+                        });
+
+                        ComposeEmptyOrTotal(column, items.Count, "No service invoices found for this range.", total);
+                    });
+
+                    page.Footer().Element(ComposeFooter);
+                });
+            }).GeneratePdf();
+        }
+
+        /// <summary>The range-and-status line under a report's title.</summary>
+        public static string RangeSubtitle(DateOnly? from, DateOnly? to, string? status) =>
+            BuildRangeSubtitle(from, to, status);
+
         private static void ConfigurePage(PageDescriptor page)
         {
             page.Size(PageSizes.A4);

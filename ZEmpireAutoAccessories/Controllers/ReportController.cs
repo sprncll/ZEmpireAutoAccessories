@@ -171,6 +171,29 @@ namespace ZEmpireAutoAccessories.Controllers
         // GET: Report/ServiceInvoices?from=&to=&status=
         public async Task<IActionResult> ServiceInvoices(DateOnly? from, DateOnly? to, string? status)
         {
+            var (results, total) = await GetServiceInvoicesReport(from, to, status);
+
+            ViewData["From"] = from;
+            ViewData["To"] = to;
+            ViewData["Status"] = status;
+            ViewData["Total"] = total;
+
+            return View(results);
+        }
+
+        // GET: Report/ServiceInvoicesPdf?from=&to=&status=
+        public async Task<IActionResult> ServiceInvoicesPdf(DateOnly? from, DateOnly? to, string? status)
+        {
+            var (results, total) = await GetServiceInvoicesReport(from, to, status);
+            var pdf = ReportPdfBuilder.BuildServiceInvoicesPdf(results,
+                ReportPdfBuilder.RangeSubtitle(from, to, status), total);
+
+            return File(pdf, "application/pdf", $"Service-Invoices-Report-{PhTime.Now:yyyyMMdd-HHmm}.pdf");
+        }
+
+        private async Task<(List<VwServiceInvoiceSummary> Results, decimal Total)> GetServiceInvoicesReport(
+            DateOnly? from, DateOnly? to, string? status)
+        {
             var query = _context.ServiceInvoiceSummaries.AsQueryable();
 
             if (from.HasValue)
@@ -181,13 +204,7 @@ namespace ZEmpireAutoAccessories.Controllers
                 query = query.Where(i => i.Status == status);
 
             var results = await query.OrderByDescending(i => i.InvoiceDate).ToListAsync();
-
-            ViewData["From"] = from;
-            ViewData["To"] = to;
-            ViewData["Status"] = status;
-            ViewData["Total"] = results.Sum(i => i.TotalAmount);
-
-            return View(results);
+            return (results, results.Sum(i => i.TotalAmount));
         }
 
         // GET: Report/Quotations?from=&to=&status=

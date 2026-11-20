@@ -71,6 +71,52 @@ namespace ZEmpireAutoAccessories.Controllers
             return View(invoices);
         }
 
+        // GET: ServiceInvoice/ListPdf?status=Paid&q=...
+        //
+        // The list as it stands - this status tab, this search - as a PDF,
+        // every matching invoice rather than the page on screen. Served from
+        // here rather than from Reports, so anyone who can open the list can
+        // print it without also holding the Reports module.
+        public async Task<IActionResult> ListPdf(string? status, string? q)
+        {
+            var query = _context.ServiceInvoices.AsNoTracking()
+                .Where(i => status == null || i.Status == status);
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                query = query.Where(i =>
+                    i.InvoiceNumber.Contains(term) ||
+                    i.Customer.FullName.Contains(term) ||
+                    (i.Vehicle != null && i.Vehicle.PlateNumber != null && i.Vehicle.PlateNumber.Contains(term)) ||
+                    (i.JobOrder != null && i.JobOrder.JobOrderNumber.Contains(term)));
+            }
+
+            var rows = await query
+                .OrderByDescending(i => i.InvoiceDate)
+                .Select(i => new VwServiceInvoiceSummary
+                {
+                    ServiceInvoiceID = i.ServiceInvoiceID,
+                    InvoiceNumber = i.InvoiceNumber,
+                    InvoiceDate = i.InvoiceDate,
+                    Status = i.Status,
+                    JobOrderNumber = i.JobOrder != null ? i.JobOrder.JobOrderNumber : null,
+                    CustomerName = i.Customer.FullName,
+                    PaymentModeName = i.PaymentMode.PaymentModeName,
+                    TotalAmount = i.TotalAmount,
+                    AmountPaid = i.AmountPaid,
+                    ChangeAmount = i.ChangeAmount,
+                })
+                .ToListAsync();
+
+            var subtitle = (status ?? "All invoices")
+                + (string.IsNullOrWhiteSpace(q) ? "" : $" matching \"{q.Trim()}\"")
+                + $" · printed {PhTime.Now:MMM d, yyyy h:mm tt}";
+
+            var pdf = ReportPdfBuilder.BuildServiceInvoicesPdf(rows, subtitle, rows.Sum(r => r.TotalAmount));
+            return File(pdf, "application/pdf", $"Service-Invoices-{PhTime.Now:yyyyMMdd-HHmm}.pdf");
+        }
+
         // GET: ServiceInvoice/Details/5
         public async Task<IActionResult> Details(int? id)
         {

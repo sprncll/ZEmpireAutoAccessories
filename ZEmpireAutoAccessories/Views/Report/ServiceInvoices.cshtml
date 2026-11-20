@@ -98,6 +98,10 @@
     <div class="col-auto">
         <button type="submit" class="btn btn-zx">Filter</button>
         <a asp-action="ServiceInvoices" class="btn btn-outline-secondary">Clear</a>
+        <a asp-action="ServiceInvoicesPdf" asp-route-from="@from?.ToString("yyyy-MM-dd")" asp-route-to="@to?.ToString("yyyy-MM-dd")" asp-route-status="@status" class="btn btn-pdf">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg>
+            Generate PDF
+        </a>
     </div>
 </form>
 
